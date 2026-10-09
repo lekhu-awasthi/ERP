@@ -3,7 +3,6 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 
 import { extractErrorMessage, extractWarningKind } from '../../../core/auth/api-error';
 import { Contact } from '../../../core/contacts/contacts.models';
-import { ContactsService } from '../../../core/contacts/contacts.service';
 import { fromPaisa, toPaisa } from '../../../core/pos/pos-bill';
 import { CartLine, PosCart } from '../../../core/pos/pos-cart';
 import {
@@ -21,6 +20,7 @@ import { FieldError, FieldErrorMessage } from '../../../shared/a11y/field-error'
 import { StatusBanner } from '../../../shared/a11y/status-banner';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
+import { PosCustomerSearch } from '../../../shared/pos/pos-customer-search';
 import { PosReceiptView } from '../pos-receipt/pos-receipt';
 
 /** One tender on the payment screen, in whole paisa so adding them up cannot drift. */
@@ -57,7 +57,7 @@ const PAGE_SIZE = 48;
  */
 @Component({
   selector: 'app-pos-till-page',
-  imports: [RouterLink, StatusBanner, FieldErrorMessage, AmountPipe, NepaliDatePipe, PosReceiptView],
+  imports: [RouterLink, StatusBanner, FieldErrorMessage, AmountPipe, NepaliDatePipe, PosReceiptView, PosCustomerSearch],
   templateUrl: './pos-till-page.html',
   styleUrl: './pos-till-page.scss',
   host: { '(document:keydown)': 'onShortcut($event)' },
@@ -65,7 +65,6 @@ const PAGE_SIZE = 48;
 export class PosTillPage {
   private readonly route = inject(ActivatedRoute);
   private readonly posService = inject(PosService);
-  private readonly contactsService = inject(ContactsService);
   private readonly injector = inject(Injector);
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
@@ -99,8 +98,6 @@ export class PosTillPage {
   protected readonly editingKey = signal<number | null>(null);
   protected readonly holdsOpen = signal(false);
   protected readonly customerOpen = signal(false);
-  protected readonly customerResults = signal<Contact[]>([]);
-  private customerTimer: ReturnType<typeof setTimeout> | null = null;
 
   // ---- Payment ----
   protected readonly paying = signal(false);
@@ -147,11 +144,29 @@ export class PosTillPage {
     return null;
   });
 
+  /**
+   * Phase 72 -- why this sale cannot be rung up as it stands: a discount, or a line below its unit's catalogue
+   * price, needs Sales.Invoice.Approve here, which the server checks too. Said in the cart and before Complete,
+   * as credit is; the inputs stay usable, so a recalled cart can always be put back to the catalogue price.
+   */
+  protected readonly discountRefusal = computed(() => {
+    const cart = this.cart();
+    if (!cart || this.till()?.canDiscount) return null;
+    const lowered = cart.discountPct() > 0 || cart.lines().some((line) => {
+      const catalogue = line.product.units.find((unit) => unit.unitId === line.unitId)?.rate;
+      return line.discountPct > 0 || (catalogue !== undefined && line.rate < catalogue);
+    });
+    return lowered
+      ? 'A discount, or a price below the catalogue\'s, needs permission to approve invoices at this location (Sales.Invoice.Approve).'
+      : null;
+  });
+
   protected readonly canComplete = computed(
     () =>
       (this.cart()?.lines().length ?? 0) > 0 &&
       !this.submitting() &&
       this.changeError() === null &&
+      this.discountRefusal() === null &&
       (this.remainingPaisa() === 0 || (this.creditRefusal() === null && this.creditAccepted())),
   );
 
@@ -359,26 +374,14 @@ export class PosTillPage {
 
   // ---- Customer ----
 
-  protected onCustomerInput(event: Event): void {
-    const term = (event.target as HTMLInputElement).value.trim();
-    if (this.customerTimer) clearTimeout(this.customerTimer);
-    if (!term) {
-      this.customerResults.set([]);
-      return;
-    }
-
-    this.customerTimer = setTimeout(() => {
-      this.contactsService.listContacts(this.organizationId, 'Customer', 1, 8, { search: term }).subscribe({
-        next: (result) => this.customerResults.set(result.items.filter((x) => x.id !== this.till()?.walkInCustomer?.id)),
-        error: (err: unknown) => this.errorMessage.set(extractErrorMessage(err) ?? 'Could not search customers.'),
-      });
-    }, 250);
-  }
-
   protected chooseCustomer(contact: Contact | null): void {
     this.cart()?.setCustomer(contact ? { id: contact.id, code: contact.code, name: contact.name } : null);
     this.customerOpen.set(false);
-    this.customerResults.set([]);
+    // Phase 72 -- Use Walk-in removes the button just pressed; focus stays on the customer controls (a chosen
+    // customer's return is the search component's own, through returnFocusTo).
+    if (!contact) {
+      afterNextRender(() => document.getElementById('pos-customer-toggle')?.focus(), { injector: this.injector });
+    }
   }
 
   // ---- Payment ----

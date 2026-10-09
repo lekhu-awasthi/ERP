@@ -1,6 +1,7 @@
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Domain.Catalog;
 using ErpApp.Domain.Pos;
+using ErpApp.Domain.Sales;
 using Microsoft.EntityFrameworkCore;
 
 namespace ErpApp.Application.Pos.Restaurant;
@@ -41,7 +42,12 @@ public sealed record PosOrderLineDto(
     bool IsTakeAway = false,
     Guid? ParcelledFromLineId = null,
     decimal MovedIn = 0m,
-    decimal MovedOut = 0m);
+    decimal MovedOut = 0m,
+    // Phase 72 -- the line's own discount, and its quantity at its rate before any discount: Gross less
+    // Amount is what the line's discount and the order's took off it. ServiceChargeRate stays the line's own
+    // frozen rate; the money above is what it is billed at (none when the order waived it).
+    decimal DiscountPct = 0m,
+    decimal Gross = 0m);
 
 public sealed record KitchenTicketLineDto(
     Guid OrderLineId, int LineNo, string ProductName, string? UnitName, decimal Quantity, string? Note,
@@ -68,7 +74,9 @@ public sealed record KitchenTicketDto(
 /// An order as the restaurant till and the ERP list show it. <paramref name="Total"/> is the estimate
 /// before any bill: the lines' amount, service charge, packaging fee and VAT, not yet rounded to the rupee (the bill
 /// rounds, phase 65). Phase 65: <paramref name="Billed"/> is what its invoices not voided came to, and
-/// <paramref name="Invoices"/> lists every bill, voided ones included.
+/// <paramref name="Invoices"/> lists every bill, voided ones included. Phase 72: <paramref name="DiscountPct"/> and
+/// <paramref name="ServiceChargeWaived"/> are the order's own terms; <paramref name="Gross"/> less
+/// <paramref name="Discount"/> is <paramref name="Amount"/>.
 /// </summary>
 public sealed record PosOrderDto(
     Guid Id,
@@ -102,7 +110,11 @@ public sealed record PosOrderDto(
     decimal ToBill,
     IReadOnlyList<PosOrderLineDto> Lines,
     IReadOnlyList<KitchenTicketDto> Tickets,
-    IReadOnlyList<PosOrderInvoiceDto> Invoices);
+    IReadOnlyList<PosOrderInvoiceDto> Invoices,
+    decimal DiscountPct = 0m,
+    bool ServiceChargeWaived = false,
+    decimal Gross = 0m,
+    decimal Discount = 0m);
 
 /// <summary>
 /// Phase 64 -- builds <see cref="PosOrderDto"/>s: one order for the till, or a page of them for the ERP
@@ -199,7 +211,7 @@ internal static class PosOrderView
                 .Select(line =>
                 {
                     var q = order.QuantitiesOf(line);
-                    var figures = line.Figures(q.Net);
+                    var figures = order.FiguresOf(line, q.Net);
                     var product = products.GetValueOrDefault(line.ProductId);
 
                     return new PosOrderLineDto(
@@ -210,7 +222,8 @@ internal static class PosOrderView
                         invoiced.GetValueOrDefault(line.Id), order.RemainingToBill(line, invoiced),
                         figures.Amount, figures.ServiceChargeAmount, figures.PackagingFeeAmount, figures.VatAmount,
                         figures.Total,
-                        line.IsTakeAway, line.ParcelledFromLineId, q.MovedIn, q.MovedOut);
+                        line.IsTakeAway, line.ParcelledFromLineId, q.MovedIn, q.MovedOut,
+                        line.DiscountPct, PosLineArithmetic.RoundMoney(q.Net * line.Rate));
                 })
                 .ToList();
 
@@ -281,7 +294,11 @@ internal static class PosOrderView
                 lines.Sum(x => x.ToBill),
                 lines,
                 tickets,
-                billed.Invoices);
+                billed.Invoices,
+                order.DiscountPct,
+                order.ServiceChargeWaived,
+                lines.Sum(x => x.Gross),
+                lines.Sum(x => x.Gross) - estimate.Amount);
         }).ToList();
     }
 }

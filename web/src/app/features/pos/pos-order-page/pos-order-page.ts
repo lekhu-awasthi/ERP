@@ -4,7 +4,6 @@ import { concatMap, from, toArray } from 'rxjs';
 
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { Contact } from '../../../core/contacts/contacts.models';
-import { ContactsService } from '../../../core/contacts/contacts.service';
 import { POS_TAB_LABELS, PosProduct } from '../../../core/pos/pos.models';
 import {
   KitchenTicket,
@@ -20,6 +19,7 @@ import { PosRestaurantService } from '../../../core/pos/pos-restaurant.service';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
+import { PosCustomerSearch } from '../../../shared/pos/pos-customer-search';
 import { PosEstimateView } from '../pos-estimate/pos-estimate';
 import { PosKotView, PrintedTicket } from '../pos-kot/pos-kot';
 
@@ -39,9 +39,12 @@ type Panel =
   | { kind: 'serve'; lineId: string }
   | { kind: 'discard'; lineId: string }
   | { kind: 'takeAway'; lineId: string }
+  | { kind: 'lineDiscount'; lineId: string }
   | { kind: 'details' }
   | { kind: 'transfer' }
-  | { kind: 'void' };
+  | { kind: 'void' }
+  | { kind: 'discount' }
+  | { kind: 'serviceCharge' };
 
 const PAGE_SIZE = 48;
 
@@ -71,13 +74,18 @@ const PAGE_SIZE = 48;
  * when it is marked. <i>Transfer Items</i> moves food to another table's open order, or opens one there,
  * at the same rates. Both reach the kitchen as tickets of their own.</p>
  *
+ * <p><b>Phase 72 -- the order's terms.</b> A discount on a line or on the whole order, and a service charge
+ * the guest declined, are the order's own and the server prices them; this screen only sets them. They need
+ * Sales.Invoice.Approve at the location (the page reads whether the user holds it, as it reads Pos.Order.Void),
+ * and they are offered only while nothing they price is billed, because the server fixes them from then on.</p>
+ *
  * <p>Serves <code>pos/orders/new</code> and <code>pos/orders/:orderId</code> from one component, so the
  * id is read from the route's <code>paramMap</code> on every emission (phase 3 bug #1): a new order's
  * first send navigates to its own URL and the component stays.</p>
  */
 @Component({
   selector: 'app-pos-order-page',
-  imports: [RouterLink, StatusBanner, AmountPipe, NepaliDatePipe, PosKotView, PosEstimateView],
+  imports: [RouterLink, StatusBanner, AmountPipe, NepaliDatePipe, PosKotView, PosEstimateView, PosCustomerSearch],
   templateUrl: './pos-order-page.html',
   styleUrl: './pos-order-page.scss',
 })
@@ -85,7 +93,6 @@ export class PosOrderPage {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly restaurantService = inject(PosRestaurantService);
-  private readonly contactsService = inject(ContactsService);
   private readonly injector = inject(Injector);
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
@@ -107,8 +114,6 @@ export class PosOrderPage {
   protected readonly covers = signal(1);
   protected readonly customer = signal<{ id: string; name: string } | null>(null);
   protected readonly customerOpen = signal(false);
-  protected readonly customerResults = signal<Contact[]>([]);
-  private customerTimer: ReturnType<typeof setTimeout> | null = null;
 
   // ---- The grid ----
   protected readonly products = signal<PosProduct[]>([]);
@@ -125,6 +130,8 @@ export class PosOrderPage {
   // ---- Inline actions ----
   protected readonly panel = signal<Panel | null>(null);
   protected readonly panelQuantity = signal(1);
+  /** Phase 72 -- the percentage in a discount panel. */
+  protected readonly panelPercent = signal(0);
   protected readonly panelReason = signal('');
   protected readonly panelTableId = signal<string | null>(null);
   protected readonly panelError = signal<string | null>(null);
@@ -333,27 +340,9 @@ export class PosOrderPage {
 
   // ---- Customer (Take Away and Delivery) ----
 
-  protected onCustomerInput(event: Event): void {
-    const term = (event.target as HTMLInputElement).value.trim();
-    if (this.customerTimer) clearTimeout(this.customerTimer);
-    if (!term) {
-      this.customerResults.set([]);
-      return;
-    }
-
-    this.customerTimer = setTimeout(() => {
-      this.contactsService.listContacts(this.organizationId, 'Customer', 1, 8, { search: term }).subscribe({
-        next: (result) =>
-          this.customerResults.set(result.items.filter((x) => x.id !== this.restaurant()?.walkInCustomer?.id)),
-        error: (err: unknown) => this.errorMessage.set(extractErrorMessage(err) ?? 'Could not search customers.'),
-      });
-    }, 250);
-  }
-
   protected chooseCustomer(contact: Contact | null): void {
     this.customer.set(contact ? { id: contact.id, name: contact.name } : null);
     this.customerOpen.set(false);
-    this.customerResults.set([]);
   }
 
   // ---- Send ----
@@ -473,6 +462,12 @@ export class PosOrderPage {
     if (panel.kind === 'details') {
       this.covers.set(this.order()?.covers ?? 1);
     }
+    if (panel.kind === 'discount') {
+      this.panelPercent.set(this.order()?.discountPct ?? 0);
+    }
+    if (panel.kind === 'lineDiscount') {
+      this.panelPercent.set(line?.discountPct ?? 0);
+    }
     afterNextRender(() => document.getElementById('pos-order-panel-first')?.focus(), { injector: this.injector });
   }
 
@@ -501,6 +496,19 @@ export class PosOrderPage {
     this.panelQuantity.set(Number((event.target as HTMLInputElement).value) || 0);
   }
 
+  protected onPanelPercent(event: Event): void {
+    this.panelPercent.set(Number((event.target as HTMLInputElement).value));
+  }
+
+  /** Phase 72 -- whether any of the order is billed, which fixes its discount and its service charge. */
+  protected readonly orderBilled = computed(() => (this.order()?.lines ?? []).some((x) => x.invoiced > 0));
+
+  /** Phase 72 -- whether a waiver would change anything: a line charges service charge, or it is waived already. */
+  protected readonly hasServiceCharge = computed(() => {
+    const order = this.order();
+    return !!order && (order.serviceChargeWaived || order.lines.some((x) => x.serviceChargeRate > 0));
+  });
+
   protected onPanelReason(event: Event): void {
     this.panelReason.set((event.target as HTMLInputElement).value);
   }
@@ -525,6 +533,15 @@ export class PosOrderPage {
       return;
     }
 
+    // Phase 72 -- the server's own rule, said before it is asked (0 to 100, at most two decimal places).
+    const percent = this.panelPercent();
+    if ((panel.kind === 'discount' || panel.kind === 'lineDiscount')
+      && (!Number.isFinite(percent) || percent < 0 || percent > 100 || Number(percent.toFixed(2)) !== percent)) {
+      this.panelError.set('A discount is a percentage from 0 to 100, with at most two decimal places.');
+      document.getElementById('pos-order-panel-first')?.focus();
+      return;
+    }
+
     const request$ =
       panel.kind === 'serve'
         ? this.restaurantService.serve(this.organizationId, order.id, [{ lineId: panel.lineId, quantity: this.panelQuantity() }])
@@ -535,6 +552,12 @@ export class PosOrderPage {
             ? this.restaurantService.markTakeAway(this.organizationId, order.id, panel.lineId, this.panelQuantity())
           : panel.kind === 'void'
             ? this.restaurantService.voidOrder(this.organizationId, order.id, this.panelReason().trim())
+          : panel.kind === 'discount'
+            ? this.restaurantService.setOrderDiscount(this.organizationId, order.id, percent)
+          : panel.kind === 'lineDiscount'
+            ? this.restaurantService.setLineDiscount(this.organizationId, order.id, panel.lineId, percent)
+          : panel.kind === 'serviceCharge'
+            ? this.restaurantService.setServiceChargeWaived(this.organizationId, order.id, !order.serviceChargeWaived)
             : this.restaurantService.updateOrder(this.organizationId, order.id, {
                 tableId: order.orderType === 'DineIn' ? this.panelTableId() : null,
                 covers: this.covers(),
@@ -673,6 +696,14 @@ export class PosOrderPage {
         return 'Discarded; the kitchen has a cancellation ticket.';
       case 'void':
         return `Order ${saved.code} is voided and its table is free.`;
+      case 'discount':
+        return saved.discountPct > 0 ? `A ${saved.discountPct}% discount is on the whole order.` : 'The order has no discount now.';
+      case 'lineDiscount':
+        return 'The item\'s discount is saved.';
+      case 'serviceCharge':
+        return saved.serviceChargeWaived
+          ? 'The service charge is waived on this order.'
+          : 'The service charge is charged on this order again.';
       default:
         return 'Order updated.';
     }

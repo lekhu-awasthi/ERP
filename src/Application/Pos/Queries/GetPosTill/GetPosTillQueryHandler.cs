@@ -97,6 +97,7 @@ public sealed class GetPosTillQueryHandler(IAppDbContext db, ICurrentUserService
             categories,
             canSellOnCredit,
             settings.PrintCreditNote,
-            canRefund);
+            canRefund,
+            CanDiscount: canSellOnCredit);
     }
 }

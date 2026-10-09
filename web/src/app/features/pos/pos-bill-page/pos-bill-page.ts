@@ -3,6 +3,7 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { switchMap } from 'rxjs';
 
 import { extractErrorMessage, extractWarningKind } from '../../../core/auth/api-error';
+import { Contact } from '../../../core/contacts/contacts.models';
 import { fromPaisa, toPaisa } from '../../../core/pos/pos-bill';
 import { POS_TAB_LABELS, PosReceipt, PosTill, PosTillPaymentMode } from '../../../core/pos/pos.models';
 import {
@@ -19,6 +20,7 @@ import { PosService } from '../../../core/pos/pos.service';
 import { FieldError, FieldErrorMessage } from '../../../shared/a11y/field-error';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
+import { PosCustomerSearch } from '../../../shared/pos/pos-customer-search';
 import { PosReceiptView } from '../pos-receipt/pos-receipt';
 
 /** One tender, in whole paisa so adding them up cannot drift (the till's arrangement). */
@@ -55,10 +57,16 @@ interface BillWarning {
  *
  * <p>Taking payment needs the cashier's own open session at this location; a waiter without one is
  * told so before anything is chosen, with the way to start one.</p>
+ *
+ * <p><b>Phase 72 -- each bill names its own customer</b>: the order's by default, or one the cashier chooses
+ * for this bill only (each friend's invoice in their own name), which the order does not keep. A named
+ * customer may leave what is still to pay on their account, under the Retail till's rules (phase 61 Decisions F
+ * and G): never the walk-in, and only for a cashier who may approve invoices here. The order's discount and a
+ * waived service charge are set on the order screen; this screen shows what the server priced with them.</p>
  */
 @Component({
   selector: 'app-pos-bill-page',
-  imports: [RouterLink, StatusBanner, AmountPipe, FieldErrorMessage, PosReceiptView],
+  imports: [RouterLink, StatusBanner, AmountPipe, FieldErrorMessage, PosReceiptView, PosCustomerSearch],
   templateUrl: './pos-bill-page.html',
   styleUrl: './pos-bill-page.scss',
 })
@@ -103,6 +111,12 @@ export class PosBillPage {
   private overrideCredit = false;
   private nextTenderKey = 1;
 
+  // ---- Phase 72: who this bill is for, and credit ----
+  /** This bill's customer when the cashier names one; null bills the order's own. Never kept on the order. */
+  protected readonly chosenCustomer = signal<{ id: string; name: string } | null>(null);
+  protected readonly customerOpen = signal(false);
+  protected readonly creditAccepted = signal(false);
+
   /** The bill just paid, and the receipt the print root shows. */
   protected readonly lastBill = signal<CreatePosOrderInvoiceResult | null>(null);
   protected readonly printing = signal<PosReceipt | null>(null);
@@ -123,7 +137,33 @@ export class PosBillPage {
       ? 'Only cash gives change: a card or e-payment cannot be taken for more than the bill.'
       : null);
 
-  /** A bill is paid in full here; leaving part of it on an account is the ERP's or the Retail till's. */
+  /** Phase 72 -- the customer this bill goes to: the one chosen for it, else the order's; null is the walk-in. */
+  protected readonly buyer = computed<{ id: string; name: string } | null>(() => {
+    const chosen = this.chosenCustomer();
+    if (chosen) return chosen.id === this.till()?.walkInCustomer?.id ? null : chosen;
+    const order = this.order();
+    return order?.contactId ? { id: order.contactId, name: order.contactName } : null;
+  });
+
+  protected readonly walkInName = computed(() => this.till()?.walkInCustomer?.name ?? 'Walk-in');
+
+  /** Why what is still to pay cannot go on credit, or null when it can (phase 61 Decisions F and G). */
+  protected readonly creditRefusal = computed(() => {
+    if (this.remainingPaisa() === 0) return null;
+    if (!this.buyer()) {
+      return 'The walk-in customer cannot take credit. Take the rest of the bill, or bill it to a named customer.';
+    }
+    if (!this.till()?.canSellOnCredit) {
+      return 'Leaving part of a bill on credit needs permission to approve invoices at this location (Sales.Invoice.Approve).';
+    }
+    return null;
+  });
+
+  /**
+   * Paid in full, or (phase 72) the rest left on a named customer's account once the cashier says so -- which
+   * may be the whole bill, as a guest charging it to an account does. A bill of nothing (every item on the
+   * house) is taken with no tender.
+   */
   protected readonly canPay = computed(
     () =>
       this.preview() !== null &&
@@ -131,9 +171,10 @@ export class PosBillPage {
       !this.previewing() &&
       !this.submitting() &&
       this.restaurant()?.mySessionId != null &&
-      this.tenders().length > 0 &&
-      this.remainingPaisa() === 0 &&
-      this.changeError() === null,
+      this.changeError() === null &&
+      (this.remainingPaisa() === 0
+        ? this.tenders().length > 0 || this.totalPaisa() === 0
+        : this.creditRefusal() === null && this.creditAccepted()),
   );
 
   protected readonly selectedMode = computed(
@@ -268,6 +309,7 @@ export class PosBillPage {
         this.previewError.set(null);
         this.previewing.set(false);
         this.tenders.set([]);
+        this.creditAccepted.set(false);
         this.amountText.set(preview.total.toFixed(2));
       },
       error: (err: unknown) => {
@@ -277,6 +319,30 @@ export class PosBillPage {
         this.previewError.set(extractErrorMessage(err) ?? 'Could not price this bill.');
       },
     });
+  }
+
+  // ---- Phase 72: the bill's customer and credit ----
+
+  protected chooseCustomer(contact: Contact): void {
+    this.chosenCustomer.set({ id: contact.id, name: contact.name });
+    this.customerOpen.set(false);
+    this.creditAccepted.set(false);
+    this.announcement.set(`This bill goes to ${contact.name}.`);
+  }
+
+  /** The walk-in for this bill, even when the order names a customer. */
+  protected useWalkIn(): void {
+    const walkIn = this.till()?.walkInCustomer;
+    this.chosenCustomer.set(walkIn ? { id: walkIn.id, name: walkIn.name } : null);
+    this.customerOpen.set(false);
+    this.creditAccepted.set(false);
+    this.announcement.set('This bill goes to the walk-in customer.');
+    // The button just pressed goes with the named customer; focus stays on the customer controls.
+    afterNextRender(() => document.getElementById('pos-bill-customer-toggle')?.focus(), { injector: this.injector });
+  }
+
+  protected onCreditToggle(event: Event): void {
+    this.creditAccepted.set((event.target as HTMLInputElement).checked);
   }
 
   // ---- Payment ----
@@ -341,7 +407,7 @@ export class PosBillPage {
         locationId: restaurant.locationId,
         tenders: this.tenders().map((x) => ({ paymentModeId: x.mode.id, amount: fromPaisa(x.paisa) })),
         changeAmount: fromPaisa(this.changePaisa()),
-        contactId: null,
+        contactId: this.chosenCustomer()?.id ?? null,
         overrideStockWarning: this.overrideStock,
         overrideCreditLimitWarning: this.overrideCredit,
       })
@@ -352,9 +418,14 @@ export class PosBillPage {
           this.overrideCredit = false;
           this.lastBill.set(result);
           this.tenders.set([]);
+          const buyer = this.buyer();
+          // The next part goes to the order's own customer again unless the cashier names another.
+          this.chosenCustomer.set(null);
+          this.creditAccepted.set(false);
           this.announcement.set(
             `Bill ${result.code} paid, ${result.grandTotal.toFixed(2)}.`
               + (result.changeAmount > 0 ? ` Change ${result.changeAmount.toFixed(2)}.` : '')
+              + (result.creditAmount > 0 && buyer ? ` ${result.creditAmount.toFixed(2)} left on ${buyer.name}'s account.` : '')
               + (result.orderStatus === 'Settled' ? ' The order is settled and the table is free.' : ` ${result.orderToBill.toFixed(2)} still to bill.`),
           );
           if (request.split === 'Equal') this.parts.set(Math.max(1, this.parts() - 1));

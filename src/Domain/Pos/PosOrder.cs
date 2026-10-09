@@ -141,6 +141,9 @@ public sealed class PosOrder
     public const int MaxNoteLength = 200;
     public const int MaxReasonLength = 200;
 
+    /// <summary>Phase 72 -- the decimal places a discount percentage may have.</summary>
+    public const int MaxDiscountScale = 2;
+
     private readonly List<PosOrderLine> _lines = [];
     private readonly List<KitchenTicket> _tickets = [];
 
@@ -177,6 +180,22 @@ public sealed class PosOrder
     /// <summary>Phase 65 -- when the last of the order was billed; null while open, and again if a void
     /// of one of its invoices reopens it.</summary>
     public DateTimeOffset? SettledAt { get; private set; }
+
+    /// <summary>
+    /// Phase 72 -- a discount on the whole order: a percentage off every line after the line's own, which
+    /// is the bill's header discount in the till's one arithmetic (<see cref="PosLineArithmetic"/>). A line
+    /// sent later takes it too. Set while nothing on the order is billed and fixed from the first bill, so
+    /// every part is priced at the same terms and the bills still add up to the order (phase 65).
+    /// </summary>
+    public decimal DiscountPct { get; private set; }
+
+    /// <summary>
+    /// Phase 72 -- the guest declined the service charge, which they may: a mandatory one has been void
+    /// since the Supreme Court's ruling of 2023-01-25 (phase-61-status.md Decision A). Every line is then
+    /// billed without it, while each keeps its own frozen rate. The tab's decision, set and fixed like
+    /// <see cref="DiscountPct"/>.
+    /// </summary>
+    public bool ServiceChargeWaived { get; private set; }
 
     public DateTimeOffset LastActivityAt { get; private set; }
     public byte[] RowVersion { get; private set; } = null!;
@@ -453,8 +472,12 @@ public sealed class PosOrder
 
         var rate = serviceChargeOnTakeAway ? line.ServiceChargeRate : 0m;
         var created = new List<PosOrderLine>();
+
+        // Phase 72 -- the parcel keeps the line's discount (CopyOf): the same dish at the same terms. A sibling
+        // whose discount was changed since is not those terms, so a second mark makes another.
         var parcel = _lines.FirstOrDefault(x =>
-            x.ParcelledFromLineId == line.Id && x.ServiceChargeRate == rate && x.PackagingFee == packagingFee);
+            x.ParcelledFromLineId == line.Id && x.ServiceChargeRate == rate && x.PackagingFee == packagingFee
+            && x.DiscountPct == line.DiscountPct);
 
         if (parcel is null)
         {
@@ -475,8 +498,13 @@ public sealed class PosOrder
     /// source and plus on the target, so both orders' quantities stay sums over their own tickets.
     ///
     /// <para><b>Rates travel with the quantity.</b> The target's line copies the source line's frozen
-    /// rate, VAT, service charge, unit, station and note (merging into a target line whose every term is
-    /// the same), so a dish costs the same on either tab.</para>
+    /// rate, VAT, service charge, unit, station, note and (phase 72) discount (merging into a target line
+    /// whose every term is the same), so a dish costs the same on either tab.</para>
+    ///
+    /// <para><b>Phase 72 -- so do the tab's own terms.</b> An order's discount and its waived service charge
+    /// price every line on it, so the two orders must agree on them, or the food would change price on the
+    /// way. A target with nothing on it and no terms of its own (a table just seated, or the order a transfer
+    /// to a free table opens) takes the source's; any other must already have them (a 409 naming both).</para>
     ///
     /// <para><b>Never more than is unbilled</b>, so the source can never fall below what its own invoices
     /// name, and a void of any bill gives its quantity back to the line that bill names. Unserved food moves
@@ -510,6 +538,7 @@ public sealed class PosOrder
 
         EnsureNotEmpty(items, "Choose what to transfer.");
         EnsureDistinct(items);
+        target.TakeTermsFor(source);
 
         var outgoing = new List<(PosOrderLine Line, decimal Quantity)>();
         var incoming = new List<(PosOrderLine Line, decimal Quantity)>();
@@ -596,6 +625,101 @@ public sealed class PosOrder
         ContactId = contactId;
         Touch();
     }
+
+    /// <summary>
+    /// Phase 72 -- the order's discount (the vendor's <i>Options &gt; Discount</i>, read live on 2026-10-09):
+    /// a percentage off every line after its own. <b>Only while nothing on the order is billed.</b> A part
+    /// already paid was priced at the old terms, and the planner gives the last of each line exactly what is
+    /// left of it, so a change now would land on the last part alone. Who may give one is the caller's check
+    /// (<c>Sales.Invoice.Approve</c> at the order's location). Setting the value it already has changes nothing.
+    /// </summary>
+    public void SetDiscount(decimal discountPct, IReadOnlyDictionary<Guid, decimal> invoiced)
+    {
+        EnsureOpen();
+        var pct = RequireDiscountPct(discountPct);
+
+        if (pct == DiscountPct)
+        {
+            return;
+        }
+
+        if (_lines.Any(x => invoiced.GetValueOrDefault(x.Id) > 0m))
+        {
+            throw new InvalidOperationException(
+                $"Part of order {Code} is already billed, so its discount is fixed: every part is priced at the same "
+                + "terms, or the bills would not add up to the order.");
+        }
+
+        DiscountPct = pct;
+        Touch();
+    }
+
+    /// <summary>
+    /// Phase 72 -- one line's discount (the vendor's <i>Edit Item &gt; Discount (Item Line)</i>): a percentage
+    /// off that dish, before the order's. Only while nothing of that line is billed, for the reason
+    /// <see cref="SetDiscount"/> gives; the rest of the order is free to be billed already.
+    /// </summary>
+    public void SetLineDiscount(Guid lineId, decimal discountPct, IReadOnlyDictionary<Guid, decimal> invoiced)
+    {
+        EnsureOpen();
+        var line = FindLine(lineId);
+        var pct = RequireDiscountPct(discountPct);
+
+        if (pct == line.DiscountPct)
+        {
+            return;
+        }
+
+        if (invoiced.GetValueOrDefault(line.Id) > 0m)
+        {
+            throw new InvalidOperationException(
+                $"Part of line {line.LineNo} is already billed, so its discount is fixed: every part of a line is priced "
+                + "at the same terms.");
+        }
+
+        line.SetDiscount(pct);
+        Touch();
+    }
+
+    /// <summary>
+    /// Phase 72 -- the guest declined the service charge (<paramref name="waived"/>), or changed their mind.
+    /// Fixed from the first bill, like <see cref="SetDiscount"/>: half an order's parts with it and half without
+    /// is two tabs' terms on one.
+    /// </summary>
+    public void WaiveServiceCharge(bool waived, IReadOnlyDictionary<Guid, decimal> invoiced)
+    {
+        EnsureOpen();
+
+        if (waived == ServiceChargeWaived)
+        {
+            return;
+        }
+
+        if (_lines.Any(x => invoiced.GetValueOrDefault(x.Id) > 0m))
+        {
+            throw new InvalidOperationException(
+                $"Part of order {Code} is already billed with its service charge {(ServiceChargeWaived ? "waived" : "charged")}, "
+                + "so that is fixed: every part is priced at the same terms.");
+        }
+
+        ServiceChargeWaived = waived;
+        Touch();
+    }
+
+    /// <summary>Phase 72 -- the service charge rate a line is billed at: its own frozen rate, or none when the
+    /// guest declined it.</summary>
+    public decimal ServiceChargeRateOf(PosOrderLine line) => ServiceChargeWaived ? 0m : line.ServiceChargeRate;
+
+    /// <summary>
+    /// A line's money at <paramref name="quantity"/>, by the till's one arithmetic: its frozen rate, VAT, service
+    /// charge and packaging fee, and (phase 72) its own discount, the order's, and the waiver. The one place an
+    /// order line is priced -- the estimate, the screens and the bill planner all come here -- so no reader can
+    /// price a line without the order's terms.
+    /// </summary>
+    public PosLineArithmetic.Figures FiguresOf(PosOrderLine line, decimal quantity) =>
+        PosLineArithmetic.Compute(
+            quantity, line.Rate, line.VatRate.ToPercent(), line.DiscountPct, DiscountPct, ServiceChargeRateOf(line),
+            line.PackagingFee);
 
     /// <summary>Counts one more print of a ticket and returns its number: 1 is the original, and the
     /// paper marks anything after it a reprint, so a kitchen does not cook one ticket twice.</summary>
@@ -799,9 +923,10 @@ public sealed class PosOrder
     }
 
     /// <summary>The order's running figures before any bill: each line's net quantity priced by phase
-    /// 63's <see cref="PosLineArithmetic"/>. Unrounded to the rupee -- the bill (phase 65) rounds.</summary>
+    /// 63's <see cref="PosLineArithmetic"/> (<see cref="FiguresOf"/>). Unrounded to the rupee -- the bill
+    /// (phase 65) rounds.</summary>
     public PosLineArithmetic.Figures Estimate() =>
-        _lines.Aggregate(PosLineArithmetic.Figures.Zero, (sum, line) => sum + line.Figures(QuantitiesOf(line).Net));
+        _lines.Aggregate(PosLineArithmetic.Figures.Zero, (sum, line) => sum + FiguresOf(line, QuantitiesOf(line).Net));
 
     public static string Describe(PosTab orderType) => orderType switch
     {
@@ -903,6 +1028,49 @@ public sealed class PosOrder
         return quantity;
     }
 
+    /// <summary>Phase 72 -- a discount is a percentage from 0 to 100 with at most two decimal places, as a
+    /// cashier types one.</summary>
+    private static decimal RequireDiscountPct(decimal discountPct)
+    {
+        if (discountPct < 0m || discountPct > 100m)
+        {
+            throw new InvalidOperationException("A discount is between 0% and 100%.");
+        }
+
+        if (decimal.Round(discountPct, MaxDiscountScale) != discountPct)
+        {
+            throw new InvalidOperationException($"A discount has at most {MaxDiscountScale} decimal places.");
+        }
+
+        return discountPct;
+    }
+
+    /// <summary>Phase 72 -- see <see cref="Transfer"/>: a target with nothing on it and no terms of its own takes
+    /// the source's; any other must already have them.</summary>
+    private void TakeTermsFor(PosOrder source)
+    {
+        if (DiscountPct == source.DiscountPct && ServiceChargeWaived == source.ServiceChargeWaived)
+        {
+            return;
+        }
+
+        if (_lines.Count == 0 && DiscountPct == 0m && !ServiceChargeWaived)
+        {
+            DiscountPct = source.DiscountPct;
+            ServiceChargeWaived = source.ServiceChargeWaived;
+            return;
+        }
+
+        throw new InvalidOperationException(
+            $"Order {Code} is priced with {DescribeTerms()}, and order {source.Code} with {source.DescribeTerms()}. "
+            + "Moving food between them would change its price, so give both orders the same discount and service "
+            + "charge first.");
+    }
+
+    private string DescribeTerms() =>
+        (DiscountPct > 0m ? $"a {DiscountPct:0.##}% discount" : "no discount")
+        + (ServiceChargeWaived ? " and the service charge waived" : " and service charge");
+
     private static string RequireReason(string? reason)
     {
         var trimmed = reason?.Trim() ?? string.Empty;
@@ -947,8 +1115,9 @@ public sealed class PosOrder
 /// <c>description</c>.</para>
 ///
 /// <para><b>The rate is the catalogue's, never the waiter's.</b> The command carries no rate; the
-/// handler prices the line from the product, so a tab cannot be cheapened at the table. A discount is
-/// the bill's business (phase 65).</para>
+/// handler prices the line from the product, so a tab cannot be cheapened at the table. Phase 72 -- a
+/// discount is a term of its own (<see cref="DiscountPct"/>), given by someone who may approve invoices at
+/// the location, and priced with the order's own terms by <see cref="PosOrder.FiguresOf"/>.</para>
 /// </summary>
 public sealed class PosOrderLine
 {
@@ -976,6 +1145,10 @@ public sealed class PosOrderLine
     public decimal PackagingFeeValue { get; private set; }
 
     public PackagingFee PackagingFee => PackagingFee.Create(PackagingFeeBasis, PackagingFeeValue);
+
+    /// <summary>Phase 72 -- this dish's own discount, a percentage off its amount before the order's
+    /// (<see cref="PosOrder.SetLineDiscount"/>). Zero when sent; fixed once any of the line is billed.</summary>
+    public decimal DiscountPct { get; private set; }
 
     public string? Note { get; private set; }
 
@@ -1036,7 +1209,7 @@ public sealed class PosOrderLine
 
     /// <summary>Phase 68 -- a new line carrying another's frozen terms: a take-away sibling (its own service
     /// charge rate and, phase 70, its own packaging fee), or a transfer's destination on another order (the
-    /// same terms).</summary>
+    /// same terms). Phase 72 -- either way it keeps the source's discount: the same dish at the same terms.</summary>
     internal static PosOrderLine CopyOf(
         Guid orderId, int lineNo, PosOrderLine source, bool isTakeAway, decimal serviceChargeRate,
         PackagingFee packagingFee, Guid? parcelledFromLineId) =>
@@ -1053,6 +1226,7 @@ public sealed class PosOrderLine
             ServiceChargeRate = serviceChargeRate,
             PackagingFeeBasis = packagingFee.Basis,
             PackagingFeeValue = packagingFee.Value,
+            DiscountPct = source.DiscountPct,
             Note = source.Note,
             KitchenStationId = source.KitchenStationId,
             IsTakeAway = isTakeAway,
@@ -1068,13 +1242,15 @@ public sealed class PosOrderLine
         && VatRate == other.VatRate
         && ServiceChargeRate == other.ServiceChargeRate
         && PackagingFee == other.PackagingFee
+        && DiscountPct == other.DiscountPct
         && Note == other.Note
         && KitchenStationId == other.KitchenStationId
         && IsTakeAway == other.IsTakeAway;
 
-    /// <summary>This line's money at <paramref name="quantity"/>, by the till's one arithmetic.</summary>
-    public PosLineArithmetic.Figures Figures(decimal quantity) =>
-        PosLineArithmetic.Compute(quantity, Rate, VatRate.ToPercent(), 0m, 0m, ServiceChargeRate, PackagingFee);
+    // Phase 72 -- a line's money is priced by its order (PosOrder.FiguresOf), which alone knows the order's
+    // discount and whether the guest declined the service charge.
+
+    internal void SetDiscount(decimal discountPct) => DiscountPct = discountPct;
 
     internal void AddServed(decimal quantity) => ServedQuantity += quantity;
 

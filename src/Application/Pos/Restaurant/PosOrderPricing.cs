@@ -77,10 +77,10 @@ internal static class PosOrderPricing
         {
             var product = products[item.ProductId];
 
-            // The primary unit, or one of the product's own secondary units, priced at that unit's price.
+            // The primary unit, or one of the product's own secondary units, priced at that unit's price
+            // (ProductPrices.CatalogueRate, phase 72: the figure a retail line below needs Approve for).
             Guid? unitId = product.PrimaryUnitId;
             var factor = UnitConversion.PrimaryFactor;
-            var sellingPrice = product.SellingPrice;
 
             if (item.UnitId is { } chosen && chosen != product.PrimaryUnitId)
             {
@@ -90,7 +90,6 @@ internal static class PosOrderPricing
 
                 unitId = secondary.UnitId;
                 factor = secondary.ConversionRate;
-                sellingPrice = secondary.SellingPrice;
             }
 
             lines.Add(new PosOrderNewLine(
@@ -98,7 +97,7 @@ internal static class PosOrderPricing
                 unitId,
                 factor,
                 item.Quantity,
-                ProductPrices.ToExclusiveRate(sellingPrice, product.VatRate, basis),
+                ProductPrices.CatalogueRate(product, unitId, basis)!.Value,
                 product.VatRate,
                 PosServiceCharge.RateFor(till.Settings, product.ServiceChargeApplicable, orderType),
                 PosPackagingFee.For(till.Settings, product.PackagingFeeApplicable, orderType),

@@ -101,6 +101,11 @@ public sealed class PosOrderConfiguration : IEntityTypeConfiguration<PosOrder>
         builder.Property(x => x.LastActivityAt).IsRequired();
         builder.Property(x => x.RowVersion).IsRowVersion();
 
+        // Phase 72 -- every existing order was taken with no discount and its service charge charged, so the
+        // defaults are true of every row and nothing is backfilled. Sent on every insert (phase 70's arrangement).
+        builder.Property(x => x.DiscountPct).HasPrecision(5, 2).IsRequired().HasDefaultValue(0m).ValueGeneratedNever();
+        builder.Property(x => x.ServiceChargeWaived).IsRequired().HasDefaultValue(false).ValueGeneratedNever();
+
         // One open order per table, as a constraint rather than a read-then-write check: two waiters
         // seating one table at once must not both win. Filtered on both halves explicitly -- EF would
         // add the IS NOT NULL on its own, but the Status half is the rule and should read as one.
@@ -165,6 +170,9 @@ public sealed class PosOrderLineConfiguration : IEntityTypeConfiguration<PosOrde
         builder.Property(x => x.Note).HasMaxLength(PosOrder.MaxNoteLength);
         builder.Property(x => x.ServedQuantity).HasPrecision(18, 4).IsRequired();
         builder.Property(x => x.IsTakeAway).IsRequired();
+
+        // Phase 72 -- every existing order line was sent with no discount of its own.
+        builder.Property(x => x.DiscountPct).HasPrecision(5, 2).IsRequired().HasDefaultValue(0m).ValueGeneratedNever();
 
         builder.HasIndex(x => new { x.PosOrderId, x.LineNo }).IsUnique();
 

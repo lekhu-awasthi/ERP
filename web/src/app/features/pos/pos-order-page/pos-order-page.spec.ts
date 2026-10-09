@@ -46,7 +46,7 @@ describe('PosOrderPage', () => {
     ] }],
     orders: [], canVoid: true,
     roundOffEnabled: true, printEstimateBill: true, printInvoice: true, mySessionId: null, mySessionCode: null,
-    canKitchen: true, serviceChargeOnTakeAway: true,
+    canKitchen: true, serviceChargeOnTakeAway: true, canDiscount: true,
     ...overrides,
   });
 
@@ -64,21 +64,26 @@ describe('PosOrderPage', () => {
     contactName: 'Cash Customer', date: '2026-10-02', createdAt: '2026-10-02T04:00:00Z', createdByName: 'Sita',
     voidReason: null, voidedAt: null, voidedByName: null, amount: 460, serviceCharge: 40, packagingFee: 0, vat: 65, total: 565, outstanding: 3,
     settledAt: null, billed: 0, toBill: 3, invoices: [],
+    discountPct: 0, serviceChargeWaived: false, gross: 460, discount: 0,
     lines: [
       { id: 'l-Chicken Momo', lineNo: 1, productId: 'momo', productCode: 'P0002', productName: 'Chicken Momo', unitId: 'plate',
         unitName: 'plt', rate: 200, vatRate: 'ThirteenPercentVat', serviceChargeRate: 10, note: null, kitchenStationId: 'kitchen',
         kitchenStationName: 'Kitchen', ordered: 2, discarded: 0, quantity: 2, served: 0, outstanding: 2, invoiced: 0, toBill: 2, amount: 400,
-        serviceChargeAmount: 40, packagingFeeAmount: 0, vatAmount: 57.2, total: 497.2, isTakeAway: false, parcelledFromLineId: null, movedIn: 0, movedOut: 0 },
+        serviceChargeAmount: 40, packagingFeeAmount: 0, vatAmount: 57.2, total: 497.2, isTakeAway: false, parcelledFromLineId: null, movedIn: 0, movedOut: 0,
+        discountPct: 0, gross: 400 },
       { id: 'l-Coke 250ml', lineNo: 2, productId: 'coke', productCode: 'P0003', productName: 'Coke 250ml', unitId: 'plate',
         unitName: 'plt', rate: 60, vatRate: 'ThirteenPercentVat', serviceChargeRate: 0, note: null, kitchenStationId: null,
         kitchenStationName: 'Default', ordered: 1, discarded: 0, quantity: 1, served: 0, outstanding: 1, invoiced: 0, toBill: 1, amount: 60,
-        serviceChargeAmount: 0, packagingFeeAmount: 0, vatAmount: 7.8, total: 67.8, isTakeAway: false, parcelledFromLineId: null, movedIn: 0, movedOut: 0 },
+        serviceChargeAmount: 0, packagingFeeAmount: 0, vatAmount: 7.8, total: 67.8, isTakeAway: false, parcelledFromLineId: null, movedIn: 0, movedOut: 0,
+        discountPct: 0, gross: 60 },
     ],
     tickets: [ticket(1, 'Kitchen', [['Chicken Momo', 2]]), ticket(1, 'Default', [['Coke 250ml', 1]])],
     ...overrides,
   });
 
-  function page(options: { orderId?: string; query?: Record<string, string>; restaurant?: PosRestaurant; order?: PosOrder } = {}) {
+  function page(options: {
+    orderId?: string; query?: Record<string, string>; restaurant?: PosRestaurant; order?: PosOrder; preview?: PosOrderBillPreview;
+  } = {}) {
     const created: CreatePosOrderRequest[] = [];
     const added: { newItems: PosOrderItemInput[]; moreOf: PosOrderLineQuantityInput[] }[] = [];
     const discarded: { items: PosOrderLineQuantityInput[]; reason: string }[] = [];
@@ -86,6 +91,7 @@ describe('PosOrderPage', () => {
     const previews: PosOrderBillRequest[] = [];
     const marked: { lineId: string; quantity: number }[] = [];
     const transfers: { tableId: string; items: PosOrderLineQuantityInput[] }[] = [];
+    const terms: { kind: string; lineId?: string; value: number | boolean }[] = [];
     let latest = options.order ?? order();
     const service = {
       getRestaurant: (): Observable<PosRestaurant> => of(options.restaurant ?? restaurant()),
@@ -124,14 +130,28 @@ describe('PosOrderPage', () => {
         discarded.push({ items, reason });
         return of(order());
       },
+      setOrderDiscount: (_o: string, _id: string, discountPct: number): Observable<PosOrder> => {
+        terms.push({ kind: 'order', value: discountPct });
+        return of(order({ discountPct }));
+      },
+      setLineDiscount: (_o: string, _id: string, lineId: string, discountPct: number): Observable<PosOrder> => {
+        terms.push({ kind: 'line', lineId, value: discountPct });
+        return of(order());
+      },
+      setServiceChargeWaived: (_o: string, _id: string, waived: boolean): Observable<PosOrder> => {
+        terms.push({ kind: 'serviceCharge', value: waived });
+        return of(order({ serviceChargeWaived: waived, serviceCharge: waived ? 0 : 40 }));
+      },
       previewBill: (_o: string, _id: string, request: PosOrderBillRequest): Observable<PosOrderBillPreview> => {
         previews.push(request);
+        if (options.preview) return of(options.preview);
         return of({
           orderId: 'ord-1', orderCode: 'ORD0001', amount: 460, serviceCharge: 40, packagingFee: 0, vat: 65, unrounded: 565, roundOff: 0,
           total: 565, billsTheRest: true, orderTotal: 565, billedBefore: 0, leftAfter: 0,
+          gross: 460, discount: 0, discountPct: 0, serviceChargeWaived: false,
           lines: [{ orderLineId: 'l-Chicken Momo', lineNo: 1, productName: 'Chicken Momo', unitName: 'plt', note: null,
             quantity: 2, rate: 200, serviceChargeRate: 10, amount: 400, serviceChargeAmount: 40, packagingFeeAmount: 0, vatAmount: 57.2,
-            total: 497.2, remainingAfter: 0 }],
+            total: 497.2, remainingAfter: 0, discountPct: 0, gross: 400 }],
         });
       },
       printTicket: (_o: string, _id: string, ticketId: string): Observable<PosKitchenTicketPrint> => {
@@ -170,7 +190,8 @@ describe('PosOrderPage', () => {
     render();
 
     return {
-      element, created, added, discarded, printed, previews, navigate, marked, transfers,
+      element, created, added, discarded, printed, previews, navigate, marked, transfers, terms,
+      buttons: () => [...element.querySelectorAll<HTMLButtonElement>('button')].map((b) => b.textContent?.replace(/\s+/g, ' ').trim() ?? ''),
       text: () => element.textContent?.replace(/\s+/g, ' ') ?? '',
       press: (label: string) => {
         [...element.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent?.trim().startsWith(label))!.click();
@@ -271,6 +292,108 @@ describe('PosOrderPage', () => {
     expect(paper).toContain('NOT A TAX INVOICE');
     expect(paper).toContain('Estimated Total565.00');
     expect(window.print).toHaveBeenCalled();
+  });
+
+  // ---- Phase 72: the order's terms ---------------------------------------------------------------
+
+  it('gives the whole order a discount and says what it did', () => {
+    const p = page({ orderId: 'ord-1' });
+
+    p.press('Discount');
+    p.type('pos-order-panel-first', '10');
+    p.submitPanel();
+
+    expect(p.terms).toEqual([{ kind: 'order', value: 10 }]);
+    expect(p.text()).toContain('A 10% discount is on the whole order.');
+  });
+
+  it('gives one dish a discount of its own', () => {
+    const p = page({ orderId: 'ord-1' });
+
+    p.press('Discount Chicken Momo');
+    expect(p.text()).toContain('Discount on Chicken Momo (%)');
+    p.type('pos-order-panel-first', '15');
+    p.submitPanel();
+
+    expect(p.terms).toEqual([{ kind: 'line', lineId: 'l-Chicken Momo', value: 15 }]);
+  });
+
+  it('refuses a discount outside 0 to 100, or with more than two decimal places, before asking the server', () => {
+    const p = page({ orderId: 'ord-1' });
+
+    p.press('Discount');
+    p.type('pos-order-panel-first', '101');
+    p.submitPanel();
+    p.type('pos-order-panel-first', '12.345');
+    p.submitPanel();
+
+    expect(p.terms).toEqual([]);
+    expect(p.text()).toContain('A discount is a percentage from 0 to 100, with at most two decimal places.');
+  });
+
+  it('waives a service charge the guest declined, citing the ruling, and offers to restore it', () => {
+    const p = page({ orderId: 'ord-1' });
+
+    p.press('Waive Service Charge');
+    expect(p.text()).toContain('unlawful since the Supreme Court');
+    p.submitPanel();
+
+    expect(p.terms).toEqual([{ kind: 'serviceCharge', value: true }]);
+    expect(p.text()).toContain('The service charge is waived on this order.');
+    expect(p.text()).toContain('Service chargeWaived');
+    expect(p.buttons()).toContain('Restore Service Charge');
+  });
+
+  it('offers neither a discount nor a waiver to a user who may not approve invoices, and says why', () => {
+    const p = page({ orderId: 'ord-1', restaurant: restaurant({ canDiscount: false }) });
+
+    expect(p.buttons().some((x) => x.startsWith('Discount'))).toBe(false);
+    expect(p.buttons()).not.toContain('Waive Service Charge');
+    expect(p.text()).toContain('needs the Sales.Invoice.Approve permission at this location');
+  });
+
+  it('fixes the order\'s terms once part of it is billed, while an unbilled dish can still take a discount', () => {
+    const base = order();
+    const p = page({ orderId: 'ord-1', order: order({ lines: [{ ...base.lines[0], invoiced: 1, toBill: 1 }, base.lines[1]] }) });
+
+    expect(p.buttons()).not.toContain('Waive Service Charge');
+    expect(p.buttons().filter((x) => x.startsWith('Discount'))).toEqual(['Discount Coke 250ml']);
+    expect(p.text()).toContain('The order\'s discount and service charge are fixed: part of it is billed.');
+  });
+
+  it('shows what the discounts took off the gross, and a discounted dish says so', () => {
+    const base = order();
+    const p = page({
+      orderId: 'ord-1',
+      order: order({ discountPct: 5, gross: 460, discount: 64, amount: 396, lines: [{ ...base.lines[0], discountPct: 10 }, base.lines[1]] }),
+    });
+
+    expect(p.text()).toContain('Gross460.00');
+    expect(p.text()).toContain('Discount (5% on the order)64.00');
+    expect(p.text()).toContain('10% off');
+    expect(p.buttons()).toContain('Discount (5%)');
+  });
+
+  it('prints a discount on the estimate as the receipt does, and a waived service charge as waived', () => {
+    const p = page({
+      orderId: 'ord-1',
+      preview: {
+        orderId: 'ord-1', orderCode: 'ORD0001', amount: 342, serviceCharge: 0, packagingFee: 0, vat: 44.46, unrounded: 386.46,
+        roundOff: -0.46, total: 386, billsTheRest: true, orderTotal: 386, billedBefore: 0, leftAfter: 0,
+        gross: 400, discount: 58, discountPct: 5, serviceChargeWaived: true,
+        lines: [{ orderLineId: 'l-Chicken Momo', lineNo: 1, productName: 'Chicken Momo', unitName: 'plt', note: null,
+          quantity: 2, rate: 200, serviceChargeRate: 0, amount: 342, serviceChargeAmount: 0, packagingFeeAmount: 0, vatAmount: 44.46,
+          total: 386.46, remainingAfter: 0, discountPct: 10, gross: 400 }],
+      },
+    });
+
+    p.press('Print Estimate');
+
+    const paper = p.element.querySelector('.pos-print-root')!.textContent!.replace(/\s+/g, ' ');
+    expect(paper).toContain('less 10% discount');
+    expect(paper).toContain('Gross400.00');
+    expect(paper).toContain('Discount (5%)58.00');
+    expect(paper).toContain('Service ChargeWaived');
   });
 
   it('offers no estimate where the location does not print one', () => {

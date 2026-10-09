@@ -272,3 +272,28 @@ beside a 200 from the same user, and create a fresh Organization per phase.
   `web/public/<name>.txt`, the preview is **restarted** (a file added after start-up is a 404), the page `fetch`es it
   and sets `document.cookie` (`path=/; Secure; SameSite=None`) only when the status is 200 and the body is not HTML, and
   the file is deleted at once (phase-71).
+- An order's terms (phase 72), under `/{org}/pos`: `PUT /orders/{id}/discount {discountPct}`,
+  `PUT /orders/{id}/lines/{lineId}/discount {discountPct}` and `PUT /orders/{id}/service-charge {waived}`, each returning
+  the order (**200**). The field is required: an empty body is a **400 naming `DiscountPct`** (or `Waived`), and 12.345%
+  is a 400. Once anything they price is billed a change is a **409**; the value already there is a 200. The order and its
+  lines carry `discountPct`, `serviceChargeWaived`, `gross` and `discount`; the bill preview carries `gross`, `discount`,
+  `discountPct`, `serviceChargeWaived`, and each line's billed `serviceChargeRate`.
+- Their keys (phase 72): `Pos.Order.Operate` in the pipeline, `Sales.Invoice.Approve` at the order's location in the
+  handler. So a nonexistent order is **404** as Admin and **403 naming `Pos.Order.Operate`** from a role holding
+  `Pos.Order.View` + `Tenancy.BillingLocation.View` (beside its 200 on `GET /billing-locations`), and for a role holding
+  every waiter key but Approve it is **404** on a nonexistent order and **403 naming `Sales.Invoice.Approve`** on a real
+  one. `GET /pos/restaurants/{loc}` and `GET /pos/tills/{loc}` carry `canDiscount`.
+- `POST /pos/sales` with a `discountPct` (line or bill) or a `rate` below the grid's for its unit is **403 naming
+  `Sales.Invoice.Approve`** without that key; a higher rate is a 200 (phase-72).
+- A bill's `contactId` names that bill's customer and the order keeps its own; with a named customer, `tenders: []` puts
+  the whole bill on account. In SQL: `pos.PosOrders.DiscountPct`/`ServiceChargeWaived`, `pos.PosOrderLines.DiscountPct`;
+  a bill's `sales.Invoices.DiscountPct` is the order's, `sales.InvoiceLines.DiscountPct` the line's, and its
+  `ServiceChargeRate` is `.00` when the order was waived (phase-72).
+- `sqlcmd` here needs no secret: the connection string uses Integrated Security, so
+  `sqlcmd -S "DESKTOP-H0R00ME\SQLEXPRESS" -d ErpApp -E -W -s '|' -Q "SET NOCOUNT ON; SET QUOTED_IDENTIFIER ON; ..."`.
+  A run that moves its own membership onto a role without `Tenancy.Role.Manage` switches it on and back with
+  `UPDATE tenancy.OrganizationMemberships SET RoleId = ... WHERE Id = <membershipId>`; the next request sees it (phase-72).
+- Seed statuses (phase 72): `POST /account-groups`, `/warehouses`, `/units-of-measurement`, `/product-categories`,
+  `/products`, `/contacts`, `/configuration/payment-modes`, `/billing-locations` and `/roles` are **201**;
+  `PUT /accounting-defaults`, `PUT /pos/locations/{id}/mode|payment-modes|settings`, `PUT /pos/areas/{id}/layout` and
+  `PUT /roles/{id}/permissions` are **200**.

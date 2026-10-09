@@ -29,6 +29,9 @@ public sealed record PosTillCategoryDto(Guid Id, string Name);
 /// <param name="CanRefund">Phase 63 -- whether the caller holds both <c>Sales.CreditNote.Create</c> and
 /// <c>Sales.CreditNote.Approve</c> here, which every refund needs (phase-63-status.md Decision E). Read so
 /// the till can say so before a cashier starts one.</param>
+/// <param name="CanDiscount">Phase 72 -- whether the caller may give a discount or ring a line up below its
+/// catalogue price here: the same <c>Sales.Invoice.Approve</c> as <paramref name="CanSellOnCredit"/>, named for what
+/// the till does with it, so the cart can say so before Complete.</param>
 public sealed record PosTillDto(
     Guid LocationId,
     string LocationCode,
@@ -53,7 +56,8 @@ public sealed record PosTillDto(
     IReadOnlyList<PosTillCategoryDto> Categories,
     bool CanSellOnCredit,
     bool PrintCreditNote,
-    bool CanRefund);
+    bool CanRefund,
+    bool CanDiscount = false);
 
 /// <summary>
 /// Phase 62 -- the till's own read of its location. <c>GET /pos/locations/{id}/settings</c> already

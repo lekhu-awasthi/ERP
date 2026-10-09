@@ -144,6 +144,11 @@ export interface PosRestaurant {
   canKitchen: boolean;
   /** Phase 68 -- whether food parcelled from a dine-in line keeps its service charge here. */
   serviceChargeOnTakeAway: boolean;
+  /**
+   * Phase 72 -- whether this user holds Sales.Invoice.Approve here, which giving a discount or waiving the
+   * service charge needs, so the order screen offers them only to those it would not refuse.
+   */
+  canDiscount: boolean;
 }
 
 export interface PosOrderLine {
@@ -182,6 +187,13 @@ export interface PosOrderLine {
   /** Phase 68 -- what a take-away mark or a transfer moved onto or off this line. */
   movedIn: number;
   movedOut: number;
+  /** Phase 72 -- this dish's own discount, before the order's; fixed once any of the line is billed. */
+  discountPct: number;
+  /**
+   * Phase 72 -- the quantity at the rate before any discount: gross less amount is what the line's and the
+   * order's discounts took. `serviceChargeRate` stays the line's own; the money is what it is billed at.
+   */
+  gross: number;
 }
 
 /** Phase 68 -- what a kitchen ticket is: food to cook, a cancellation, a parcel, or a transfer. */
@@ -254,6 +266,13 @@ export interface PosOrder {
   lines: PosOrderLine[];
   tickets: KitchenTicket[];
   invoices: PosOrderInvoice[];
+  /** Phase 72 -- the order's discount, a percentage off every line after its own. */
+  discountPct: number;
+  /** Phase 72 -- the guest declined the service charge, so every line is billed without it. */
+  serviceChargeWaived: boolean;
+  /** Phase 72 -- gross less discount is amount. */
+  gross: number;
+  discount: number;
 }
 
 /** Phase 65 -- one bill an order has had; voided ones stay listed. */
@@ -337,6 +356,9 @@ export interface PosOrderBillLine {
   vatAmount: number;
   total: number;
   remainingAfter: number;
+  /** Phase 72 -- the line's own discount; its service charge rate above is the one it is billed at. */
+  discountPct: number;
+  gross: number;
 }
 
 /** A part priced by the server: what the screen shows before payment and what the estimate prints. */
@@ -359,6 +381,11 @@ export interface PosOrderBillPreview {
   billedBefore: number;
   /** What later parts will pay. */
   leftAfter: number;
+  /** Phase 72 -- gross less discount is amount, as on the receipt; and the order's terms the part was priced with. */
+  gross: number;
+  discount: number;
+  discountPct: number;
+  serviceChargeWaived: boolean;
 }
 
 export interface CreatePosOrderInvoiceRequest extends PosOrderBillRequest {

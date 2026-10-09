@@ -220,13 +220,15 @@ public sealed class InvoiceLine
     /// bill planner (<c>PosOrderBill</c>) priced. The planner, not this factory, owns them because the
     /// part that bills the last of an order line takes exactly what is left of that line's money, which
     /// depends on the order's other invoices; any other part is priced by the same
-    /// <see cref="PosLineArithmetic"/> this factory's sibling calls. There is never a discount: the order
-    /// line's rate is the catalogue's, frozen when it was sent (phase 64 Decision C).
+    /// <see cref="PosLineArithmetic"/> this factory's sibling calls. The order line's rate is the catalogue's,
+    /// frozen when it was sent (phase 64 Decision C). Phase 72 -- its discount is the order line's, stored
+    /// here as <see cref="DiscountPct"/> beside the invoice's header (the order's), so a refund and the
+    /// readers rebuild the discount from the same percentages the planner priced with.
     /// </summary>
     internal static InvoiceLine CreatePosOrderPart(
         Guid invoiceId, Guid posOrderLineId, Guid productId, decimal quantity, decimal rate, VatRate vatRate,
-        Guid? unitId, decimal conversionFactor, decimal serviceChargeRate, PackagingFee packagingFee,
-        PosLineArithmetic.Figures figures)
+        decimal discountPct, Guid? unitId, decimal conversionFactor, decimal serviceChargeRate,
+        PackagingFee packagingFee, PosLineArithmetic.Figures figures)
     {
         foreach (var value in figures.Parts)
         {
@@ -246,7 +248,7 @@ public sealed class InvoiceLine
             Quantity = quantity,
             Rate = rate,
             VatRate = vatRate,
-            DiscountPct = 0m,
+            DiscountPct = discountPct,
             Amount = figures.Amount,
             ServiceChargeRate = serviceChargeRate,
             ServiceChargeAmount = figures.ServiceChargeAmount,

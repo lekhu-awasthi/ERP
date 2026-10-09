@@ -103,6 +103,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 69: a credit note names its invoice (Rule 20(1)(e)): a picked one makes it a price adjustment capped by value and VAT, a typed one must predate the first invoice, and Approve refuses none on a VAT tenant; conversion templates carry currency. Before linking one document to another, or editing a converted draft — `docs/phase-69-status.md`
 - Phase 70: the packaging fee (per item on every parcel: a percent of the line or flat per unit, inside the VAT base at the line's rate, its own account, frozen on the line; a product opt-out, on by default). Before adding a part to a line's money, or a flag that defaults to on — `docs/phase-70-status.md`
 - Phase 71: every bill's date in BS with AD beside it, whatever the toggle (invoice, credit/debit note on paper and by email, till receipts), both statutory dates (transaction + issue = approval's Nepal day), a BS column on the register exports. The statute names no calendar. Before rendering a date on a bill, or building printing templates — `docs/phase-71-status.md`
+- Phase 72: the restaurant bill finished: a line's and the order's discount (percent) and a waived service charge are terms of the order, fixed at its first bill; a bill names its own customer, with credit; lowering a bill anywhere (discount, waiver, a Retail line below the catalogue price) needs `Sales.Invoice.Approve` at the location. Before a term that prices an order's parts, gating a till price, or a control that hides itself — `docs/phase-72-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -277,6 +278,9 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A move is a kitchen ticket with a stored **kind**: a take-away mark has both signs and a transfer's half is negative without being a discard, so signs alone miscount both (phase-68).
 - A rate a setting decides is decided **once, at the action**, and frozen on the line it creates; changing the setting later reprices nothing (phase-68's take-away service charge).
 - A tax document's every date goes through `BillDate` / `nepaliDate: … : 'bill'` (BS with AD beside it), never the toggle; the print handler's one `FormatDate` decides, and guards count it (phase-71).
+- An order's discount and waiver are fixed at its first bill, a line's at its own first part, or the last part absorbs the change; price order lines only via `PosOrder.FiguresOf` (phase-72).
+- A tab's terms travel with its food: a transfer's empty target takes the source's discount and waiver, and a target on other terms is a 409 naming both (phase-72).
+- Gating a till discount alone is a price edit away from useless: a Retail line below `ProductPrices.CatalogueRate` needs the same `Sales.Invoice.Approve` (phase-72).
 
 - Rich text is sanitised on write, in the Domain setter, by re-emission from a parsed tree, never by filtering; `Sanitize` must stay idempotent (phase-39).
 - A rich-text grammar is its **renderer's capability list**: decide what `RichTextPdfRenderer` can draw, then build the toolbar, or the field looks one way on screen and another in the PDF the customer receives (phase-39).
@@ -338,6 +342,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - Import-template date columns need an explicit day-first-before-month-first format list, never bare `DateTime.TryParse`; assert the ambiguous case (`ImportRowReader.GetOptionalDate`, phase-21c).
 
 - A trailing optional parameter added to a command reaches nothing until the Api's own request record carries it too — it compiles, every test passes, and the field binds silently to `null` (phase-27b's `Terms`).
+- …and the mirror: a required field must not default. `discountPct ?? 0` reads a misspelt body as "remove the discount" with a 200; make it nullable and `NotNull` (phase-72).
 - A Minimal API binds an **array** parameter from the *body* on a POST, so a repeated query string arrives `null` and a "choose what to export" feature silently exports everything; `[FromQuery]` is load-bearing, and the simple types beside it bind without help, which is what hides it (phase-38).
 - A list query returning the aggregate exposes a new field for free, but a detail DTO drops it silently and the form can never show it (phase-32's `GetInvoiceQuery`).
 - Adding a field to many aggregates owes three assertions, write, read and every prefill between: 14 of 15 detail DTOs and all 5 conversion templates dropped `LocationId` (phase-35a).
@@ -409,6 +414,8 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A load helper that sets focus steals it after every action that reloads through it; take a `focusSearch` flag and pass `false` after an action (phase-68).
 - A no-break space does not stop a browser breaking after a hyphen: a 72 mm receipt printed `(09-10-` / `2026 AD)`. Break between the halves yourself (`pre-line`) and look at the paper (phase-71).
 - `ng serve` serves `public/` as it was at start-up: a file written later is a 404 whose HTML body a script reads as content. Restart, then check status and body (phase-71).
+- A control that removes itself (a chosen search result, *Use Walk-in*) drops keyboard focus onto `<body>`; hand it back to the opener (`PosCustomerSearch.returnFocusTo`) (phase-72).
+- `Math.round(p * 100) !== p * 100` refuses 10.1 (it is 1009.999…); check two decimal places with `Number(p.toFixed(2)) !== p` (phase-72).
 
 **Multi-way switches on a document-attached mechanism**
 - A shared UI panel is not evidence of a shared model: email templates are their own resource, so `EmailTemplate` is its own aggregate and `CustomTemplateType.Email` was deleted (phase-30).
@@ -510,26 +517,27 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 
 ## Current status
 
-**Phases 0-71 are complete. Next: not yet scheduled** (the user picks; candidates in `docs/roadmap.md`).
+**Phases 0-72 are complete. Next: not yet scheduled** (the user picks; candidates in `docs/roadmap.md`).
 Each phase's story is in its `docs/phase-N-status.md`, and finished planning entries are archived in
 `docs/roadmap-history.md`.
 
-**Phase 71 made a bill's date a statutory field.** Whatever the viewer's calendar toggle says:
+**Phase 72 finished the restaurant bill.**
 
-- invoices, credit notes and debit notes (PDF, and the emailed PDF through the same handler) print every date as
-  `2083-04-16 BS (2026-08-01 AD)` via `BillDate`, and the till's sale and refund receipts via `nepaliDate: … : 'bill'`;
-- a bill prints both statutory dates, the transaction date and the issue date (the Nepal day of `ApprovedAt`); an
-  abbreviated tax invoice keeps its one;
-- the six statutory register exports carry `Date (BS)` beside `Date (AD)`.
+- A line's discount and the order's (percent) and a service charge the guest declined are **terms of the order**,
+  priced by `PosOrder.FiguresOf` and fixed once billing starts, so the bills still add up to the order.
+- A bill names **its own customer** (the order keeps its own) and may leave the rest on that customer's account,
+  under the Retail till's credit rules.
+- **Lowering a bill needs `Sales.Invoice.Approve` at the location**: a discount or a waiver on an order, and a discount
+  or a price below the catalogue's at the Retail till. No new keys.
 
-The statute requires the dates and names no calendar (`phase-71-status.md` § 0), and the vendor makes it a
-per-template switch defaulting to AD; we have no switch on a tax document.
+The vendor (read live, read-only, on its trial's last day) gates the same through per-location role switches and keeps
+the customer on the order; ours chooses it per bill.
 
-**Next:** not yet scheduled. Candidates: discount and credit on a restaurant bill, per-part customers (phase 68 § 5),
-real printing templates (no date-system switch on a tax document), and phase 71 § 5.
+**Next:** not yet scheduled. Candidates: real printing templates (no date-system switch on a tax document), phase 72 § 5
+(a refunded last part leaves a paisa of VAT; Amount discounts; *Can Change Rate*), and phase 71 § 5.
 
-Tests: Domain **946**, Application.UnitTests **1652**, Infrastructure.UnitTests 13,
-Api.IntegrationTests **46**, Angular **793**. Everything was green at phase 71's close with Docker up.
+Tests: Domain **959**, Application.UnitTests **1665**, Infrastructure.UnitTests 13,
+Api.IntegrationTests **46**, Angular **811**. Everything was green at phase 72's close with Docker up.
 The bundle sits at **652.58 kB** against `build-budget.spec.ts`'s 680 kB; every POS screen is lazy.
 
 - `Api.IntegrationTests` needs Docker Desktop running. Without it the Testcontainers-backed tests

@@ -19,6 +19,9 @@ import { POS_RECEIPT_STYLES } from '../pos-receipt/pos-receipt';
  * <p><b>Its figures are the server's</b>: the preview of everything still to be billed, by the same
  * planner the bill posts through, so the estimate a guest reads is what the cashier will charge.
  * When part of the order is already paid it says how much, and prints what is left.</p>
+ *
+ * <p><b>Phase 72 -- a discount prints as the receipt prints it</b>: a discounted item says so under its
+ * amount, and Gross less Discount is the Sub Total. A service charge the guest declined prints as waived.</p>
  */
 @Component({
   selector: 'app-pos-estimate',
@@ -47,11 +50,20 @@ import { POS_RECEIPT_STYLES } from '../pos-receipt/pos-receipt';
       @for (line of p.lines; track line.orderLineId) {
         <p>{{ line.productName }}{{ line.unitName ? ' (' + line.unitName + ')' : '' }}</p>
         <p class="r-row r-indent"><span>{{ line.quantity }} × {{ line.rate | amount }}</span><span>{{ line.amount | amount }}</span></p>
+        @if (line.discountPct > 0) {
+          <p class="r-indent">less {{ line.discountPct }}% discount</p>
+        }
       }
       <div class="r-rule"></div>
+      @if (p.discount > 0) {
+        <p class="r-row"><span>Gross</span><span>{{ p.gross | amount }}</span></p>
+        <p class="r-row"><span>Discount{{ p.discountPct > 0 ? ' (' + p.discountPct + '%)' : '' }}</span><span>{{ p.discount | amount }}</span></p>
+      }
       <p class="r-row"><span>Sub Total</span><span>{{ p.amount | amount }}</span></p>
       @if (p.serviceCharge > 0) {
         <p class="r-row"><span>Service Charge</span><span>{{ p.serviceCharge | amount }}</span></p>
+      } @else if (p.serviceChargeWaived) {
+        <p class="r-row"><span>Service Charge</span><span>Waived</span></p>
       }
       @if (p.packagingFee > 0) {
         <p class="r-row"><span>Packaging</span><span>{{ p.packagingFee | amount }}</span></p>

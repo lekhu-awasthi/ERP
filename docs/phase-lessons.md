@@ -2014,3 +2014,28 @@ bring it back on a tax document.
 
 **Look at the paper.** A correct string can wrap wrongly: a half-width PDF header column broke inside `(… AD)`, and a
 72 mm receipt broke after a hyphen, which a no-break space does not prevent. Put the halves on their own lines.
+
+## Phase 72 — The restaurant bill finished: a discount is a term of the order, a bill names its own customer, and lowering a bill needs Approve
+
+**Read `phase-72-status.md` before adding anything that changes what a part of an order costs (a discount, a waiver, a
+fee), before gating a price at a till, before moving food between tabs, or before adding a control that hides itself.**
+
+**A term that prices every part is fixed when the first part is priced.** The planner gives the last of a line exactly
+what is left of its money, so a term changed after a part was billed lands on the last part alone. The order's
+discount and waiver are fixed at its first bill, a line's discount at its own first part; setting the same value again
+is no change. Every order line is priced by `PosOrder.FiguresOf`, and `PosOrderLine.Figures` was deleted so the
+compiler named every caller.
+
+**A gate on one door is a price edit away from useless.** A discount at the Retail till needs `Sales.Invoice.Approve`
+at the location, and so does a line below its unit's catalogue rate (`ProductPrices.CatalogueRate`, the grid's own
+figure). A till sale is approved when it is rung up and a drawer count cannot catch a discount, so the review happens
+when the price is lowered: on the sale at the Retail till, when the term is set at the restaurant.
+
+**A tab's terms travel with its food.** A transfer's empty target takes the source's discount and waiver; any other must
+already have them, or the 409 names both orders. Silently repricing a moved dish is the vendor's defect 1 again.
+
+**A required field must not have a default.** `discountPct ?? 0` would have turned a misspelt request into a removed
+discount with a 200; the commands' fields are nullable and `NotNull`, so the 400 names the field.
+
+**A control that removes itself drops a keyboard user onto the page.** The customer search now hands focus back to the
+button that opened it (`returnFocusTo`); the Retail till and the order screen had lost it since phases 62 and 64.

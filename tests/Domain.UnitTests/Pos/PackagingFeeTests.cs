@@ -167,7 +167,7 @@ public class PackagingFeeTests
         // and the last takes the 6.66 left -- never 6.67 three times (20.01).
         var order = TakeAway(1m, TwentyABox);
         var momo = order.Lines[0];
-        var whole = momo.Figures(1m);
+        var whole = order.FiguresOf(momo, 1m);
 
         var billed = new Dictionary<Guid, PosOrderLineBilled>();
         var totals = PosOrderBilledTotals.None;
@@ -226,7 +226,7 @@ public class PackagingFeeTests
         Assert.Equal(2m, order.QuantitiesOf(parcel).Net);
 
         // The parcel pays both charges on its two units: 400 + 40 service charge + 40 fee + 13% of 480.
-        var figures = parcel.Figures(order.QuantitiesOf(parcel).Net);
+        var figures = order.FiguresOf(parcel, order.QuantitiesOf(parcel).Net);
         Assert.Equal((400m, 40m, 40m, 62.40m), (figures.Amount, figures.ServiceChargeAmount, figures.PackagingFeeAmount, figures.VatAmount));
     }
 

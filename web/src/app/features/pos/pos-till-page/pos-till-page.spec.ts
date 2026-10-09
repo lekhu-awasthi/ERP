@@ -53,6 +53,7 @@ describe('PosTillPage', () => {
     canSellOnCredit: true,
     printCreditNote: true,
     canRefund: true,
+    canDiscount: true,
     ...overrides,
   });
 
@@ -330,6 +331,49 @@ describe('PosTillPage', () => {
         contactId: 'acme', tenders: [{ paymentModeId: 'card', amount: 100 }], changeAmount: 0,
       }));
     });
+  });
+
+  // ---- Phase 72: a discount, or a price below the catalogue, needs Sales.Invoice.Approve here -------------
+
+  /** The cart's price and discount fields act on change, as a cashier tabbing out of them does. */
+  const setField = (p: ReturnType<typeof page>, selector: string, value: string) => {
+    const input = p.element.querySelector<HTMLInputElement>(selector)!;
+    input.value = value;
+    input.dispatchEvent(new Event('change'));
+    p.render();
+  };
+
+  it('says a discount needs Sales.Invoice.Approve here, for a cashier without it, and will not complete the sale', () => {
+    const p = page(till({ canDiscount: false }));
+    p.tile('Chicken Momo');
+
+    setField(p, '[id^="pos-discount-"]', '10');
+    expect(p.text()).toContain('needs permission to approve invoices at this location (Sales.Invoice.Approve)');
+
+    p.press('Pay (F9)');
+    p.tender('cash', '1000');
+    expect(p.complete().disabled).toBe(true);
+    expect(p.service.sent).toEqual([]);
+  });
+
+  it('treats a price below the catalogue as a discount, and a higher one as any cashier\'s', () => {
+    const p = page(till({ canDiscount: false }));
+    p.tile('Chicken Momo');
+
+    setField(p, '[id^="pos-rate-"]', '190');
+    expect(p.text()).toContain('Sales.Invoice.Approve');
+
+    setField(p, '[id^="pos-rate-"]', '210');
+    expect(p.text()).not.toContain('Sales.Invoice.Approve');
+  });
+
+  it('lets a cashier who may approve invoices give a bill discount', () => {
+    const p = page();
+    p.tile('Chicken Momo');
+
+    setField(p, '#pos-bill-discount', '10');
+
+    expect(p.text()).not.toContain('Sales.Invoice.Approve');
   });
 
   it('names the missing key when the cashier may not leave anything on credit', () => {

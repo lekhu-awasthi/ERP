@@ -63,7 +63,9 @@ public sealed record PosOrderBillPlan(
 ///
 /// <para><b>Rates never move; quantities do.</b> Every line is priced from the order line's frozen rate,
 /// VAT rate, service charge rate and packaging fee (phase 64 Decision C; phase 70), so a split cannot drop a service charge the way
-/// the vendor's did (phase 59 defect 1: the remainder billed 20 of service charge instead of 40).</para>
+/// the vendor's did (phase 59 defect 1: the remainder billed 20 of service charge instead of 40). Phase 72 -- and
+/// from the discounts and the waiver (<see cref="PosOrder.FiguresOf"/>), which the order fixes at its first bill
+/// for the same reason.</para>
 ///
 /// <para><b>The last of a line takes exactly what is left of its money</b> -- its amount, service charge,
 /// packaging fee and VAT, each -- so however a line is split, its parts add up to what the whole line comes to, to the
@@ -114,7 +116,7 @@ public static class PosOrderBill
                 var left = remaining[x.Line.Id];
                 var figures = x.Quantity == left
                     ? WhatIsLeft(order, x.Line, billed.GetValueOrDefault(x.Line.Id))
-                    : x.Line.Figures(x.Quantity);
+                    : order.FiguresOf(x.Line, x.Quantity);
                 return new PosOrderBillLine(x.Line, x.Quantity, figures, left - x.Quantity);
             })
             .ToList();
@@ -137,7 +139,7 @@ public static class PosOrderBill
 
             var already = lines.Where(l => l.Line.Id == line.Id)
                 .Aggregate(billed.GetValueOrDefault(line.Id)?.Figures ?? PosLineArithmetic.Figures.Zero, (sum, l) => sum + l.Figures);
-            var whole = line.Figures(order.QuantitiesOf(line).Net);
+            var whole = order.FiguresOf(line, order.QuantitiesOf(line).Net);
             return (whole - already).Total;
         });
 
@@ -234,7 +236,7 @@ public static class PosOrderBill
     /// its amount.</summary>
     private static PosLineArithmetic.Figures WhatIsLeft(PosOrder order, PosOrderLine line, PosOrderLineBilled? billed)
     {
-        var whole = line.Figures(order.QuantitiesOf(line).Net);
+        var whole = order.FiguresOf(line, order.QuantitiesOf(line).Net);
         return billed is null ? whole : whole - billed.Figures;
     }
 }

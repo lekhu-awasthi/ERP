@@ -404,10 +404,17 @@ public sealed class Invoice
     }
 
     /// <summary>Phase 65 -- adds a line billing part of an order line, priced by the order's bill planner.
-    /// See <see cref="InvoiceLine.CreatePosOrderPart"/>.</summary>
+    /// See <see cref="InvoiceLine.CreatePosOrderPart"/>.
+    ///
+    /// <para>Phase 72 -- the bill carries the order's terms as the till's own fields: the line's discount here,
+    /// the order's as this invoice's header <see cref="DiscountPct"/> (set by <see cref="CreatePosSale"/>), and the
+    /// service charge rate the line is billed at (none when the guest declined it). The figures are the
+    /// planner's, priced from exactly those, so a refund (phase 63) and every reader that rebuilds a discount
+    /// from the percentages agree with what was charged.</para></summary>
     public void AddPosOrderLine(
-        Guid posOrderLineId, Guid productId, decimal quantity, decimal rate, VatRate vatRate, Guid? unitId,
-        decimal conversionFactor, decimal serviceChargeRate, PackagingFee packagingFee, PosLineArithmetic.Figures figures)
+        Guid posOrderLineId, Guid productId, decimal quantity, decimal rate, VatRate vatRate, decimal discountPct,
+        Guid? unitId, decimal conversionFactor, decimal serviceChargeRate, PackagingFee packagingFee,
+        PosLineArithmetic.Figures figures)
     {
         EnsureDraft();
         EnsurePos();
@@ -423,14 +430,11 @@ public sealed class Invoice
             throw new InvalidOperationException("An invoice line needs a positive Quantity and a non-negative Rate.");
         }
 
-        if (DiscountPct != 0m)
-        {
-            throw new InvalidOperationException("A bill for an order carries no discount.");
-        }
+        EnsureValidDiscountPct(discountPct);
 
         _lines.Add(InvoiceLine.CreatePosOrderPart(
-            Id, posOrderLineId, productId, quantity, rate, vatRate, unitId, conversionFactor, serviceChargeRate,
-            packagingFee, figures));
+            Id, posOrderLineId, productId, quantity, rate, vatRate, discountPct, unitId, conversionFactor,
+            serviceChargeRate, packagingFee, figures));
 
         RoundOff = 0m;
     }

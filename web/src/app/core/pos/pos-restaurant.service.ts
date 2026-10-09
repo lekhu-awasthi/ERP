@@ -148,6 +148,30 @@ export class PosRestaurantService {
     });
   }
 
+  /**
+   * Phase 72 -- the order's discount, a percentage off every line after its own (0 removes it). Needs
+   * Sales.Invoice.Approve at the order's location, and is fixed once any of the order is billed (a 409).
+   */
+  setOrderDiscount(organizationId: string, orderId: string, discountPct: number): Observable<PosOrder> {
+    return this.http.put<PosOrder>(`${this.orderUrl(organizationId, orderId)}/discount`, { discountPct }, {
+      withCredentials: true,
+    });
+  }
+
+  /** Phase 72 -- one dish's discount, before the order's; fixed once any of that line is billed. */
+  setLineDiscount(organizationId: string, orderId: string, lineId: string, discountPct: number): Observable<PosOrder> {
+    return this.http.put<PosOrder>(`${this.orderUrl(organizationId, orderId)}/lines/${lineId}/discount`, { discountPct }, {
+      withCredentials: true,
+    });
+  }
+
+  /** Phase 72 -- the guest declined the service charge (or changed their mind); fixed once the order is billed. */
+  setServiceChargeWaived(organizationId: string, orderId: string, waived: boolean): Observable<PosOrder> {
+    return this.http.put<PosOrder>(`${this.orderUrl(organizationId, orderId)}/service-charge`, { waived }, {
+      withCredentials: true,
+    });
+  }
+
   /** Phase 68 -- moves items to another table's open order, or to a new one opened there. */
   transferItems(
     organizationId: string, orderId: string, tableId: string, items: PosOrderLineQuantityInput[],

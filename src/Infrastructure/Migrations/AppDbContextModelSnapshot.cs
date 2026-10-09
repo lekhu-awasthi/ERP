@@ -4200,6 +4200,11 @@ namespace ErpApp.Infrastructure.Migrations
                     b.Property<DateOnly>("Date")
                         .HasColumnType("date");
 
+                    b.Property<decimal>("DiscountPct")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)")
+                        .HasDefaultValue(0m);
+
                     b.Property<DateTimeOffset>("LastActivityAt")
                         .HasColumnType("datetimeoffset");
 
@@ -4219,6 +4224,10 @@ namespace ErpApp.Infrastructure.Migrations
                         .IsRequired()
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("rowversion");
+
+                    b.Property<bool>("ServiceChargeWaived")
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
 
                     b.Property<DateTimeOffset?>("SettledAt")
                         .HasColumnType("datetimeoffset");
@@ -4271,6 +4280,11 @@ namespace ErpApp.Infrastructure.Migrations
                     b.Property<decimal>("ConversionFactor")
                         .HasPrecision(18, 6)
                         .HasColumnType("decimal(18,6)");
+
+                    b.Property<decimal>("DiscountPct")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)")
+                        .HasDefaultValue(0m);
 
                     b.Property<bool>("IsTakeAway")
                         .HasColumnType("bit");

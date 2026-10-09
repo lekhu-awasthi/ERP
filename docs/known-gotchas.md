@@ -4308,3 +4308,44 @@ A file written into `web/public` while `ng serve` is running is a 404 until the 
 body is what a script reading it receives. The phase's cookie transplant read that body into `document.cookie` before
 the length check was added. Restart the preview after writing a served file, check the status *and* the content, and
 delete the file straight after.
+
+## A term that prices every part is fixed when the first part is priced (phase 72)
+
+Phase 65's bill planner gives the part that bills the last of an order line exactly what is left of that line's money
+(the whole line at today's terms less what earlier bills took). A discount changed after the first part was billed
+therefore lands entirely on the last part: four momos at 0%, two billed, then 10% off leaves the last two carrying a
+20% discount between them. So the order's discount and its waived service charge are fixed at its first bill, and a
+line's discount at that line's own first part; setting the value already there is no change, so a repeated `PUT` is a
+200, not a 409. Every order line is priced by `PosOrder.FiguresOf`, which alone knows the order's terms, and
+`PosOrderLine.Figures` was deleted so the compiler listed every caller instead of a grep.
+
+## A gate on the discount field is a price edit away from useless (phase 72)
+
+Requiring `Sales.Invoice.Approve` for a Retail till discount would have changed nothing on its own: phase 62's line
+edit lets any cashier type a lower price, and the server accepted any rate. A line rung up below its unit's catalogue
+rate is a discount by another name, so it needs the same key. The comparison uses `ProductPrices.CatalogueRate`, the
+grid's own figure (VAT-exclusive after the price basis, per unit), so an unchanged price is equal to the paisa and only
+a real cut trips it. Raising a price stays open; the vendor gates that too (*Can Change Rate*), recorded as open.
+
+## A required field with a default reads a misspelt request as a valid one (phase 72)
+
+The first draft of the discount endpoint passed `request.DiscountPct ?? 0m`. Zero is a valid discount (it removes
+one), so a client that misspelt the field, or omitted it, would have removed the order's discount and got a 200; the
+waiver's `?? false` would have restored a declined service charge the same way. The command fields are nullable and
+`NotNull` in the validator, so the 400 names the field. Phase 27b's trap is the mirror image: there a new field binds
+to null in silence; here a missing field must not bind to a value.
+
+## A control that removes itself drops keyboard focus onto the page (phase 72)
+
+Choosing a customer hides both the result button that was pressed and the panel holding it, and *Use Walk-in* hides
+itself the moment the walk-in is chosen. In both cases the focused element leaves the DOM and focus falls to `<body>`:
+a keyboard user is back at the top of the page. It was true of the Retail till since phase 62 and of the order screen
+since phase 64, and found only by this phase's keyboard pass on the bill screen. The shared customer search takes
+`returnFocusTo` (the id of the button that opened it) and focuses it after the next render, and each *Use Walk-in*
+handler does the same. A component spec can pin it by appending an opener to `document.body`.
+
+## A floating-point check refuses 10.1 percent (phase 72)
+
+"At most two decimal places" written as `Math.round(p * 100) !== p * 100` refuses 10.1, because `10.1 * 100` is
+`1009.9999999999999`. Compare `Number(p.toFixed(2))` with `p` instead. The server's own check is on `decimal` and has
+no such problem, which is why only a hand reading of the browser rule caught it.

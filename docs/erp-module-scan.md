@@ -2670,3 +2670,33 @@ list's *Reference No* column only.
   (phase 67).
 - The bundle holds an older detail-page edit schema as well (`"Invoice Ref#"`, type `reference`, not
   required); the add form served at the route is the newer one above.
+
+## Restaurant discount, customer and credit, read live (phase 72, 2026-10-09)
+
+*Hamro Samaan* on its last trial day, entered through *Open Pos*, **read-only**: the page's `XMLHttpRequest` and `fetch`
+were wrapped to refuse anything but a GET (21 requests, all GETs). Phase 68's order `SO0005/1002/83-84` on T2 was read
+and not changed; the payment screen needs a session, so it was read from the client bundle (chunk
+`1295-c0df25e851357c82`, plus `_app`). Decisions are in `phase-72-status.md`.
+
+- **Order screen *Options***: Discount, Add Note, Transfer List, Discard, Print Estimate bill. **Apply Discount**:
+  *Type of Discount* `Percent (%) | Amount` (Amount preselected), one *Discount* field; a percent over 100 and an amount
+  over the order's total are refused in the client.
+- **A line's *Edit Item***: Quantity, Unit, Price (VAT-exclusive), *Type of discount* `Percent (%) | Amount` (Percent
+  preselected), *Discount (Item Line)*, Note.
+- **Order detail totals**: Sub Total, **Discount**, Service Charge, Non-Taxable, Taxable, VAT, Grand Total; the discount
+  is taken before the service charge.
+- **Payment**: both the whole bill (`POST /pos/invoices`) and a split (`POST /pos/invoices/{order}/split-bill`) send the
+  **order's** `discount`/`discount_type` (redux `orderList.discount`, set by *Options > Discount* and by the payment
+  screen's own Discount) and the order's `contact_id`, else the default contact. After a split the order's discount is
+  reset from the server's answer; what the server does with it across splits was not observable read-only.
+- **The client's arithmetic** (`_app` totals helper): a line discount is a percent or an **amount per unit**; the order's
+  is a percent, or an amount spread over the lines in proportion to their net, residue on the first; service charge on
+  what is left; VAT on that plus the service charge. Paisa are **truncated** (`parseInt`), not rounded.
+- **The gate**: the Discount menu item and the line's discount field render only when `XM("discount_limit")` holds:
+  **always for an Admin**, otherwise the role's switch for the current location. The role editor's location section
+  offers **Can Give Discount** (`discount_limit`), **Can Remove Service Charge** and **Can Change Rate**.
+- **Customer**: the chip opens *Customers* (one select, *View More*, Update), which writes
+  `POST /pos/orders/{id}/update-customer`; the customer is the order's, and a part for another guest is billed by
+  changing the order's customer between splits.
+- **Credit** is a tender with no payment mode, `{type: "Credit", amount}`, for the amount still due; the client does not
+  refuse it on the walk-in.

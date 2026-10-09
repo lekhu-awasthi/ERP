@@ -14,6 +14,9 @@ using ErpApp.Application.Pos.Commands.SetKitchenStationProducts;
 using ErpApp.Application.Pos.Commands.UpdateKitchenStation;
 using ErpApp.Application.Pos.Commands.UpdatePosArea;
 using ErpApp.Application.Pos.Commands.UpdatePosOrder;
+using ErpApp.Application.Pos.Commands.UpdatePosOrderDiscount;
+using ErpApp.Application.Pos.Commands.UpdatePosOrderLineDiscount;
+using ErpApp.Application.Pos.Commands.UpdatePosOrderServiceCharge;
 using ErpApp.Application.Pos.Commands.UpdatePosOrderTakeAway;
 using ErpApp.Application.Pos.Commands.VoidPosOrder;
 using ErpApp.Application.Pos.Commands.VoidPosOrderItems;
@@ -139,6 +142,25 @@ public static class PosRestaurantEndpoints
             Results.Ok(await sender.Send(
                 new UpdatePosOrderTakeAwayCommand(organizationId, orderId, request.LineId ?? Guid.Empty, request.Quantity ?? 0m), ct)));
 
+        // Phase 72 -- the order's terms: its discount, a line's discount, a waived service charge. Each needs
+        // Sales.Invoice.Approve at the order's location (the handler), and is fixed once the order is billed.
+        group.MapPut("/orders/{orderId:guid}/discount", async (
+            Guid organizationId, Guid orderId, UpdatePosOrderDiscountRequest request, ISender sender, CancellationToken ct) =>
+            Results.Ok(await sender.Send(
+                new UpdatePosOrderDiscountCommand(organizationId, orderId, request.DiscountPct), ct)));
+
+        group.MapPut("/orders/{orderId:guid}/lines/{lineId:guid}/discount", async (
+            Guid organizationId, Guid orderId, Guid lineId, UpdatePosOrderDiscountRequest request, ISender sender,
+            CancellationToken ct) =>
+            Results.Ok(await sender.Send(
+                new UpdatePosOrderLineDiscountCommand(organizationId, orderId, lineId, request.DiscountPct), ct)));
+
+        group.MapPut("/orders/{orderId:guid}/service-charge", async (
+            Guid organizationId, Guid orderId, UpdatePosOrderServiceChargeRequest request, ISender sender,
+            CancellationToken ct) =>
+            Results.Ok(await sender.Send(
+                new UpdatePosOrderServiceChargeCommand(organizationId, orderId, request.Waived), ct)));
+
         // Phase 68 -- items moved to another table's open order, or to a new one opened there.
         group.MapPost("/orders/{orderId:guid}/transfers", async (
             Guid organizationId, Guid orderId, CreatePosOrderTransferRequest request, ISender sender, CancellationToken ct) =>
@@ -254,6 +276,10 @@ public static class PosRestaurantEndpoints
     private sealed record VoidPosOrderRequest(string? Reason);
 
     private sealed record UpdatePosOrderTakeAwayRequest(Guid? LineId, decimal? Quantity);
+
+    private sealed record UpdatePosOrderDiscountRequest(decimal? DiscountPct);
+
+    private sealed record UpdatePosOrderServiceChargeRequest(bool? Waived);
 
     private sealed record CreatePosOrderTransferRequest(Guid? TableId, IReadOnlyList<PosOrderLineQuantityInput>? Items);
 

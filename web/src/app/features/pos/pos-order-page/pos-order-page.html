@@ -95,21 +95,13 @@
               @if (needsCustomer()) {
                 <p class="small text-danger-emphasis mb-1" id="pos-order-customer-needed">A delivery goes to a named customer: choose one before sending.</p>
               }
-              <button type="button" class="btn btn-sm btn-outline-secondary mb-2" [attr.aria-expanded]="customerOpen()"
-                aria-controls="pos-order-customer-panel" (click)="customerOpen.set(!customerOpen())">Choose Customer</button>
+              <button type="button" class="btn btn-sm btn-outline-secondary mb-2" id="pos-order-customer-toggle"
+                [attr.aria-expanded]="customerOpen()" aria-controls="pos-order-customer-panel"
+                (click)="customerOpen.set(!customerOpen())">Choose Customer</button>
               <div id="pos-order-customer-panel" class="mb-2" [hidden]="!customerOpen()">
-                <label class="form-label small mb-1" for="pos-order-customer-search">Find a customer by name, code or PAN</label>
-                <input class="form-control form-control-sm" id="pos-order-customer-search" type="search" autocomplete="off"
-                  (input)="onCustomerInput($event)" />
-                <ul class="list-unstyled mb-0 mt-1">
-                  @for (contact of customerResults(); track contact.id) {
-                    <li>
-                      <button type="button" class="btn btn-link btn-sm p-0" (click)="chooseCustomer(contact)">
-                        {{ contact.name }} ({{ contact.code }})
-                      </button>
-                    </li>
-                  }
-                </ul>
+                <app-pos-customer-search [organizationId]="organizationId" inputId="pos-order-customer-search"
+                  returnFocusTo="pos-order-customer-toggle" [excludeId]="r.walkInCustomer?.id ?? null" (chosen)="chooseCustomer($event)"
+                  (failed)="errorMessage.set($event)" />
               </div>
             }
           } @else if (order(); as o) {
@@ -127,6 +119,18 @@
                   aria-controls="pos-order-details-panel" (click)="openPanel({ kind: 'details' })">
                   {{ o.orderType === 'DineIn' ? 'Move Table / Guests' : 'Guests' }}
                 </button>
+                @if (r.canDiscount && !orderBilled()) {
+                  <button type="button" class="btn btn-sm btn-outline-secondary" [attr.aria-expanded]="isPanel('discount')"
+                    aria-controls="pos-order-discount-panel" (click)="openPanel({ kind: 'discount' })">
+                    Discount{{ o.discountPct > 0 ? ' (' + o.discountPct + '%)' : '' }}
+                  </button>
+                  @if (hasServiceCharge()) {
+                    <button type="button" class="btn btn-sm btn-outline-secondary" [attr.aria-expanded]="isPanel('serviceCharge')"
+                      aria-controls="pos-order-service-charge-panel" (click)="openPanel({ kind: 'serviceCharge' })">
+                      {{ o.serviceChargeWaived ? 'Restore Service Charge' : 'Waive Service Charge' }}
+                    </button>
+                  }
+                }
                 @if (o.orderType === 'DineIn' && transferableLines().length > 0) {
                   <button type="button" class="btn btn-sm btn-outline-secondary" [attr.aria-expanded]="isPanel('transfer')"
                     aria-controls="pos-order-transfer-panel" (click)="openPanel({ kind: 'transfer' })">Transfer Items</button>
@@ -156,6 +160,44 @@
                   <app-status-banner [message]="panelError()" spacing="mb-2" [small]="true" />
                   <div class="d-flex gap-2">
                     <button type="submit" class="btn btn-sm btn-primary" [disabled]="busy()">Save</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" (click)="closePanel()">Cancel</button>
+                  </div>
+                </form>
+              }
+              @if (isPanel('discount')) {
+                <form id="pos-order-discount-panel" class="pos-panel" (submit)="$event.preventDefault(); confirmPanel()">
+                  <label class="form-label small mb-1" for="pos-order-panel-first">Discount on the whole order (%)</label>
+                  <input class="form-control form-control-sm pos-qty mb-2" id="pos-order-panel-first" type="number" min="0" max="100"
+                    step="0.01" [value]="panelPercent()" aria-describedby="pos-order-discount-note"
+                    [attr.aria-invalid]="panelError() ? true : null" (input)="onPanelPercent($event)" />
+                  <p class="small mb-2" id="pos-order-discount-note">
+                    Taken off every item after its own discount, before service charge and VAT; 0 removes it. It is fixed
+                    once any of the order is billed.
+                  </p>
+                  <app-status-banner [message]="panelError()" spacing="mb-2" [small]="true" />
+                  <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-sm btn-primary" [disabled]="busy()">Save Discount</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" (click)="closePanel()">Cancel</button>
+                  </div>
+                </form>
+              }
+              @if (isPanel('serviceCharge')) {
+                <form id="pos-order-service-charge-panel" class="pos-panel" (submit)="$event.preventDefault(); confirmPanel()">
+                  <p class="small mb-2" id="pos-order-service-charge-note">
+                    @if (o.serviceChargeWaived) {
+                      Charge the service charge on this order again.
+                    } @else {
+                      The guest declined the service charge, so bill every item without it. A mandatory service charge has
+                      been unlawful since the Supreme Court's ruling of 2023-01-25.
+                    }
+                    It is fixed once any of the order is billed.
+                  </p>
+                  <app-status-banner [message]="panelError()" spacing="mb-2" [small]="true" />
+                  <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-sm btn-primary" id="pos-order-panel-first"
+                      aria-describedby="pos-order-service-charge-note" [disabled]="busy()">
+                      {{ o.serviceChargeWaived ? 'Restore Service Charge' : 'Waive Service Charge' }}
+                    </button>
                     <button type="button" class="btn btn-sm btn-outline-secondary" (click)="closePanel()">Cancel</button>
                   </div>
                 </form>
@@ -225,6 +267,9 @@
                       @if (line.isTakeAway) {
                         <span class="badge text-bg-info">Take away</span>
                       }
+                      @if (line.discountPct > 0) {
+                        <span class="badge text-bg-secondary">{{ line.discountPct }}% off</span>
+                      }
                     </span>
                     <span>{{ line.total | amount }}</span>
                   </div>
@@ -249,6 +294,12 @@
                         <button type="button" class="btn btn-sm btn-outline-secondary" [attr.aria-expanded]="isPanel('takeAway', line.id)"
                           [attr.aria-controls]="'pos-order-take-away-' + line.id" (click)="openPanel({ kind: 'takeAway', lineId: line.id }, line)">
                           Take Away<span class="visually-hidden"> {{ line.productName }}</span>
+                        </button>
+                      }
+                      @if (r.canDiscount && line.invoiced === 0 && line.quantity > 0) {
+                        <button type="button" class="btn btn-sm btn-outline-secondary" [attr.aria-expanded]="isPanel('lineDiscount', line.id)"
+                          [attr.aria-controls]="'pos-order-line-discount-' + line.id" (click)="openPanel({ kind: 'lineDiscount', lineId: line.id }, line)">
+                          Discount<span class="visually-hidden"> {{ line.productName }}</span>
                         </button>
                       }
                       @if (line.quantity > 0) {
@@ -286,6 +337,22 @@
                         </div>
                       </form>
                     }
+                    @if (isPanel('lineDiscount', line.id)) {
+                      <form class="pos-panel" [id]="'pos-order-line-discount-' + line.id" (submit)="$event.preventDefault(); confirmPanel()">
+                        <label class="form-label small mb-1" for="pos-order-panel-first">Discount on {{ line.productName }} (%)</label>
+                        <input class="form-control form-control-sm pos-qty mb-2" id="pos-order-panel-first" type="number" min="0" max="100"
+                          step="0.01" [value]="panelPercent()" aria-describedby="pos-order-line-discount-note"
+                          [attr.aria-invalid]="panelError() ? true : null" (input)="onPanelPercent($event)" />
+                        <p class="small mb-2" id="pos-order-line-discount-note">
+                          Taken off this item before the order's own discount; 100 puts it on the house. Fixed once any of it is billed.
+                        </p>
+                        <app-status-banner [message]="panelError()" spacing="mb-2" [small]="true" />
+                        <div class="d-flex gap-2">
+                          <button type="submit" class="btn btn-sm btn-primary" [disabled]="busy()">Save Discount</button>
+                          <button type="button" class="btn btn-sm btn-outline-secondary" (click)="closePanel()">Cancel</button>
+                        </div>
+                      </form>
+                    }
                     @if (isPanel('discard', line.id)) {
                       <form class="pos-panel" [id]="'pos-order-discard-' + line.id" (submit)="$event.preventDefault(); confirmPanel()">
                         <label class="form-label small mb-1" for="pos-order-panel-first">Discard (of {{ line.quantity }} on the order)</label>
@@ -308,11 +375,29 @@
             @if (!r.canVoid && o.status === 'Open') {
               <p class="small text-body-secondary">Discarding what the kitchen was sent needs the Pos.Order.Void permission.</p>
             }
+            @if (o.status === 'Open') {
+              @if (!r.canDiscount) {
+                <p class="small text-body-secondary">
+                  Giving a discount or waiving the service charge needs the Sales.Invoice.Approve permission at this location.
+                </p>
+              } @else if (orderBilled()) {
+                <p class="small text-body-secondary">
+                  The order's discount and service charge are fixed: part of it is billed. An item not yet billed can still
+                  take a discount of its own.
+                </p>
+              }
+            }
 
             <dl class="pos-totals small">
+              @if (o.discount > 0) {
+                <dt>Gross</dt><dd>{{ o.gross | amount }}</dd>
+                <dt>Discount{{ o.discountPct > 0 ? ' (' + o.discountPct + '% on the order)' : '' }}</dt><dd>{{ o.discount | amount }}</dd>
+              }
               <dt>Amount</dt><dd>{{ o.amount | amount }}</dd>
               @if (o.serviceCharge > 0) {
                 <dt>Service charge</dt><dd>{{ o.serviceCharge | amount }}</dd>
+              } @else if (o.serviceChargeWaived) {
+                <dt>Service charge</dt><dd>Waived</dd>
               }
               @if (o.packagingFee > 0) {
                 <dt>Packaging</dt><dd>{{ o.packagingFee | amount }}</dd>

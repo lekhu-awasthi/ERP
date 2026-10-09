@@ -4,6 +4,8 @@ import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
 import { Observable, of } from 'rxjs';
 
+import { Contact } from '../../../core/contacts/contacts.models';
+import { ContactsService } from '../../../core/contacts/contacts.service';
 import { PosReceipt, PosTill } from '../../../core/pos/pos.models';
 import {
   CreatePosOrderInvoiceRequest,
@@ -30,7 +32,7 @@ describe('PosBillPage', () => {
     defaultTab: 'DineIn', serviceChargeEnabled: true, serviceChargeRate: 10, packagingFeeBasis: 'None', packagingFeeValue: 0, printKot: false, canvasWidth: 1100,
     canvasHeight: 800, walkInCustomer: null, categories: [], areas: [], orders: [], canVoid: true,
     roundOffEnabled: true, printEstimateBill: true, printInvoice: false, mySessionId: 'ses-1', mySessionCode: 'SES0001',
-    canKitchen: true, serviceChargeOnTakeAway: true,
+    canKitchen: true, serviceChargeOnTakeAway: true, canDiscount: true,
     ...overrides,
   });
 
@@ -40,7 +42,7 @@ describe('PosBillPage', () => {
     cashVerificationRequired: false, denominations: [], printInvoice: false, abbreviatedTaxInvoiceEnabled: false,
     isVatRegistered: true, warehouseId: 'wh', warehouseName: 'Main', walkInCustomer: null,
     paymentModes: [{ id: 'cash', name: 'Cash', kind: 'Cash' }, { id: 'card', name: 'Card', kind: 'Card' }],
-    categories: [], canSellOnCredit: false, printCreditNote: false, canRefund: false,
+    categories: [], canSellOnCredit: false, printCreditNote: false, canRefund: false, canDiscount: false,
   } as PosTill;
 
   const line = (id: string, name: string, quantity: number) => ({
@@ -48,6 +50,7 @@ describe('PosBillPage', () => {
     vatRate: 'ThirteenPercentVat' as const, serviceChargeRate: 10, note: null, kitchenStationId: null,
     kitchenStationName: 'Default', ordered: quantity, discarded: 0, quantity, served: 0, outstanding: quantity,
     invoiced: 0, toBill: quantity, amount: 0, serviceChargeAmount: 0, packagingFeeAmount: 0, vatAmount: 0, total: 0, isTakeAway: false, parcelledFromLineId: null, movedIn: 0, movedOut: 0,
+    discountPct: 0, gross: quantity * 200,
   });
 
   const order = (overrides: Partial<PosOrder> = {}): PosOrder => ({
@@ -56,6 +59,7 @@ describe('PosBillPage', () => {
     contactName: 'Cash Customer', date: '2026-10-02', createdAt: '2026-10-02T04:00:00Z', createdByName: 'Sita',
     voidReason: null, voidedAt: null, voidedByName: null, amount: 520, serviceCharge: 40, packagingFee: 0, vat: 72.8, total: 632.8,
     outstanding: 4, settledAt: null, billed: 0, toBill: 4, invoices: [], tickets: [],
+    discountPct: 0, serviceChargeWaived: false, gross: 520, discount: 0,
     lines: [line('momo', 'Chicken Momo', 2), line('coke', 'Coke 250ml', 2)],
     ...overrides,
   });
@@ -69,10 +73,13 @@ describe('PosBillPage', () => {
       serviceCharge: part === 'whole' ? 40 : 20, packagingFee: 0, vat: part === 'whole' ? 72.8 : 36.4, unrounded,
       roundOff: Math.round((total - unrounded) * 100) / 100, total, billsTheRest: part !== 'first', orderTotal: 633,
       billedBefore: part === 'rest' ? 316 : 0, leftAfter: part === 'first' ? 317 : 0,
+      gross: unrounded === 632.8 ? 520 : 260, discount: 0, discountPct: 0, serviceChargeWaived: false,
     };
   };
 
-  function page(options: { restaurant?: PosRestaurant } = {}) {
+  const acme: Contact = { id: 'acme', code: 'C-0001', name: 'Acme Retail' } as Contact;
+
+  function page(options: { restaurant?: PosRestaurant; till?: PosTill; preview?: PosOrderBillPreview } = {}) {
     vi.useFakeTimers();
     const previews: PosOrderBillRequest[] = [];
     const bills: CreatePosOrderInvoiceRequest[] = [];
@@ -83,6 +90,7 @@ describe('PosBillPage', () => {
       getRestaurant: (): Observable<PosRestaurant> => of(options.restaurant ?? restaurant()),
       previewBill: (_o: string, _id: string, request: PosOrderBillRequest): Observable<PosOrderBillPreview> => {
         previews.push(request);
+        if (options.preview) return of(options.preview);
         return of(paid ? preview('rest') : request.split === 'Whole' ? preview('whole') : preview('first'));
       },
       billOrder: (_o: string, _id: string, request: CreatePosOrderInvoiceRequest): Observable<CreatePosOrderInvoiceResult> => {
@@ -95,7 +103,7 @@ describe('PosBillPage', () => {
       },
     };
     const posService = {
-      getTill: (): Observable<PosTill> => of(till),
+      getTill: (): Observable<PosTill> => of(options.till ?? till),
       printReceipt: (): Observable<PosReceipt> => of({} as PosReceipt),
     };
 
@@ -107,6 +115,7 @@ describe('PosBillPage', () => {
         provideRouter([]),
         { provide: PosRestaurantService, useValue: restaurantService },
         { provide: PosService, useValue: posService },
+        { provide: ContactsService, useValue: { listContacts: () => of({ items: [acme], page: 1, pageSize: 8, totalCount: 1 }) } },
         {
           provide: ActivatedRoute,
           useValue: { snapshot: { paramMap: convertToParamMap({ id: organizationId, orderId: 'ord-1' }) } },
@@ -125,6 +134,11 @@ describe('PosBillPage', () => {
 
     return {
       element, previews, bills, render,
+      press: (label: string) => {
+        [...element.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent?.trim().startsWith(label))!.click();
+        render();
+      },
+      takePayment: () => element.querySelector<HTMLButtonElement>('button.btn-success')!,
       text: () => element.textContent?.replace(/\s+/g, ' ') ?? '',
       click: (selector: string) => {
         element.querySelector<HTMLElement>(selector)!.click();
@@ -189,6 +203,76 @@ describe('PosBillPage', () => {
     expect(p.text()).toContain('Change 184.00');
     // The Pay button went with the bill it paid; focus is on what happened.
     expect(document.activeElement?.id).toBe('pos-bill-done');
+  });
+
+  // ---- Phase 72: a customer per bill, and credit ----------------------------------------------------
+
+  const creditTill = (canSellOnCredit: boolean): PosTill =>
+    ({ ...till, canSellOnCredit, walkInCustomer: { id: 'walk-in', code: 'WALKIN', name: 'Cash Customer' } }) as PosTill;
+
+  it('bills a part to a guest named for it and leaves the rest on their account once the cashier ticks it', () => {
+    const p = page({ till: creditTill(true) });
+    expect(p.text()).toContain('Bill to: Cash Customer (walk-in)');
+
+    p.press('Change Customer');
+    p.change('#pos-bill-customer-search', 'Acme');
+    p.press('Acme Retail (C-0001)');
+    expect(p.text()).toContain('Bill to: Acme Retail');
+
+    p.click('#pos-bill-mode-card');
+    p.change('#pos-bill-amount', '100');
+    p.press('Add');
+    expect(p.takePayment().disabled).toBe(true);
+
+    p.change('#pos-bill-credit-accept', true);
+    expect(p.text()).toContain('Leave 533.00 on Acme Retail\'s account');
+    p.takePayment().click();
+    p.render();
+
+    expect(p.bills[0]).toMatchObject({ contactId: 'acme', tenders: [{ paymentModeId: 'card', amount: 100 }], changeAmount: 0 });
+  });
+
+  it('lets a named guest put the whole bill on their account with nothing handed over', () => {
+    const p = page({ till: creditTill(true) });
+
+    p.press('Change Customer');
+    p.change('#pos-bill-customer-search', 'Acme');
+    p.press('Acme Retail (C-0001)');
+    p.change('#pos-bill-credit-accept', true);
+    p.takePayment().click();
+    p.render();
+
+    expect(p.bills[0]).toMatchObject({ contactId: 'acme', tenders: [], changeAmount: 0 });
+  });
+
+  it('will not leave anything on the walk-in, and names the key a cashier without Approve lacks', () => {
+    const p = page({ till: creditTill(false) });
+
+    p.click('#pos-bill-mode-card');
+    p.change('#pos-bill-amount', '100');
+    p.press('Add');
+    expect(p.text()).toContain('The walk-in customer cannot take credit.');
+    expect(p.element.querySelector('#pos-bill-credit-accept')).toBeNull();
+
+    p.press('Change Customer');
+    p.change('#pos-bill-customer-search', 'Acme');
+    p.press('Acme Retail (C-0001)');
+    expect(p.text()).toContain('Sales.Invoice.Approve');
+    expect(p.element.querySelector('#pos-bill-credit-accept')).toBeNull();
+    expect(p.takePayment().disabled).toBe(true);
+  });
+
+  it('shows what the order\'s discounts took off this bill, and a waived service charge', () => {
+    const p = page({
+      preview: {
+        ...preview('whole'), amount: 456, serviceCharge: 0, vat: 59.28, unrounded: 515.28, roundOff: -0.28, total: 515, orderTotal: 515,
+        gross: 520, discount: 64, discountPct: 5, serviceChargeWaived: true,
+      },
+    });
+
+    expect(p.text()).toContain('Gross520.00');
+    expect(p.text()).toContain('Discount (5% on the order)64.00');
+    expect(p.text()).toContain('Service chargeWaived');
   });
 
   it('says a waiter without a drawer cannot take payment, before anything is chosen', () => {

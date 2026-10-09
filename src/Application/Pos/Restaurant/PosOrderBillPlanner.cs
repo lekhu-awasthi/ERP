@@ -1,5 +1,6 @@
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Domain.Pos;
+using ErpApp.Domain.Sales;
 
 namespace ErpApp.Application.Pos.Restaurant;
 
@@ -9,7 +10,10 @@ namespace ErpApp.Application.Pos.Restaurant;
 /// into, this one included. The till counts it down as the parts are paid; the server keeps no split state.</param>
 public sealed record PosOrderBillPart(PosOrderSplit Split, IReadOnlyList<PosOrderLineQuantityInput>? Items, int? Parts);
 
-/// <summary>One line of a planned bill, named for the screen and the estimate.</summary>
+/// <summary>One line of a planned bill, named for the screen and the estimate. Phase 72:
+/// <paramref name="ServiceChargeRate"/> is the rate the line is billed at (none when the order waived it),
+/// <paramref name="DiscountPct"/> the line's own discount, and <paramref name="Gross"/> its quantity at its
+/// rate before any discount.</summary>
 public sealed record PosOrderBillLineDto(
     Guid OrderLineId,
     int LineNo,
@@ -24,13 +28,17 @@ public sealed record PosOrderBillLineDto(
     decimal PackagingFeeAmount,
     decimal VatAmount,
     decimal Total,
-    decimal RemainingAfter);
+    decimal RemainingAfter,
+    decimal DiscountPct = 0m,
+    decimal Gross = 0m);
 
 /// <summary>
 /// A part of an order priced by the server, which is what the till shows before money changes hands and
 /// what the estimate bill prints. <paramref name="Total"/> is what this bill comes to;
 /// <paramref name="OrderTotal"/> what the whole order comes to as bills; <paramref name="LeftAfter"/> what
-/// later parts will pay.
+/// later parts will pay. Phase 72: <paramref name="Gross"/> less <paramref name="Discount"/> is
+/// <paramref name="Amount"/>, as on the receipt; <paramref name="DiscountPct"/> and
+/// <paramref name="ServiceChargeWaived"/> are the order's terms the part was priced with.
 /// </summary>
 public sealed record PosOrderBillPreviewDto(
     Guid OrderId,
@@ -46,7 +54,11 @@ public sealed record PosOrderBillPreviewDto(
     bool BillsTheRest,
     decimal OrderTotal,
     decimal BilledBefore,
-    decimal LeftAfter);
+    decimal LeftAfter,
+    decimal Gross = 0m,
+    decimal Discount = 0m,
+    decimal DiscountPct = 0m,
+    bool ServiceChargeWaived = false);
 
 /// <summary>
 /// Phase 65 -- the one planner the preview, the estimate bill and the bill itself call (phase 63's rule:
@@ -86,16 +98,21 @@ internal static class PosOrderBillPlanner
                 var name = names[x.Line.Id];
                 return new PosOrderBillLineDto(
                     x.Line.Id, x.Line.LineNo, name.ProductName, name.UnitName, x.Line.Note, x.Quantity, x.Line.Rate,
-                    x.Line.ServiceChargeRate, x.Figures.Amount, x.Figures.ServiceChargeAmount,
-                    x.Figures.PackagingFeeAmount, x.Figures.VatAmount, x.Total, x.RemainingAfter);
+                    order.ServiceChargeRateOf(x.Line), x.Figures.Amount, x.Figures.ServiceChargeAmount,
+                    x.Figures.PackagingFeeAmount, x.Figures.VatAmount, x.Total, x.RemainingAfter,
+                    x.Line.DiscountPct, PosLineArithmetic.RoundMoney(x.Quantity * x.Line.Rate));
             })
             .ToList();
+
+        // Gross is per line at the paisa, as the receipt's is, so Gross − Discount = Amount on the estimate too.
+        var gross = lines.Sum(x => x.Gross);
+        var amount = lines.Sum(x => x.Amount);
 
         return new PosOrderBillPreviewDto(
             order.Id,
             order.Code,
             lines,
-            lines.Sum(x => x.Amount),
+            amount,
             lines.Sum(x => x.ServiceChargeAmount),
             lines.Sum(x => x.PackagingFeeAmount),
             lines.Sum(x => x.VatAmount),
@@ -105,6 +122,10 @@ internal static class PosOrderBillPlanner
             plan.BillsTheRest,
             plan.OrderTotal,
             plan.BilledBefore,
-            plan.LeftAfter);
+            plan.LeftAfter,
+            gross,
+            gross - amount,
+            order.DiscountPct,
+            order.ServiceChargeWaived);
     }
 }

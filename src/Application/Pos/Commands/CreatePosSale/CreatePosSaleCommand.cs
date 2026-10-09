@@ -37,7 +37,8 @@ public sealed record PosTenderInput(Guid PaymentModeId, decimal Amount);
 /// needs <c>Sales.Invoice.Approve</c> there</b>, re-checked in the handler because it depends on the
 /// tenders, not the request's shape: a receivable is exactly what Approve exists to put a second pair
 /// of eyes on, and it is the one thing a till sale creates that an ERP draft could not create without
-/// that key.</para>
+/// that key. <b>Phase 72 -- so does a discount, or a line rung up below the catalogue's price</b>: both
+/// lower what is owed past the drawer's count, which is the other thing an approver reviews.</para>
 ///
 /// <para>The two warnings are phase 31's: a stock shortfall the tenant's setting warns about, and a
 /// credit-limit breach, each a 422 with its own <c>warningKind</c> and its own override flag.</para>

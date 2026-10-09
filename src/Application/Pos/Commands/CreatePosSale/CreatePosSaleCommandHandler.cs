@@ -1,4 +1,5 @@
 using ErpApp.Application.Accounting.Posting;
+using ErpApp.Application.Catalog;
 using ErpApp.Application.Common.Documents;
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Numbering;
@@ -64,6 +65,7 @@ public sealed class CreatePosSaleCommandHandler(
             db, request.OrganizationId, till, request.WarehouseId, cancellationToken);
 
         var products = await LoadProductsAsync(request, cancellationToken);
+        await EnsureMayLowerThePriceAsync(request, till, cancellationToken);
         var tenders = await ResolveTendersAsync(request, till, session, cancellationToken);
 
         var invoice = Invoice.CreatePosSale(
@@ -141,6 +143,44 @@ public sealed class CreatePosSaleCommandHandler(
         }
 
         return products;
+    }
+
+    /// <summary>
+    /// Phase 72 -- a discount, or a line rung up below the catalogue's price for its unit, lowers what the customer
+    /// pays, and a till sale is approved the moment it is rung up. So it needs <c>Sales.Invoice.Approve</c> at this
+    /// location: the review an ERP invoice gets at Approve (phase 61 Decision F's rule for credit, applied to a
+    /// price). A drawer count cannot catch it, because the cash matches the lowered bill. Raising a price, or
+    /// keeping it, needs nothing more. The vendor gates both (<i>Can Give Discount</i>, <i>Can Change Rate</i>),
+    /// and the price check is what keeps the discount gate from being a price edit away.
+    /// </summary>
+    private async Task EnsureMayLowerThePriceAsync(
+        CreatePosSaleCommand request, PosTillContext till, CancellationToken cancellationToken)
+    {
+        if (request.DiscountPct > 0m || request.Lines.Any(x => x.DiscountPct > 0m)
+            || await AnyLineBelowTheCatalogueAsync(request, cancellationToken))
+        {
+            await GrantedPermissionReader.EnsureGrantedAtLocationAsync(
+                db, request.OrganizationId, currentUser.UserId, PermissionKeys.InvoiceApprove, till.Location.Id,
+                cancellationToken);
+        }
+    }
+
+    /// <summary>The grid's own figure (<see cref="ProductPrices.CatalogueRate"/>), so an unchanged price is equal to
+    /// the paisa. A unit the product is not sold in is the unit resolver's 400, later.</summary>
+    private async Task<bool> AnyLineBelowTheCatalogueAsync(CreatePosSaleCommand request, CancellationToken cancellationToken)
+    {
+        var productIds = request.Lines.Select(x => x.ProductId).Distinct().ToList();
+        var catalogue = await db.Products
+            .AsNoTracking()
+            .Include(x => x.SecondaryUnits)
+            .Where(x => x.OrganizationId == request.OrganizationId && productIds.Contains(x.Id))
+            .ToDictionaryAsync(x => x.Id, cancellationToken);
+        var basis = await PosSellableProducts.PriceBasisAsync(db, request.OrganizationId, cancellationToken);
+
+        return request.Lines.Any(line =>
+            catalogue.TryGetValue(line.ProductId, out var product)
+            && ProductPrices.CatalogueRate(product, line.UnitId, basis) is { } rate
+            && line.Rate < rate);
     }
 
     /// <summary>Each tender's mode must be one this till offers, and a cash tender must go into this

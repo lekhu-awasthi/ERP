@@ -42,6 +42,9 @@ public sealed record PosRestaurantAreaDto(Guid Id, string Name, IReadOnlyList<Po
 /// when they have none (a waiter), so the screen says so before Pay.</param>
 /// <param name="CanKitchen">Phase 65 -- whether the caller holds <c>Pos.Kitchen.Operate</c>, so the floor
 /// links to the kitchen board only for those it would not refuse.</param>
+/// <param name="CanDiscount">Phase 72 -- whether the caller holds <c>Sales.Invoice.Approve</c> here, which giving
+/// a discount or waiving the service charge needs (<c>PosOrderTerms</c>), so the order screen offers both only
+/// to those it would not refuse.</param>
 public sealed record PosRestaurantDto(
     Guid LocationId,
     string LocationCode,
@@ -66,7 +69,8 @@ public sealed record PosRestaurantDto(
     Guid? MySessionId,
     string? MySessionCode,
     bool CanKitchen,
-    bool ServiceChargeOnTakeAway = true);
+    bool ServiceChargeOnTakeAway = true,
+    bool CanDiscount = false);
 
 /// <summary>
 /// Phase 64 -- the restaurant till's own read of its location: the floor with which tables are taken,
@@ -157,6 +161,9 @@ public sealed class GetPosRestaurantQueryHandler(IAppDbContext db, ICurrentUserS
         var canKitchen = await GrantedPermissionReader.IsGrantedAtLocationAsync(
             db, request.OrganizationId, currentUser.UserId, PermissionKeys.PosKitchenOperate, location.Id, cancellationToken);
 
+        var canDiscount = await GrantedPermissionReader.IsGrantedAtLocationAsync(
+            db, request.OrganizationId, currentUser.UserId, PermissionKeys.InvoiceApprove, location.Id, cancellationToken);
+
         return new PosRestaurantDto(
             location.Id,
             location.Code,
@@ -188,6 +195,7 @@ public sealed class GetPosRestaurantQueryHandler(IAppDbContext db, ICurrentUserS
             mySession?.Id,
             mySession?.Code,
             canKitchen,
-            till.Settings.ServiceChargeOnTakeAway);
+            till.Settings.ServiceChargeOnTakeAway,
+            canDiscount);
     }
 }

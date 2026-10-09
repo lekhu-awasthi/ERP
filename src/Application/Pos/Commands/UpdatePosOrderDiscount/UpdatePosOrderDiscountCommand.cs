@@ -1,0 +1,55 @@
+using ErpApp.Application.Common.Persistence;
+using ErpApp.Application.Common.Security;
+using ErpApp.Application.Pos.Restaurant;
+using ErpApp.Domain.Common;
+using ErpApp.Domain.Tenancy;
+using FluentValidation;
+using MediatR;
+
+namespace ErpApp.Application.Pos.Commands.UpdatePosOrderDiscount;
+
+/// <summary>
+/// Phase 72 -- the order's discount: a percentage off every line after the line's own (the vendor's
+/// <i>Options &gt; Discount</i>, read live on 2026-10-09). Fixed once any of the order is billed (a 409), so every
+/// part is priced at the same terms and the bills still add up to the order.
+///
+/// <para><b>Pos.Order.Operate</b> in the pipeline, as every order action, and <b>Sales.Invoice.Approve</b> at the
+/// order's location in the handler (<see cref="PosOrderTerms"/>): who may lower a bill is who may approve one.
+/// Named <c>Update</c> so <c>AuditBehavior</c> writes its row.</para>
+/// </summary>
+public sealed record UpdatePosOrderDiscountCommand(Guid OrganizationId, Guid OrderId, decimal? DiscountPct)
+    : IRequest<PosOrderDto>, IRequirePermission, IOrganizationScoped, IRequireFeature, IAuditableRequestWithId
+{
+    public string PermissionKey => PermissionKeys.PosOrderOperate;
+
+    public IReadOnlyCollection<TenantFeature> RequiredFeatures => [TenantFeature.PosRestaurant];
+
+    public DocumentType AuditDocumentType => DocumentType.PosOrder;
+
+    public Guid AuditDocumentId => OrderId;
+}
+
+public sealed class UpdatePosOrderDiscountCommandValidator : AbstractValidator<UpdatePosOrderDiscountCommand>
+{
+    public UpdatePosOrderDiscountCommandValidator()
+    {
+        RuleFor(x => x.OrganizationId).NotEmpty();
+        RuleFor(x => x.OrderId).NotEmpty();
+        RuleFor(x => x.DiscountPct).PosOrderDiscountPct();
+    }
+}
+
+public sealed class UpdatePosOrderDiscountCommandHandler(IAppDbContext db, ICurrentUserService currentUser)
+    : IRequestHandler<UpdatePosOrderDiscountCommand, PosOrderDto>
+{
+    public async Task<PosOrderDto> Handle(UpdatePosOrderDiscountCommand request, CancellationToken cancellationToken)
+    {
+        var (order, invoiced) = await PosOrderTerms.LoadForChangeAsync(
+            db, request.OrganizationId, currentUser.UserId, request.OrderId, cancellationToken);
+
+        PosOrderCommands.Run(() => order.SetDiscount(request.DiscountPct!.Value, invoiced));
+        await db.SaveChangesAsync(cancellationToken);
+
+        return await PosOrderView.ReadAsync(db, order, cancellationToken);
+    }
+}

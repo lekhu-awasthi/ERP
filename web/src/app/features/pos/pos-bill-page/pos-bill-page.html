@@ -36,6 +36,9 @@
           @if (done.changeAmount > 0) {
             <p class="fs-4 fw-bold mb-1">Change {{ done.changeAmount | amount }}</p>
           }
+          @if (done.creditAmount > 0) {
+            <p class="fw-bold mb-1">{{ done.creditAmount | amount }} left on the customer's account.</p>
+          }
           <p class="mb-2">
             @if (done.orderStatus === 'Settled') {
               The order is settled and the table is free.
@@ -143,7 +146,12 @@
                 <tbody>
                   @for (line of p.lines; track line.orderLineId) {
                     <tr>
-                      <td>{{ line.productName }}</td>
+                      <td>
+                        {{ line.productName }}
+                        @if (line.discountPct > 0) {
+                          <span class="small text-body-secondary">&middot; {{ line.discountPct }}% off</span>
+                        }
+                      </td>
                       <td class="text-end">{{ line.quantity }}</td>
                       <td class="text-end">{{ line.amount | amount }}</td>
                     </tr>
@@ -151,9 +159,15 @@
                 </tbody>
               </table>
               <dl class="pos-totals small">
+                @if (p.discount > 0) {
+                  <dt>Gross</dt><dd>{{ p.gross | amount }}</dd>
+                  <dt>Discount{{ p.discountPct > 0 ? ' (' + p.discountPct + '% on the order)' : '' }}</dt><dd>{{ p.discount | amount }}</dd>
+                }
                 <dt>Sub total</dt><dd>{{ p.amount | amount }}</dd>
                 @if (p.serviceCharge > 0) {
                   <dt>Service charge</dt><dd>{{ p.serviceCharge | amount }}</dd>
+                } @else if (p.serviceChargeWaived) {
+                  <dt>Service charge</dt><dd>Waived</dd>
                 }
                 @if (p.packagingFee > 0) {
                   <dt>Packaging</dt><dd>{{ p.packagingFee | amount }}</dd>
@@ -181,6 +195,33 @@
           <!-- ===================== Payment ===================== -->
           <section class="pos-bill-pay" aria-labelledby="pos-bill-pay-heading">
             <h2 class="h6 fw-bold" id="pos-bill-pay-heading">Payment</h2>
+
+            <div class="mb-3">
+              <p class="small mb-1">
+                Bill to: <strong>{{ buyer()?.name ?? walkInName() + ' (walk-in)' }}</strong>
+                @if (!chosenCustomer() && o.contactId) {
+                  <span class="text-body-secondary">(the order's customer)</span>
+                }
+              </p>
+              <div class="d-flex flex-wrap gap-2">
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="pos-bill-customer-toggle"
+                  [attr.aria-expanded]="customerOpen()" aria-controls="pos-bill-customer-panel"
+                  (click)="customerOpen.set(!customerOpen())">Change Customer</button>
+                @if (buyer()) {
+                  <button type="button" class="btn btn-sm btn-outline-secondary" (click)="useWalkIn()">Use Walk-in</button>
+                }
+              </div>
+              <div id="pos-bill-customer-panel" class="mt-2" [hidden]="!customerOpen()">
+                <app-pos-customer-search [organizationId]="organizationId" inputId="pos-bill-customer-search"
+                  returnFocusTo="pos-bill-customer-toggle" [excludeId]="till()?.walkInCustomer?.id ?? null"
+                  (chosen)="chooseCustomer($event)" (failed)="payError.set($event)" />
+              </div>
+              <p class="small text-body-secondary mb-0 mt-1">
+                For this bill only. A named customer gets a full tax invoice in their name and may leave part of it on
+                their account.
+              </p>
+            </div>
+
             <p class="fs-4 mb-2">Due <strong>{{ fromPaisa(totalPaisa()) | amount }}</strong></p>
 
             @if (till(); as t) {
@@ -231,6 +272,19 @@
                 <dt class="fs-5">Change</dt><dd class="fs-5 fw-bold">{{ fromPaisa(changePaisa()) | amount }}</dd>
               }
             </dl>
+            @if (remainingPaisa() > 0 && preview()) {
+              @if (creditRefusal(); as why) {
+                <p class="small">{{ why }}</p>
+              } @else if (buyer(); as b) {
+                <div class="form-check mb-2">
+                  <input class="form-check-input" type="checkbox" id="pos-bill-credit-accept" [checked]="creditAccepted()"
+                    (change)="onCreditToggle($event)" />
+                  <label class="form-check-label" for="pos-bill-credit-accept">
+                    Leave {{ fromPaisa(remainingPaisa()) | amount }} on {{ b.name }}'s account
+                  </label>
+                </div>
+              }
+            }
             @if (changeError(); as why) {
               <p class="small text-danger">{{ why }}</p>
             }

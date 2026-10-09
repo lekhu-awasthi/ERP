@@ -6,7 +6,7 @@ Guiding rule for phase sizing: each phase ends with something *runnable and demo
 
 ---
 
-## Completed phases (0–71)
+## Completed phases (0–72)
 
 One line each; phase *N*'s full story is `docs/phase-N-status.md`. The verbose index as it stood on
 2026-09-28 is archived verbatim in `roadmap-history.md` ("Completed-phases index, verbose form").
@@ -57,6 +57,7 @@ One line each; phase *N*'s full story is `docs/phase-N-status.md`. The verbose i
 | 69 | A credit note names its invoice (VAT Rule 20(1)(e)): a picked one is a price adjustment capped by value and VAT, a typed one predates the system; conversion templates carry currency; line caps re-checked on edit |
 | 70 | The packaging fee: per item on every parcel (percent of the line or flat per unit), inside the VAT base, its own account, frozen on the line; a product may opt out (on by default) |
 | 71 | Every bill's date in BS: invoices, credit and debit notes (PDF and email) and till receipts print BS with AD beside it whatever the toggle, with both statutory dates (transaction and issue); the statutory register exports carry a BS column |
+| 72 | The restaurant bill finished: a line's and the order's discount (percent) and a waived service charge are terms of the order, fixed at its first bill; a bill names its own customer and may leave the rest on their account; lowering a bill (a discount, a waiver, a Retail line below the catalogue price) needs `Sales.Invoice.Approve` at the location; one shared customer search that returns focus |
 
 ---
 
@@ -114,7 +115,7 @@ The two rules apply to every tax invoice; phase 67 brought the ERP's own PDF and
 column (now for credit notes too). The ERP credit note against a till sale is settled by phase 63:
 the ERP may no longer convert one, and the till's refund returns the service charge.
 
-**The POS sequence (60–66) is complete, and so are phases 67 to 71.** Phase 67 put the ERP invoice and
+**The POS sequence (60–66) is complete, and so are phases 67 to 72.** Phase 67 put the ERP invoice and
 credit-note PDF under the till's two statutory rules (`phase-67-status.md`). Phase 68 shipped *Mark as Take Away*
 and item transfer on the restaurant till (`phase-68-status.md`): a parcel is a split line moved by a take-away
 kitchen ticket, its service charge decided once, at the mark, by the location's *Service charge on take-away*;
@@ -128,9 +129,12 @@ templates and re-checked the line caps on an edit of a converted note. Phase 70 
 of the line or a flat amount per unit, inside the VAT base at the line's own rate, its own account, frozen on the
 line, with a per-product opt-out on by default. Phase 71 made every bill's date BS with AD beside it, whatever the
 toggle (`phase-71-status.md`): invoices, credit and debit notes on paper and by email, and the till's receipts, with
-both statutory dates (transaction and issue); the statutory register exports gained a BS column. **Next: not yet
-scheduled**; the candidates are discount and credit on a restaurant bill, per-part customers, and real printing
-templates (which must not bring back a date-system switch on a tax document).
+both statutory dates (transaction and issue); the statutory register exports gained a BS column. Phase 72 finished the
+restaurant bill (`phase-72-status.md`): a line's and the order's discount and a waived service charge are terms of the
+order, fixed at its first bill so the bills still add up to it; a bill names its own customer and may leave the rest on
+their account; and lowering a bill anywhere (a discount, a waiver, a Retail line below the catalogue price) needs
+`Sales.Invoice.Approve` at the location. **Next: not yet scheduled**; the candidate is real printing templates (which
+must not bring back a date-system switch on a tax document), and phase 72 § 5's items.
 
 Open question for the tax advisor, not to be guessed (carried from the PAN fix): whether IRD expects a buyer PAN
 on a high-value sale to an unregistered buyer. If it does, it would be a warning on approve, never a block.
@@ -163,8 +167,13 @@ a reader change, not a screen change); the vendor's Delivery Partner Statement (
 the sequence).
 
 **Carried from phases 64, 65 and 68** (§ 5 in each): *Mark as Take Away* and item transfer shipped in phase 68
-with the user's 2026-10-03 answer, and the packaging fee in phase 70. Still carried: **a discount and credit on a
-restaurant bill**; **per-part customers**. VAT stays in code; only fees are settings.
+with the user's 2026-10-03 answer, the packaging fee in phase 70, and a discount, credit and per-part customers on a
+restaurant bill in phase 72. VAT stays in code; only fees are settings.
+
+**Carried from phase 72** (§ 5 there): a refund of an order bill's last part prices fresh, so the VAT account can keep a
+paisa the Rounding account absorbs (true since phase 65); Amount discounts, at both tills together; a discount on one
+guest's part once splitting has begun; the vendor's *Can Change Rate* (a raised Retail price stays open); the
+full-tenant export lacks the order terms as well.
 
 **Carried from phase 70** (§ 5 there): the VAT Act §13 wording for packaging is unverified (phase 61's reading
 applied to a second charge); the full-tenant export now lacks the packaging fee as well as service charge and

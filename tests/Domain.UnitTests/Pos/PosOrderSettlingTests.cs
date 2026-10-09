@@ -133,7 +133,7 @@ public class PosOrderSettlingTests
             Guid.NewGuid(), Guid.NewGuid(), "ORD0002", PosTab.DineIn, Guid.NewGuid(), 3, null, User, DateTimeOffset.UtcNow);
         order.Send([new PosOrderNewLine(Guid.NewGuid(), null, 1m, 1m, 180m, VatRate.ThirteenPercentVat, 10m, PackagingFee.None, null, null)], [], User);
         var thukpa = order.Lines[0];
-        var whole = thukpa.Figures(1m);
+        var whole = order.FiguresOf(thukpa, 1m);
         var billing = new Billing();
 
         billing.Pay(order, PosOrderSplit.Equal, parts: 3);
@@ -278,7 +278,7 @@ public class PosOrderSettlingTests
     }
 
     [Fact]
-    public void A_bill_for_an_order_names_it_first_carries_no_discount_and_rounds_by_under_a_rupee()
+    public void A_bill_for_an_order_names_it_first_takes_whole_paisa_and_rounds_by_under_a_rupee()
     {
         var invoice = Invoice.CreatePosSale(
             Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), new DateOnly(2026, 10, 2), Guid.NewGuid(), Guid.NewGuid(),
@@ -286,15 +286,15 @@ public class PosOrderSettlingTests
         var figures = new PosLineArithmetic.Figures(200m, 20m, 0m, 28.60m);
 
         Assert.Throws<InvalidOperationException>(() => invoice.AddPosOrderLine(
-            Guid.NewGuid(), Guid.NewGuid(), 1m, 200m, VatRate.ThirteenPercentVat, null, 1m, 10m, PackagingFee.None, figures));
+            Guid.NewGuid(), Guid.NewGuid(), 1m, 200m, VatRate.ThirteenPercentVat, 0m, null, 1m, 10m, PackagingFee.None, figures));
 
         invoice.BillPosOrder(Guid.NewGuid());
         Assert.Throws<InvalidOperationException>(() => invoice.BillPosOrder(Guid.NewGuid()));
         Assert.Throws<InvalidOperationException>(() => invoice.AddPosOrderLine(
-            Guid.NewGuid(), Guid.NewGuid(), 1m, 200m, VatRate.ThirteenPercentVat, null, 1m, 10m,
+            Guid.NewGuid(), Guid.NewGuid(), 1m, 200m, VatRate.ThirteenPercentVat, 0m, null, 1m, 10m,
             PackagingFee.None, new PosLineArithmetic.Figures(200.001m, 20m, 0m, 28.60m)));
 
-        invoice.AddPosOrderLine(Guid.NewGuid(), Guid.NewGuid(), 1m, 200m, VatRate.ThirteenPercentVat, null, 1m, 10m, PackagingFee.None, figures);
+        invoice.AddPosOrderLine(Guid.NewGuid(), Guid.NewGuid(), 1m, 200m, VatRate.ThirteenPercentVat, 0m, null, 1m, 10m, PackagingFee.None, figures);
         Assert.Equal(248.60m, invoice.GrandTotal);
         Assert.Equal(20m, invoice.ServiceChargeTotal);
 

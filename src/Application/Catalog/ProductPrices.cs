@@ -28,4 +28,22 @@ public static class ProductPrices
         var divisor = 1m + vatRate.ToPercent();
         return decimal.Round(sellingPrice / divisor, 2, MidpointRounding.AwayFromZero);
     }
+
+    /// <summary>
+    /// Phase 72 -- the catalogue's rate for a product in one of its units: its own selling price for its primary
+    /// unit (or none named), a secondary unit's own price for that unit, each through <see cref="ToExclusiveRate"/>.
+    /// What the till's grid offers, what the restaurant prices an order line at, and the line below which a retail
+    /// sale needs <c>Sales.Invoice.Approve</c>. Null when the product is not sold in that unit. The product's
+    /// <see cref="Product.SecondaryUnits"/> must be loaded.
+    /// </summary>
+    public static decimal? CatalogueRate(Product product, Guid? unitId, ProductPriceBasis basis)
+    {
+        if (unitId is null || unitId == product.PrimaryUnitId)
+        {
+            return ToExclusiveRate(product.SellingPrice, product.VatRate, basis);
+        }
+
+        var secondary = product.SecondaryUnits.FirstOrDefault(x => x.UnitId == unitId);
+        return secondary is null ? null : ToExclusiveRate(secondary.SellingPrice, product.VatRate, basis);
+    }
 }

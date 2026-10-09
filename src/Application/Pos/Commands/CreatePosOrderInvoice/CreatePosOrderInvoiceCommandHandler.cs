@@ -77,15 +77,20 @@ public sealed class CreatePosOrderInvoiceCommandHandler(
             [.. request.Tenders.Select(x => (x.PaymentModeId, x.Amount))],
             nameof(request.Tenders), cancellationToken);
 
+        // Phase 72 -- the bill carries the terms the planner priced with: the order's discount as its header, and
+        // on each line the line's own discount and the service charge rate it is billed at (none when the guest
+        // declined it). A refund and the sales readers rebuild every discount from exactly these.
         var invoice = Invoice.CreatePosSale(
-            request.OrganizationId, contact.Id, warehouseId, request.Date, till.Location.Id, session.Id, order.OrderType);
+            request.OrganizationId, contact.Id, warehouseId, request.Date, till.Location.Id, session.Id, order.OrderType,
+            order.DiscountPct);
         invoice.BillPosOrder(order.Id);
 
         foreach (var line in plan.Lines)
         {
             invoice.AddPosOrderLine(
-                line.Line.Id, line.Line.ProductId, line.Quantity, line.Line.Rate, line.Line.VatRate, line.Line.UnitId,
-                line.Line.ConversionFactor, line.Line.ServiceChargeRate, line.Line.PackagingFee, line.Figures);
+                line.Line.Id, line.Line.ProductId, line.Quantity, line.Line.Rate, line.Line.VatRate, line.Line.DiscountPct,
+                line.Line.UnitId, line.Line.ConversionFactor, order.ServiceChargeRateOf(line.Line), line.Line.PackagingFee,
+                line.Figures);
         }
 
         if (plan.RoundOff != 0m)
