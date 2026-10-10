@@ -5,7 +5,7 @@ import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { PagedResult } from '../common/paged-result';
 import { ListQueryOptions, applyListOptions } from '../../shared/pagination/list-query-options';
-import { PosProduct } from './pos.models';
+import { PosDiscountKind, PosProduct } from './pos.models';
 import {
   CreatePosOrderInvoiceRequest,
   CreatePosOrderInvoiceResult,
@@ -152,17 +152,19 @@ export class PosRestaurantService {
    * Phase 72 -- the order's discount, a percentage off every line after its own (0 removes it). Needs
    * Sales.Invoice.Approve at the order's location, and is fixed once any of the order is billed (a 409).
    */
-  setOrderDiscount(organizationId: string, orderId: string, discountPct: number): Observable<PosOrder> {
-    return this.http.put<PosOrder>(`${this.orderUrl(organizationId, orderId)}/discount`, { discountPct }, {
+  setOrderDiscount(organizationId: string, orderId: string, kind: PosDiscountKind, value: number): Observable<PosOrder> {
+    return this.http.put<PosOrder>(`${this.orderUrl(organizationId, orderId)}/discount`, discountBody(kind, value), {
       withCredentials: true,
     });
   }
 
   /** Phase 72 -- one dish's discount, before the order's; fixed once any of that line is billed. */
-  setLineDiscount(organizationId: string, orderId: string, lineId: string, discountPct: number): Observable<PosOrder> {
-    return this.http.put<PosOrder>(`${this.orderUrl(organizationId, orderId)}/lines/${lineId}/discount`, { discountPct }, {
-      withCredentials: true,
-    });
+  setLineDiscount(
+    organizationId: string, orderId: string, lineId: string, kind: PosDiscountKind, value: number,
+  ): Observable<PosOrder> {
+    return this.http.put<PosOrder>(
+      `${this.orderUrl(organizationId, orderId)}/lines/${lineId}/discount`, discountBody(kind, value), { withCredentials: true },
+    );
   }
 
   /** Phase 72 -- the guest declined the service charge (or changed their mind); fixed once the order is billed. */
@@ -267,4 +269,9 @@ export class PosRestaurantService {
   private baseUrl(organizationId: string): string {
     return `${environment.apiBaseUrl}/api/organizations/${organizationId}/pos`;
   }
+}
+
+/** Phase 74 -- a discount goes as `discountPct` or as `discountAmount`, exactly one (rupees off each unit on a line). */
+function discountBody(kind: PosDiscountKind, value: number): { discountPct: number } | { discountAmount: number } {
+  return kind === 'Amount' ? { discountAmount: value } : { discountPct: value };
 }

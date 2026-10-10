@@ -6,7 +6,7 @@ Guiding rule for phase sizing: each phase ends with something *runnable and demo
 
 ---
 
-## Completed phases (0–73)
+## Completed phases (0–74)
 
 One line each; phase *N*'s full story is `docs/phase-N-status.md`. The verbose index as it stood on
 2026-09-28 is archived verbatim in `roadmap-history.md` ("Completed-phases index, verbose form").
@@ -59,6 +59,7 @@ One line each; phase *N*'s full story is `docs/phase-N-status.md`. The verbose i
 | 71 | Every bill's date in BS: invoices, credit and debit notes (PDF and email) and till receipts print BS with AD beside it whatever the toggle, with both statutory dates (transaction and issue); the statutory register exports carry a BS column |
 | 72 | The restaurant bill finished: a line's and the order's discount (percent) and a waived service charge are terms of the order, fixed at its first bill; a bill names its own customer and may leave the rest on their account; lowering a bill (a discount, a waiver, a Retail line below the catalogue price) needs `Sales.Invoice.Approve` at the location; one shared customer search that returns focus |
 | 73 | Printing templates: three fixed layouts (Standard, Traditional, Minimal) chosen per type, show/hide toggles (a tax document's seller address and PAN and buyer address locked), the custom fields a bill prints, a footer line, compact margins, a preview of unsaved settings; every bill gained a Unit column, the HS code where a line has one, and the amount in words |
+| 74 | Till pricing: Amount discounts at both tills (a line's rupees off each unit, a bill's or an order's spread over its lines and stored per line, an order's frozen at its first bill); the refund returning the last of a sale line takes what is left of it, so refunds tie out to the paisa; any Retail price but the catalogue's needs `Sales.Invoice.Approve` |
 
 ---
 
@@ -136,8 +137,11 @@ order, fixed at its first bill so the bills still add up to it; a bill names its
 their account; and lowering a bill anywhere (a discount, a waiver, a Retail line below the catalogue price) needs
 `Sales.Invoice.Approve` at the location. Phase 73 made printing templates real (`phase-73-status.md`): three fixed
 layouts chosen per type, show/hide toggles with a tax document's statutory content locked, the custom fields a bill
-prints, a footer line and compact margins, previewed over sample data; no date-system option anywhere. **Next: not yet
-scheduled**; the candidates are phase 72 § 5's items and phase 73 § 5's.
+prints, a footer line and compact margins, previewed over sample data; no date-system option anywhere. Phase 74
+finished till pricing (`phase-74-status.md`): Amount discounts at both tills (a line's per unit, a bill's or an order's
+spread over its lines and stored per line, an order's frozen at its first bill), refunds that give back exactly what the
+sale charged, and any Retail price but the catalogue's gated on `Sales.Invoice.Approve`. **Next: not yet scheduled**;
+the candidates are phase 73 § 5's, phase 74 § 5's and phase 71 § 5's.
 
 Open question for the tax advisor, not to be guessed (carried from the PAN fix): whether IRD expects a buyer PAN
 on a high-value sale to an unregistered buyer. If it does, it would be a warning on approve, never a block.
@@ -175,10 +179,14 @@ the sequence).
 with the user's 2026-10-03 answer, the packaging fee in phase 70, and a discount, credit and per-part customers on a
 restaurant bill in phase 72. VAT stays in code; only fees are settings.
 
-**Carried from phase 72** (§ 5 there): a refund of an order bill's last part prices fresh, so the VAT account can keep a
-paisa the Rounding account absorbs (true since phase 65); Amount discounts, at both tills together; a discount on one
-guest's part once splitting has begun; the vendor's *Can Change Rate* (a raised Retail price stays open); the
-full-tenant export lacks the order terms as well.
+**Carried from phase 72** (§ 5 there): a discount on one guest's part once splitting has begun; the full-tenant
+export lacks the order terms as well. Its refund-of-a-remainder paisa, Amount discounts and *Can Change Rate* were done
+in phase 74.
+
+**Carried from phase 74** (§ 5 there): an order with an Amount discount cannot transfer items, and a dish carrying a
+share cannot be discarded or parcelled once the order is billed; the vendor's three role switches (*Can Give
+Discount*, *Can Remove Service Charge*, *Can Change Rate*) are one key here; the full-tenant export lacks the per-unit
+discount and the bill's amount.
 
 **Carried from phase 70** (§ 5 there): the VAT Act §13 wording for packaging is unverified (phase 61's reading
 applied to a second charge); the full-tenant export now lacks the packaging fee as well as service charge and

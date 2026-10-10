@@ -69,7 +69,8 @@ internal static class PosOrderBilling
                 g => g.Key,
                 g => new PosOrderLineBilled(
                     g.Sum(x => x.Quantity),
-                    g.Aggregate(PosLineArithmetic.Figures.Zero, (sum, x) => sum + x.Figures)));
+                    g.Aggregate(PosLineArithmetic.Figures.Zero, (sum, x) => sum + x.Figures),
+                    g.Sum(x => x.BillDiscountAmount)));
 
         var totals = new PosOrderBilledTotals(
             live.Sum(x => x.Lines.Sum(l => l.LineTotal)),

@@ -20,7 +20,8 @@ public sealed record PosRefundableLineDto(
     decimal ServiceChargeRate,
     decimal PackagingFeeAmount,
     VatRate VatRate,
-    decimal LineTotal);
+    decimal LineTotal,
+    decimal DiscountPerUnit);
 
 public sealed record PosPriorRefundDto(Guid CreditNoteId, string Code, DateOnly Date, decimal GrandTotal);
 

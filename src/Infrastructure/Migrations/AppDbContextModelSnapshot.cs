@@ -4221,6 +4221,11 @@ namespace ErpApp.Infrastructure.Migrations
                     b.Property<DateOnly>("Date")
                         .HasColumnType("date");
 
+                    b.Property<decimal>("DiscountAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)")
+                        .HasDefaultValue(0m);
+
                     b.Property<decimal>("DiscountPct")
                         .HasPrecision(5, 2)
                         .HasColumnType("decimal(5,2)")
@@ -4307,6 +4312,11 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasColumnType("decimal(5,2)")
                         .HasDefaultValue(0m);
 
+                    b.Property<decimal>("DiscountPerUnit")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)")
+                        .HasDefaultValue(0m);
+
                     b.Property<bool>("IsTakeAway")
                         .HasColumnType("bit");
 
@@ -4319,6 +4329,10 @@ namespace ErpApp.Infrastructure.Migrations
                     b.Property<string>("Note")
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
+
+                    b.Property<decimal?>("OrderDiscountShare")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("PackagingFeeBasis")
                         .IsRequired()
@@ -5539,6 +5553,11 @@ namespace ErpApp.Infrastructure.Migrations
                     b.Property<DateOnly>("Date")
                         .HasColumnType("date");
 
+                    b.Property<decimal>("DiscountAmount")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)")
+                        .HasDefaultValue(0m);
+
                     b.Property<decimal>("DiscountPct")
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
@@ -5632,6 +5651,11 @@ namespace ErpApp.Infrastructure.Migrations
                     b.Property<Guid?>("BatchId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<decimal>("BillDiscountAmount")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)")
+                        .HasDefaultValue(0m);
+
                     b.Property<decimal>("ConversionFactor")
                         .ValueGeneratedOnAdd()
                         .HasPrecision(18, 6)
@@ -5644,6 +5668,11 @@ namespace ErpApp.Infrastructure.Migrations
                     b.Property<decimal>("DiscountPct")
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("DiscountPerUnit")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)")
+                        .HasDefaultValue(0m);
 
                     b.Property<decimal>("PackagingFeeAmount")
                         .HasPrecision(18, 4)
@@ -5996,6 +6025,11 @@ namespace ErpApp.Infrastructure.Migrations
                     b.Property<DateOnly>("Date")
                         .HasColumnType("date");
 
+                    b.Property<decimal>("DiscountAmount")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)")
+                        .HasDefaultValue(0m);
+
                     b.Property<decimal>("DiscountPct")
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
@@ -6117,6 +6151,11 @@ namespace ErpApp.Infrastructure.Migrations
                     b.Property<Guid?>("BatchId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<decimal>("BillDiscountAmount")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)")
+                        .HasDefaultValue(0m);
+
                     b.Property<decimal?>("CogsUnitCost")
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
@@ -6130,6 +6169,11 @@ namespace ErpApp.Infrastructure.Migrations
                     b.Property<decimal>("DiscountPct")
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("DiscountPerUnit")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)")
+                        .HasDefaultValue(0m);
 
                     b.Property<Guid>("InvoiceId")
                         .HasColumnType("uniqueidentifier");

@@ -16,6 +16,22 @@ public sealed class InvoiceLine
     public decimal Rate { get; private set; }
     public VatRate VatRate { get; private set; }
     public decimal DiscountPct { get; private set; }
+
+    /// <summary>
+    /// Phase 74 -- a till line's <b>Amount</b> discount: rupees off each unit, in the unit the line was entered in.
+    /// The vendor's line Amount is per unit too (read live 2026-10-10: 10 off a 333 momo at quantity 3 is 30), and
+    /// per unit is what makes a refund of any part of the line exact. Never beside a <see cref="DiscountPct"/>;
+    /// zero on every ERP line.
+    /// </summary>
+    public decimal DiscountPerUnit { get; private set; }
+
+    /// <summary>
+    /// Phase 74 -- this line's share of its bill's <b>Amount</b> discount (<see cref="Invoice.DiscountAmount"/>),
+    /// already taken off <see cref="Amount"/>. Stored rather than derived, because a refund gives back the share
+    /// of the units it returns, and a restaurant order's parts each carry their own (phase 74 Decision B).
+    /// </summary>
+    public decimal BillDiscountAmount { get; private set; }
+
     public decimal Amount { get; private set; }
     public decimal VatAmount { get; private set; }
 
@@ -186,12 +202,13 @@ public sealed class InvoiceLine
     /// </summary>
     internal static InvoiceLine CreatePos(
         Guid invoiceId, Guid productId, decimal quantity, decimal rate, VatRate vatRate,
-        decimal discountPct, decimal headerDiscountPct, Guid? batchId, Guid? unitId,
-        decimal conversionFactor, decimal serviceChargeRate, PackagingFee packagingFee)
+        decimal discountPerUnit, decimal discountPct, decimal headerDiscountPct, decimal billDiscountShare,
+        Guid? batchId, Guid? unitId, decimal conversionFactor, decimal serviceChargeRate, PackagingFee packagingFee)
     {
         // Phase 63 -- the arithmetic lives in PosLineArithmetic, which the refund line also calls.
         var figures = PosLineArithmetic.Compute(
-            quantity, rate, vatRate.ToPercent(), discountPct, headerDiscountPct, serviceChargeRate, packagingFee);
+            quantity, rate, vatRate.ToPercent(), discountPerUnit, discountPct, headerDiscountPct, billDiscountShare,
+            serviceChargeRate, packagingFee);
 
         return new InvoiceLine
         {
@@ -204,6 +221,8 @@ public sealed class InvoiceLine
             Rate = rate,
             VatRate = vatRate,
             DiscountPct = discountPct,
+            DiscountPerUnit = discountPerUnit,
+            BillDiscountAmount = billDiscountShare,
             Amount = figures.Amount,
             ServiceChargeRate = serviceChargeRate,
             ServiceChargeAmount = figures.ServiceChargeAmount,
@@ -227,10 +246,10 @@ public sealed class InvoiceLine
     /// </summary>
     internal static InvoiceLine CreatePosOrderPart(
         Guid invoiceId, Guid posOrderLineId, Guid productId, decimal quantity, decimal rate, VatRate vatRate,
-        decimal discountPct, Guid? unitId, decimal conversionFactor, decimal serviceChargeRate,
-        PackagingFee packagingFee, PosLineArithmetic.Figures figures)
+        decimal discountPerUnit, decimal discountPct, decimal billDiscountShare, Guid? unitId, decimal conversionFactor,
+        decimal serviceChargeRate, PackagingFee packagingFee, PosLineArithmetic.Figures figures)
     {
-        foreach (var value in figures.Parts)
+        foreach (var value in figures.Parts.Append(billDiscountShare))
         {
             if (value < 0m || decimal.Round(value, Invoice.PosMoneyScale) != value)
             {
@@ -249,6 +268,8 @@ public sealed class InvoiceLine
             Rate = rate,
             VatRate = vatRate,
             DiscountPct = discountPct,
+            DiscountPerUnit = discountPerUnit,
+            BillDiscountAmount = billDiscountShare,
             Amount = figures.Amount,
             ServiceChargeRate = serviceChargeRate,
             ServiceChargeAmount = figures.ServiceChargeAmount,

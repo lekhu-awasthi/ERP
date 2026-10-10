@@ -47,7 +47,11 @@ public sealed record PosOrderLineDto(
     // Amount is what the line's discount and the order's took off it. ServiceChargeRate stays the line's own
     // frozen rate; the money above is what it is billed at (none when the order waived it).
     decimal DiscountPct = 0m,
-    decimal Gross = 0m);
+    decimal Gross = 0m,
+    // Phase 74 -- the line's Amount discount per unit, and its share of the order's Amount discount (live until
+    // the first bill, frozen from it).
+    decimal DiscountPerUnit = 0m,
+    decimal OrderDiscountShare = 0m);
 
 public sealed record KitchenTicketLineDto(
     Guid OrderLineId, int LineNo, string ProductName, string? UnitName, decimal Quantity, string? Note,
@@ -76,7 +80,8 @@ public sealed record KitchenTicketDto(
 /// rounds, phase 65). Phase 65: <paramref name="Billed"/> is what its invoices not voided came to, and
 /// <paramref name="Invoices"/> lists every bill, voided ones included. Phase 72: <paramref name="DiscountPct"/> and
 /// <paramref name="ServiceChargeWaived"/> are the order's own terms; <paramref name="Gross"/> less
-/// <paramref name="Discount"/> is <paramref name="Amount"/>.
+/// <paramref name="Discount"/> is <paramref name="Amount"/>. Phase 74: <paramref name="DiscountAmount"/> is the order's
+/// Amount discount, the other kind of its own term.
 /// </summary>
 public sealed record PosOrderDto(
     Guid Id,
@@ -114,7 +119,8 @@ public sealed record PosOrderDto(
     decimal DiscountPct = 0m,
     bool ServiceChargeWaived = false,
     decimal Gross = 0m,
-    decimal Discount = 0m);
+    decimal Discount = 0m,
+    decimal DiscountAmount = 0m);
 
 /// <summary>
 /// Phase 64 -- builds <see cref="PosOrderDto"/>s: one order for the till, or a page of them for the ERP
@@ -223,7 +229,8 @@ internal static class PosOrderView
                         figures.Amount, figures.ServiceChargeAmount, figures.PackagingFeeAmount, figures.VatAmount,
                         figures.Total,
                         line.IsTakeAway, line.ParcelledFromLineId, q.MovedIn, q.MovedOut,
-                        line.DiscountPct, PosLineArithmetic.RoundMoney(q.Net * line.Rate));
+                        line.DiscountPct, PosLineArithmetic.RoundMoney(q.Net * line.Rate),
+                        line.DiscountPerUnit, order.DiscountShareOf(line));
                 })
                 .ToList();
 
@@ -298,7 +305,8 @@ internal static class PosOrderView
                 order.DiscountPct,
                 order.ServiceChargeWaived,
                 lines.Sum(x => x.Gross),
-                lines.Sum(x => x.Gross) - estimate.Amount);
+                lines.Sum(x => x.Gross) - estimate.Amount,
+                order.DiscountAmount);
         }).ToList();
     }
 }

@@ -37,6 +37,9 @@ public sealed class CreditNoteConfiguration : IEntityTypeConfiguration<CreditNot
         builder.Property(x => x.ReferrerId);
         builder.Property(x => x.DiscountPct).HasPrecision(18, 4).IsRequired();
 
+        // Phase 74 -- a till bill's Amount discount, the sum of its lines' shares; zero on every existing row.
+        builder.Property(x => x.DiscountAmount).HasPrecision(18, 4).IsRequired().HasDefaultValue(0m).ValueGeneratedNever();
+
         // Phase 28 (FR-2.5). Both carry a SQL default so the migration backfills every existing row
         // to "base currency at rate 1" without a data script, and ValueGeneratedNever so EF always
         // sends the aggregate's own value rather than ever falling back to that default (the

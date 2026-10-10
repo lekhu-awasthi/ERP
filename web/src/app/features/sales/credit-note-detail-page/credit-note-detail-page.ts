@@ -38,6 +38,8 @@ interface EditableLine {
   rate: number;
   vatRate: VatRate;
   discountPct: number;
+  /** Phase 74 -- a till refund line's Amount discount, rupees off each unit; zero on every line this form writes. */
+  discountPerUnit: number;
 
   /**
    * Phase 52 -- the unit this line is entered in. Empty means the product's own primary unit.
@@ -167,7 +169,15 @@ export class CreditNoteDetailPage {
   protected readonly subTotal = computed(() =>
     this.round(this.lines().reduce((sum, l) => sum + this.netAfterLineDiscount(l), 0)),
   );
-  protected readonly discountAmount = computed(() => this.round((this.subTotal() * this.discountPct()) / 100));
+  /** Phase 74 -- whether a line or the refund carries an Amount discount, so the headings say rupees, not %. */
+  protected readonly perUnitDiscounts = computed(() => this.lines().some((l) => l.discountPerUnit > 0));
+  protected readonly billAmountDiscount = computed(() =>
+    (this.creditNote()?.lines ?? []).some((l) => (l.billDiscountAmount ?? 0) > 0));
+  /** Phase 74 -- what a till refund gives back of the sale's Amount discount is stored on its lines. */
+  protected readonly discountAmount = computed(() => {
+    const given = (this.creditNote()?.lines ?? []).reduce((sum, l) => sum + (l.billDiscountAmount ?? 0), 0);
+    return given > 0 ? this.round(given) : this.round((this.subTotal() * this.discountPct()) / 100);
+  });
   /** Phase 63 -- a till refund's own figures, or null for an ERP credit note. Created approved, so
    * never edited, and its totals are the server's stored ones -- for the invoice page's phase 61
    * reason: the computation below knows nothing of a service charge or a round-off. */
@@ -267,7 +277,7 @@ export class CreditNoteDetailPage {
           this.discountPct.set(template.discountPct);
           this.lines.set(
             template.lines.length > 0
-              ? template.lines.map((l) => ({ key: nextLineKey++, ...l, unitId: l.unitId ?? '' }))
+              ? template.lines.map((l) => ({ key: nextLineKey++, ...l, unitId: l.unitId ?? '', discountPerUnit: 0 }))
               : [this.newLine()],
           );
         } else {
@@ -546,7 +556,7 @@ export class CreditNoteDetailPage {
   }
 
   private netAfterLineDiscount(line: EditableLine): number {
-    return line.quantity * line.rate * (1 - line.discountPct / 100);
+    return line.quantity * (line.rate - line.discountPerUnit) * (1 - line.discountPct / 100);
   }
 
   private netAfterBothDiscounts(line: EditableLine): number {
@@ -599,7 +609,7 @@ export class CreditNoteDetailPage {
   }
 
   private newLine(): EditableLine {
-    return { unitId: '',  key: nextLineKey++, productId: '', quantity: 1, rate: 0, vatRate: 'NoVat', discountPct: 0};
+    return { unitId: '',  key: nextLineKey++, productId: '', quantity: 1, rate: 0, vatRate: 'NoVat', discountPct: 0, discountPerUnit: 0 };
   }
 
   private today(): string {
@@ -649,6 +659,7 @@ export class CreditNoteDetailPage {
                 rate: l.rate,
                 vatRate: l.vatRate,
                 discountPct: l.discountPct,
+                discountPerUnit: l.discountPerUnit ?? 0,
                 // Phase 52 -- read back, not only written: phase 35a's rule is write, READ, and
                 // every prefill between, and the read half is the one no compiler checks.
                 unitId: l.unitId ?? '',

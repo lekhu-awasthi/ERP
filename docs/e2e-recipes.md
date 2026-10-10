@@ -311,3 +311,14 @@ beside a 200 from the same user, and create a fresh Organization per phase.
 - The auth cookie's JWT lives **one hour**. A browser pass that runs past it lands on Sign In with three 401s in the
   console; log in again from the script and re-transplant the cookie (on `https://localhost:7104`, since a `Secure`
   cookie cannot be set from the `http://localhost:4200` page and cookies are shared across ports) (phase-73).
+- Amount discounts (phase 74). `POST /pos/sales` takes a line's **`discountPerUnit`** (rupees off each unit, never
+  beside its `discountPct`) and the bill's **`discountAmount`** (never beside `discountPct`); both kinds, a per-unit
+  over the rate, or an amount over what the lines come to are each a **400 naming the field**. The order and line
+  discount `PUT`s take `{discountPct}` **or** `{discountAmount}`, exactly one; neither, or both, is a 400, and an amount
+  over the order is a 409. Any price but the catalogue's, or either Amount, needs `Sales.Invoice.Approve` at the
+  location (403 naming it). In SQL: `sales.InvoiceLines.DiscountPerUnit` / `BillDiscountAmount`,
+  `sales.Invoices.DiscountAmount` (the sum of the shares), the same three on credit notes, `pos.PosOrders.DiscountAmount`,
+  `pos.PosOrderLines.DiscountPerUnit` and `OrderDiscountShare` (NULL until the first bill, and again after every bill is
+  voided). A refund's lines carry their share; sale less refunds should be zero per product and per figure (phase-74).
+- A test user can hold only **one open session per location**: a second `POST /pos/sessions` at the same location is a
+  409 naming the open one, so a later script must reuse the session an earlier one opened (phase-74).

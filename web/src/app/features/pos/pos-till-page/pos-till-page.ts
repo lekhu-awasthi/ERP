@@ -8,6 +8,7 @@ import { CartLine, PosCart } from '../../../core/pos/pos-cart';
 import {
   CreatePosSaleResult,
   POS_TAB_LABELS,
+  PosDiscountKind,
   PosProduct,
   PosReceipt,
   PosSession,
@@ -148,18 +149,68 @@ export class PosTillPage {
    * Phase 72 -- why this sale cannot be rung up as it stands: a discount, or a line below its unit's catalogue
    * price, needs Sales.Invoice.Approve here, which the server checks too. Said in the cart and before Complete,
    * as credit is; the inputs stay usable, so a recalled cart can always be put back to the catalogue price.
+   *
+   * Phase 74 -- any price but the catalogue's, raised as well as lowered (the vendor's Can Change Rate), and an
+   * amount discount like a percentage. And a bill discount of more than the bill is refused before it is sent.
    */
   protected readonly discountRefusal = computed(() => {
     const cart = this.cart();
-    if (!cart || this.till()?.canDiscount) return null;
-    const lowered = cart.discountPct() > 0 || cart.lines().some((line) => {
+    if (!cart) return null;
+    if (cart.discountAmount() > cart.bill().billDiscount) {
+      return `A discount of ${cart.discountAmount().toFixed(2)} is more than the bill comes to.`;
+    }
+    if (this.till()?.canDiscount) return null;
+    const changed = cart.discountPct() > 0 || cart.discountAmount() > 0 || cart.lines().some((line) => {
       const catalogue = line.product.units.find((unit) => unit.unitId === line.unitId)?.rate;
-      return line.discountPct > 0 || (catalogue !== undefined && line.rate < catalogue);
+      return line.discountPct > 0 || line.discountPerUnit > 0 || (catalogue !== undefined && line.rate !== catalogue);
     });
-    return lowered
-      ? 'A discount, or a price below the catalogue\'s, needs permission to approve invoices at this location (Sales.Invoice.Approve).'
+    return changed
+      ? 'A discount, or a price other than the catalogue\'s, needs permission to approve invoices at this location (Sales.Invoice.Approve).'
       : null;
   });
+
+  /** Phase 74 -- which kind each line's discount input takes, chosen by the cashier; until then, what the line has. A
+   * signal of its own, because the line cannot say "Amount" while its amount is still zero (zoneless, phase 17). */
+  private readonly lineDiscountKinds = signal<Record<number, PosDiscountKind>>({});
+  private readonly chosenBillDiscountKind = signal<PosDiscountKind | null>(null);
+
+  protected readonly billDiscountKind = computed<PosDiscountKind>(
+    () => this.chosenBillDiscountKind() ?? ((this.cart()?.discountAmount() ?? 0) > 0 ? 'Amount' : 'Percent'),
+  );
+
+  protected lineDiscountKind(line: CartLine): PosDiscountKind {
+    return this.lineDiscountKinds()[line.key] ?? (line.discountPerUnit > 0 ? 'Amount' : 'Percent');
+  }
+
+  /** A change of kind starts the discount again at nothing: 10% is not Rs 10 each. */
+  protected onLineDiscountKind(line: CartLine, event: Event): void {
+    const kind = (event.target as HTMLSelectElement).value as PosDiscountKind;
+    this.lineDiscountKinds.update((kinds) => ({ ...kinds, [line.key]: kind }));
+    this.cart()?.setLineDiscount(line.key, 0);
+  }
+
+  protected onLineDiscount(line: CartLine, event: Event): void {
+    const value = this.numberOf(event);
+    if (this.lineDiscountKind(line) === 'Amount') {
+      this.cart()?.setLineDiscountPerUnit(line.key, value);
+    } else {
+      this.cart()?.setLineDiscount(line.key, value);
+    }
+  }
+
+  protected onBillDiscountKind(event: Event): void {
+    this.chosenBillDiscountKind.set((event.target as HTMLSelectElement).value as PosDiscountKind);
+    this.cart()?.setBillDiscount(0);
+  }
+
+  protected onBillDiscount(event: Event): void {
+    const value = this.numberOf(event);
+    if (this.billDiscountKind() === 'Amount') {
+      this.cart()?.setBillDiscountAmount(value);
+    } else {
+      this.cart()?.setBillDiscount(value);
+    }
+  }
 
   protected readonly canComplete = computed(
     () =>
@@ -502,6 +553,7 @@ export class PosTillPage {
         warehouseId: null,
         orderType: cart.orderType(),
         discountPct: cart.discountPct(),
+        discountAmount: cart.discountAmount(),
         overrideStockWarning: this.overrideStock,
         overrideCreditLimitWarning: this.overrideCredit,
       })

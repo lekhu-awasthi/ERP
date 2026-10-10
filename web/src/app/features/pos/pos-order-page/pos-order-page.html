@@ -122,7 +122,7 @@
                 @if (r.canDiscount && !orderBilled()) {
                   <button type="button" class="btn btn-sm btn-outline-secondary" [attr.aria-expanded]="isPanel('discount')"
                     aria-controls="pos-order-discount-panel" (click)="openPanel({ kind: 'discount' })">
-                    Discount{{ o.discountPct > 0 ? ' (' + o.discountPct + '%)' : '' }}
+                    Discount{{ o.discountPct > 0 ? ' (' + o.discountPct + '%)' : '' }}@if (o.discountAmount > 0) { ({{ o.discountAmount | amount }}) }
                   </button>
                   @if (hasServiceCharge()) {
                     <button type="button" class="btn btn-sm btn-outline-secondary" [attr.aria-expanded]="isPanel('serviceCharge')"
@@ -166,13 +166,22 @@
               }
               @if (isPanel('discount')) {
                 <form id="pos-order-discount-panel" class="pos-panel" (submit)="$event.preventDefault(); confirmPanel()">
-                  <label class="form-label small mb-1" for="pos-order-panel-first">Discount on the whole order (%)</label>
-                  <input class="form-control form-control-sm pos-qty mb-2" id="pos-order-panel-first" type="number" min="0" max="100"
-                    step="0.01" [value]="panelPercent()" aria-describedby="pos-order-discount-note"
-                    [attr.aria-invalid]="panelError() ? true : null" (input)="onPanelPercent($event)" />
+                  <label class="form-label small mb-1" for="pos-order-panel-first">Discount on the whole order</label>
+                  <div class="d-flex gap-2 mb-2">
+                    <input class="form-control form-control-sm pos-qty" id="pos-order-panel-first" type="number" min="0"
+                      [attr.max]="panelDiscountKind() === 'Percent' ? 100 : null"
+                      step="0.01" [value]="panelPercent()" aria-describedby="pos-order-discount-note"
+                      [attr.aria-invalid]="panelError() ? true : null" (input)="onPanelPercent($event)" />
+                    <label class="visually-hidden" for="pos-order-discount-kind">Discount as</label>
+                    <!-- [selected] per option, never [value] on the select (phases 5-7). -->
+                    <select class="form-select form-select-sm pos-discount-kind" id="pos-order-discount-kind" (change)="onPanelDiscountKind($event)">
+                      <option value="Percent" [selected]="panelDiscountKind() === 'Percent'">%</option>
+                      <option value="Amount" [selected]="panelDiscountKind() === 'Amount'">Rs</option>
+                    </select>
+                  </div>
                   <p class="small mb-2" id="pos-order-discount-note">
-                    Taken off every item after its own discount, before service charge and VAT; 0 removes it. It is fixed
-                    once any of the order is billed.
+                    Taken off every item after its own discount, before service charge and VAT; 0 removes it. An amount is
+                    shared by the items in proportion. It is fixed once any of the order is billed.
                   </p>
                   <app-status-banner [message]="panelError()" spacing="mb-2" [small]="true" />
                   <div class="d-flex gap-2">
@@ -270,6 +279,9 @@
                       @if (line.discountPct > 0) {
                         <span class="badge text-bg-secondary">{{ line.discountPct }}% off</span>
                       }
+                      @if (line.discountPerUnit > 0) {
+                        <span class="badge text-bg-secondary">{{ line.discountPerUnit | amount }} off each</span>
+                      }
                     </span>
                     <span>{{ line.total | amount }}</span>
                   </div>
@@ -339,12 +351,20 @@
                     }
                     @if (isPanel('lineDiscount', line.id)) {
                       <form class="pos-panel" [id]="'pos-order-line-discount-' + line.id" (submit)="$event.preventDefault(); confirmPanel()">
-                        <label class="form-label small mb-1" for="pos-order-panel-first">Discount on {{ line.productName }} (%)</label>
-                        <input class="form-control form-control-sm pos-qty mb-2" id="pos-order-panel-first" type="number" min="0" max="100"
-                          step="0.01" [value]="panelPercent()" aria-describedby="pos-order-line-discount-note"
-                          [attr.aria-invalid]="panelError() ? true : null" (input)="onPanelPercent($event)" />
+                        <label class="form-label small mb-1" for="pos-order-panel-first">Discount on {{ line.productName }}</label>
+                        <div class="d-flex gap-2 mb-2">
+                          <input class="form-control form-control-sm pos-qty" id="pos-order-panel-first" type="number" min="0"
+                            [attr.max]="panelDiscountKind() === 'Percent' ? 100 : line.rate"
+                            step="0.01" [value]="panelPercent()" aria-describedby="pos-order-line-discount-note"
+                            [attr.aria-invalid]="panelError() ? true : null" (input)="onPanelPercent($event)" />
+                          <label class="visually-hidden" for="pos-order-line-discount-kind">Discount as</label>
+                          <select class="form-select form-select-sm pos-discount-kind" id="pos-order-line-discount-kind" (change)="onPanelDiscountKind($event)">
+                            <option value="Percent" [selected]="panelDiscountKind() === 'Percent'">%</option>
+                            <option value="Amount" [selected]="panelDiscountKind() === 'Amount'">Rs each</option>
+                          </select>
+                        </div>
                         <p class="small mb-2" id="pos-order-line-discount-note">
-                          Taken off this item before the order's own discount; 100 puts it on the house. Fixed once any of it is billed.
+                          Taken off this item before the order's own discount; 100% puts it on the house. Fixed once any of it is billed.
                         </p>
                         <app-status-banner [message]="panelError()" spacing="mb-2" [small]="true" />
                         <div class="d-flex gap-2">
@@ -391,7 +411,7 @@
             <dl class="pos-totals small">
               @if (o.discount > 0) {
                 <dt>Gross</dt><dd>{{ o.gross | amount }}</dd>
-                <dt>Discount{{ o.discountPct > 0 ? ' (' + o.discountPct + '% on the order)' : '' }}</dt><dd>{{ o.discount | amount }}</dd>
+                <dt>Discount{{ o.discountPct > 0 ? ' (' + o.discountPct + '% on the order)' : '' }}@if (o.discountAmount > 0) { ({{ o.discountAmount | amount }} on the order) }</dt><dd>{{ o.discount | amount }}</dd>
               }
               <dt>Amount</dt><dd>{{ o.amount | amount }}</dd>
               @if (o.serviceCharge > 0) {

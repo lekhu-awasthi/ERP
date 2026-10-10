@@ -137,7 +137,7 @@
                       [value]="line.quantity" (change)="c.setQuantity(line.key, numberOf($event))" />
                     <button type="button" class="btn btn-sm btn-outline-secondary" [attr.aria-label]="'One more ' + line.product.name"
                       (click)="step(line, 1)"><i class="bi bi-plus" aria-hidden="true"></i></button>
-                    <span class="small">{{ unitName(line) }} &times; {{ line.rate | amount }}@if (line.discountPct > 0) { &minus;{{ line.discountPct }}% }</span>
+                    <span class="small">{{ unitName(line) }} &times; {{ line.rate | amount }}@if (line.discountPct > 0) { &minus;{{ line.discountPct }}% }@if (line.discountPerUnit > 0) { &minus;{{ line.discountPerUnit | amount }} each }</span>
                     <button type="button" class="btn btn-sm btn-link ms-auto" [attr.aria-expanded]="editingKey() === line.key"
                       [attr.aria-controls]="'pos-line-edit-' + line.key" (click)="toggleEdit(line.key)">Edit<span class="visually-hidden"> {{ line.product.name }}</span></button>
                     <button type="button" class="btn btn-sm btn-outline-danger" [attr.aria-label]="'Remove ' + line.product.name"
@@ -161,9 +161,20 @@
                         [value]="line.rate" (change)="c.setRate(line.key, numberOf($event))" />
                     </div>
                     <div class="col-4">
-                      <label class="form-label small mb-0" for="pos-discount-{{ line.key }}">Discount %</label>
-                      <input class="form-control form-control-sm" type="number" min="0" max="100" step="0.01" id="pos-discount-{{ line.key }}"
-                        [value]="line.discountPct" (change)="c.setLineDiscount(line.key, numberOf($event))" />
+                      <!-- Phase 74 -- a percentage, or rupees off each unit: the vendor's Percent | Amount toggle. -->
+                      <label class="form-label small mb-0" for="pos-discount-{{ line.key }}">Discount</label>
+                      <div class="input-group input-group-sm">
+                        <input class="form-control" type="number" min="0" step="0.01" id="pos-discount-{{ line.key }}"
+                          [attr.max]="lineDiscountKind(line) === 'Percent' ? 100 : line.rate"
+                          [value]="lineDiscountKind(line) === 'Percent' ? line.discountPct : line.discountPerUnit"
+                          (change)="onLineDiscount(line, $event)" />
+                        <label class="visually-hidden" for="pos-discount-kind-{{ line.key }}">Discount as</label>
+                        <!-- [selected] per option, never [value] on the select (phases 5-7). -->
+                        <select class="form-select pos-discount-kind" id="pos-discount-kind-{{ line.key }}" (change)="onLineDiscountKind(line, $event)">
+                          <option value="Percent" [selected]="lineDiscountKind(line) === 'Percent'">%</option>
+                          <option value="Amount" [selected]="lineDiscountKind(line) === 'Amount'">Rs each</option>
+                        </select>
+                      </div>
                     </div>
                   </div>
                 </li>
@@ -172,9 +183,15 @@
           }
 
           <div class="d-flex align-items-center gap-2 mb-2">
-            <label class="small mb-0" for="pos-bill-discount">Bill discount %</label>
-            <input class="form-control form-control-sm pos-qty" type="number" min="0" max="100" step="0.01" id="pos-bill-discount"
-              [value]="c.discountPct()" (change)="c.setBillDiscount(numberOf($event))" />
+            <label class="small mb-0" for="pos-bill-discount">Bill discount</label>
+            <input class="form-control form-control-sm pos-qty" type="number" min="0" step="0.01" id="pos-bill-discount"
+              [attr.max]="billDiscountKind() === 'Percent' ? 100 : null"
+              [value]="billDiscountKind() === 'Percent' ? c.discountPct() : c.discountAmount()" (change)="onBillDiscount($event)" />
+            <label class="visually-hidden" for="pos-bill-discount-kind">Bill discount as</label>
+            <select class="form-select form-select-sm pos-discount-kind" id="pos-bill-discount-kind" (change)="onBillDiscountKind($event)">
+              <option value="Percent" [selected]="billDiscountKind() === 'Percent'">%</option>
+              <option value="Amount" [selected]="billDiscountKind() === 'Amount'">Rs</option>
+            </select>
           </div>
           @if (discountRefusal(); as why) {
             <p class="small fw-bold mb-2">{{ why }}</p>

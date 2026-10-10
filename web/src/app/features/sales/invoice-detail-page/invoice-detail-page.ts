@@ -48,6 +48,9 @@ interface EditableLine {
   rate: number;
   vatRate: VatRate;
   discountPct: number;
+  /** Phase 74 -- a till line's Amount discount, rupees off each unit; zero on every line this form can write. Required,
+   * so every one of the form's line mappings had to say so (phase 52: an optional field ends a sweep). */
+  discountPerUnit: number;
   /**
    * Phase 51 -- the allocation the line names. `batchNo` is a *number*, not an id: on a receipt the
    * batch may not exist yet, and naming it is how it comes into being (the 2026-09-16 read shows
@@ -191,7 +194,15 @@ export class InvoiceDetailPage {
   protected readonly subTotal = computed(() =>
     this.round(this.lines().reduce((sum, l) => sum + this.netAfterLineDiscount(l), 0)),
   );
-  protected readonly discountAmount = computed(() => this.round((this.subTotal() * this.discountPct()) / 100));
+  /** Phase 74 -- whether a line or the bill carries an Amount discount, so the headings say rupees, not %. */
+  protected readonly perUnitDiscounts = computed(() => this.lines().some((l) => l.discountPerUnit > 0));
+  protected readonly billAmountDiscount = computed(() => (this.posSale()?.discountAmount ?? 0) > 0);
+  /** Phase 74 -- a till sale's Amount discount is stored, never a percentage of anything. */
+  protected readonly discountAmount = computed(() =>
+    (this.posSale()?.discountAmount ?? 0) > 0
+      ? this.posSale()!.discountAmount
+      : this.round((this.subTotal() * this.discountPct()) / 100),
+  );
   /** Phase 61 -- a till sale's own figures, or null for an ERP invoice. A till sale is created
    * approved, so its form is never edited, and its totals are the server's stored ones: the
    * computation below knows nothing of a service charge (which sits inside the VAT base, so it
@@ -295,6 +306,8 @@ export class InvoiceDetailPage {
               ? template.lines.map((l) => ({
                   key: nextLineKey++,
                   ...l,
+                  // Phase 74 -- an ERP conversion never carries a till's Amount discount.
+                  discountPerUnit: 0,
                   // Phase 51 -- a conversion template carries the source document's own allocation
                   // where the server sends one (Quotation -> Invoice, Purchase Order -> Bill), and
                   // blank where it does not. Defaulted here rather than left undefined, so the
@@ -379,6 +392,7 @@ export class InvoiceDetailPage {
             rate: l.rate ?? 0,
             vatRate: this.products().find((p) => p.id === l.productId)?.vatRate ?? ('NoVat' as VatRate),
             discountPct: 0,
+            discountPerUnit: 0,
             // Phase 51 -- an AI-extracted document names no batch and no serials (phase 22 reads a
             // supplier's PDF, not our ledger), so these start blank and the user fills them. Blank
             // is refused by the server for a tracked product, which is the right failure: the
@@ -764,7 +778,7 @@ Approve anyway?`)) {
   }
 
   private netAfterLineDiscount(line: EditableLine): number {
-    return line.quantity * line.rate * (1 - line.discountPct / 100);
+    return line.quantity * (line.rate - line.discountPerUnit) * (1 - line.discountPct / 100);
   }
 
   private netAfterBothDiscounts(line: EditableLine): number {
@@ -836,6 +850,7 @@ Approve anyway?`)) {
       rate: 0,
       vatRate: 'NoVat',
       discountPct: 0,
+      discountPerUnit: 0,
       batchNo: '',
       manufactureDate: '',
       expiryDate: '',
@@ -882,6 +897,7 @@ Approve anyway?`)) {
                 rate: l.rate,
                 vatRate: l.vatRate,
                 discountPct: l.discountPct,
+                discountPerUnit: l.discountPerUnit ?? 0,
                 // Phase 51 -- read back, not only written. Phase 35a found 14 of 15 detail reads
                 // dropping a field the write path stored, which makes the field invisible on the
                 // form and unrecoverable on the next save.

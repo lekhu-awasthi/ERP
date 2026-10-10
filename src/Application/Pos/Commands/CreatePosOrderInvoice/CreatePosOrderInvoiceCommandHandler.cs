@@ -85,13 +85,19 @@ public sealed class CreatePosOrderInvoiceCommandHandler(
             order.DiscountPct);
         invoice.BillPosOrder(order.Id);
 
+        // Phase 74 -- and each part's share of the order's amount discount, which the bill's own DiscountAmount
+        // adds up.
         foreach (var line in plan.Lines)
         {
             invoice.AddPosOrderLine(
-                line.Line.Id, line.Line.ProductId, line.Quantity, line.Line.Rate, line.Line.VatRate, line.Line.DiscountPct,
-                line.Line.UnitId, line.Line.ConversionFactor, order.ServiceChargeRateOf(line.Line), line.Line.PackagingFee,
-                line.Figures);
+                line.Line.Id, line.Line.ProductId, line.Quantity, line.Line.Rate, line.Line.VatRate,
+                line.Line.DiscountPerUnit, line.Line.DiscountPct, line.BillDiscountShare, line.Line.UnitId,
+                line.Line.ConversionFactor, order.ServiceChargeRateOf(line.Line), line.Line.PackagingFee, line.Figures);
         }
+
+        // Phase 74 -- the first bill freezes how the order's amount discount is spread (Decision B); the plan above
+        // was priced with the same spread, so nothing moves.
+        order.FixDiscountShares();
 
         if (plan.RoundOff != 0m)
         {

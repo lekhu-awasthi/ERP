@@ -142,6 +142,7 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
             {
                 ServiceChargeAmount = l.ServiceChargeAmount,
                 PackagingFeeAmount = l.PackagingFeeAmount,
+                DiscountPerUnit = l.DiscountPerUnit,
             })
             .ToList();
 
@@ -161,7 +162,8 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
         var dto = await BuildProductDocumentAsync(
             request, organization, InvoiceHeadings.English(heading), document.Code, document.Date, document.Reference,
             document.ContactId, "Bill To", header, lines, document.DiscountPct, document.Terms, ct,
-            currencyCode: document.CurrencyCode, exchangeRate: document.ExchangeRate, roundOff: document.RoundOff);
+            currencyCode: document.CurrencyCode, exchangeRate: document.ExchangeRate, roundOff: document.RoundOff,
+            discountAmount: document.DiscountAmount);
 
         return WithStatutoryDates(dto, document.ApprovedAt, document.IsAbbreviatedTaxInvoice) with
         {
@@ -185,6 +187,7 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
             {
                 ServiceChargeAmount = l.ServiceChargeAmount,
                 PackagingFeeAmount = l.PackagingFeeAmount,
+                DiscountPerUnit = l.DiscountPerUnit,
             })
             .ToList();
 
@@ -223,7 +226,8 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
         var dto = await BuildProductDocumentAsync(
             request, organization, "Credit Note", document.Code, document.Date, document.Reference,
             document.ContactId, "Credit To", header, lines, document.DiscountPct, document.Terms, ct,
-            currencyCode: document.CurrencyCode, exchangeRate: document.ExchangeRate, roundOff: document.RoundOff);
+            currencyCode: document.CurrencyCode, exchangeRate: document.ExchangeRate, roundOff: document.RoundOff,
+            discountAmount: document.DiscountAmount);
 
         return WithStatutoryDates(dto, document.ApprovedAt) with
         {
@@ -860,6 +864,9 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
 
         public decimal PackagingFeeAmount { get; init; }
 
+        /// <summary>Phase 74 -- a till line's Amount discount, rupees off each unit.</summary>
+        public decimal DiscountPerUnit { get; init; }
+
         public decimal LineTotal => Amount + ServiceChargeAmount + PackagingFeeAmount + VatAmount;
     }
 
@@ -882,7 +889,8 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
         decimal tdsAmount = 0,
         string? currencyCode = null,
         decimal? exchangeRate = null,
-        decimal roundOff = 0)
+        decimal roundOff = 0,
+        decimal discountAmount = 0)
     {
         var products = await ProductDetailsAsync(lines.Select(l => l.ProductId), ct);
 
@@ -893,6 +901,7 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
         var units = await UnitNamesAsync(lines.Select(UnitOf), ct);
         string UnitName(ProductLine line) => UnitOf(line) is { } unitId ? units.GetValueOrDefault(unitId, string.Empty) : string.Empty;
         var anyHsCode = lines.Any(l => !string.IsNullOrWhiteSpace(products.GetValueOrDefault(l.ProductId)?.HsCode));
+        var anyPerUnit = lines.Any(l => l.DiscountPerUnit != 0m);
 
         List<string> Cells(string product, string hsCode, string quantity, string unit, string rate, string discount, string vatAmount, string amount)
         {
@@ -918,7 +927,8 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
             new PrintableColumnDto("Qty", 0.8f, AlignRight: true),
             new PrintableColumnDto("Unit", 0.8f, Element: PrintElement.Unit),
             new PrintableColumnDto("Rate", 1.4f, AlignRight: true),
-            new PrintableColumnDto("Disc %", 0.8f, AlignRight: true, Element: PrintElement.DiscountColumn),
+            // Phase 74 -- a till line's discount can be rupees off each unit, so the column says which each cell is.
+            new PrintableColumnDto(anyPerUnit ? "Disc" : "Disc %", anyPerUnit ? 1.2f : 0.8f, AlignRight: true, Element: PrintElement.DiscountColumn),
             new PrintableColumnDto("VAT", 1.2f, AlignRight: true, Element: PrintElement.VatColumn),
             new PrintableColumnDto("Amount", 1.5f, AlignRight: true),
         ]);
@@ -926,6 +936,10 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
         // A quantity total means something only in one unit; across a box and a piece it adds unlike things, so the
         // total row leaves it blank (now that the unit is printed beside every quantity, the sum would be visibly wrong).
         var oneUnit = lines.Select(UnitOf).Distinct().Count() <= 1;
+
+        string Discount(ProductLine line) => !anyPerUnit
+            ? Percent(line.DiscountPct)
+            : line.DiscountPerUnit != 0m ? $"{Money(line.DiscountPerUnit)}/unit" : $"{Percent(line.DiscountPct)}%";
 
         var sections = new List<PrintableSectionDto>
         {
@@ -938,7 +952,7 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
                     Quantity(l.Quantity),
                     UnitName(l),
                     Money(l.Rate),
-                    Percent(l.DiscountPct),
+                    Discount(l),
                     Money(l.VatAmount),
                     Money(l.LineTotal)))).ToList(),
                 new PrintableRowDto(Cells(
@@ -952,7 +966,17 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
         var packagingFee = lines.Sum(l => l.PackagingFeeAmount);
         var vat = lines.Sum(l => l.VatAmount);
 
-        var summary = new List<PrintableFieldDto> { new("Sub Total", Money(subTotal)) };
+        // Phase 74 -- a till bill's Amount discount is rupees already taken off its lines, so it prints above the Sub
+        // Total it was taken from, the arithmetic reading down the page: what the lines came to, less the discount, is
+        // the Sub Total. Printed under it (as the rate is), a figure reads as a second subtraction -- it did, once.
+        var summary = new List<PrintableFieldDto>();
+        if (discountAmount > 0)
+        {
+            summary.Add(new PrintableFieldDto("Before Discount", Money(subTotal + discountAmount)));
+            summary.Add(new PrintableFieldDto("Discount Applied", $"({Money(discountAmount)})"));
+        }
+
+        summary.Add(new PrintableFieldDto("Sub Total", Money(subTotal)));
         if (discountPct > 0)
         {
             // The header discount is already folded into every line's Amount (phase-16b), so this

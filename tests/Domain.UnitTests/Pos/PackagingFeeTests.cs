@@ -117,7 +117,7 @@ public class PackagingFeeTests
     [Fact]
     public void The_fee_is_inside_the_vat_base_and_neither_charge_is_taken_on_the_other()
     {
-        var figures = PosLineArithmetic.Compute(1m, 200m, 0.13m, 0m, 0m, 10m, FivePercent);
+        var figures = PosLineArithmetic.Compute(1m, 200m, 0.13m, 0m, 0m, 0m, 0m, 10m, FivePercent);
 
         // Service charge 10% of 200 and the fee 5% of 200: neither is charged on the other.
         Assert.Equal((200m, 20m, 10m), (figures.Amount, figures.ServiceChargeAmount, figures.PackagingFeeAmount));
@@ -271,7 +271,7 @@ public class PackagingFeeTests
         var refund = CreditNote.CreatePosRefund(
             sale.OrganizationId, sale.ContactId, sale.Date, sale.LocationId!.Value, Guid.NewGuid(), sale.Id, "INV0001",
             0m, "Arrived cold");
-        refund.AddPosLine(sold.ProductId, 3m, sold.Rate, sold.VatRate, sold.DiscountPct, null, 1m, null, 0m, sold.PackagingFee);
+        refund.AddPosLine(new CreditNote.PosLineInput(sold.ProductId, 3m, sold.Rate, sold.VatRate, 0m, sold.DiscountPct, 0m, null, 1m, null, 0m, sold.PackagingFee, null));
 
         var returned = refund.Lines[0];
         Assert.Equal(FivePercent, returned.PackagingFee);

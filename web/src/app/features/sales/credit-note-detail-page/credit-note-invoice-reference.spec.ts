@@ -45,6 +45,7 @@ describe('CreditNoteDetailPage — the invoice it relates to', () => {
       lines: [{
         id: 'l-1', productId: 'p-1', quantity: 1, rate: 100, vatRate: 'NoVat', discountPct: 0, amount: 100,
         vatAmount: 0, unitId: null, unitName: null, conversionFactor: 1, serviceChargeAmount: 0, packagingFeeAmount: 0,
+        discountPerUnit: 0, billDiscountAmount: 0,
       }],
       glLines: null, posRefund: null, printCount: 0,
       relatedInvoice: { id: 'inv-1', code: 'INV0001', date: '2026-09-01', grandTotal: 2260, currencyCode: 'NPR' },

@@ -12,6 +12,8 @@ namespace ErpApp.Application.Pos.Commands.CreatePosSale;
 /// <param name="Rate">The price per unit before VAT -- the till prefills the product's selling price
 /// and a cashier may change it (phase 62's line edit).</param>
 /// <param name="VatRate">Null takes the product's own rate, which is what a till normally wants.</param>
+/// <param name="DiscountPerUnit">Phase 74 -- the line's Amount discount, rupees off each unit; never beside a
+/// <paramref name="DiscountPct"/>.</param>
 public sealed record PosSaleLineInput(
     Guid ProductId,
     decimal Quantity,
@@ -20,7 +22,8 @@ public sealed record PosSaleLineInput(
     decimal DiscountPct = 0,
     Guid? UnitId = null,
     string? BatchNo = null,
-    IReadOnlyList<string>? SerialNumbers = null);
+    IReadOnlyList<string>? SerialNumbers = null,
+    decimal DiscountPerUnit = 0);
 
 /// <summary>One way the customer paid: a payment mode the till offers, and the amount handed over in it.</summary>
 public sealed record PosTenderInput(Guid PaymentModeId, decimal Amount);
@@ -38,7 +41,9 @@ public sealed record PosTenderInput(Guid PaymentModeId, decimal Amount);
 /// tenders, not the request's shape: a receivable is exactly what Approve exists to put a second pair
 /// of eyes on, and it is the one thing a till sale creates that an ERP draft could not create without
 /// that key. <b>Phase 72 -- so does a discount, or a line rung up below the catalogue's price</b>: both
-/// lower what is owed past the drawer's count, which is the other thing an approver reviews.</para>
+/// lower what is owed past the drawer's count, which is the other thing an approver reviews. Phase 74 -- and so
+/// does any price but the catalogue's, raised as well as lowered (the vendor's <i>Can Change Rate</i>): on their own,
+/// a cashier charges the catalogue.</para>
 ///
 /// <para>The two warnings are phase 31's: a stock shortfall the tenant's setting warns about, and a
 /// credit-limit breach, each a 422 with its own <c>warningKind</c> and its own override flag.</para>
@@ -55,7 +60,8 @@ public sealed record CreatePosSaleCommand(
     PosTab? OrderType = null,
     decimal DiscountPct = 0,
     bool OverrideStockWarning = false,
-    bool OverrideCreditLimitWarning = false)
+    bool OverrideCreditLimitWarning = false,
+    decimal DiscountAmount = 0)
     : IRequest<CreatePosSaleResult>, IRequirePermission, IOrganizationScoped, IRequireAnyFeature, ILockDateSensitive,
         IAuditableRequest, IMeteredTransaction, ILocationBearingCommand
 {

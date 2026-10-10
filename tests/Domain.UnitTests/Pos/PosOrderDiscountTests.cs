@@ -249,10 +249,10 @@ public class PosOrderDiscountTests
         var figures = new PosLineArithmetic.Figures(171.00m, 17.10m, 0m, 24.45m);
 
         Assert.Throws<InvalidOperationException>(() => invoice.AddPosOrderLine(
-            Guid.NewGuid(), Guid.NewGuid(), 1m, 200m, VatRate.ThirteenPercentVat, 100.5m, null, 1m, 10m, PackagingFee.None, figures));
+            Guid.NewGuid(), Guid.NewGuid(), 1m, 200m, VatRate.ThirteenPercentVat, 0m, 100.5m, 0m, null, 1m, 10m, PackagingFee.None, figures));
 
         invoice.AddPosOrderLine(
-            Guid.NewGuid(), Guid.NewGuid(), 1m, 200m, VatRate.ThirteenPercentVat, 10m, null, 1m, 10m, PackagingFee.None, figures);
+            Guid.NewGuid(), Guid.NewGuid(), 1m, 200m, VatRate.ThirteenPercentVat, 0m, 10m, 0m, null, 1m, 10m, PackagingFee.None, figures);
 
         Assert.Equal(5m, invoice.DiscountPct);
         var line = Assert.Single(invoice.Lines);

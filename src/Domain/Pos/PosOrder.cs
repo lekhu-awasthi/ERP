@@ -190,6 +190,16 @@ public sealed class PosOrder
     public decimal DiscountPct { get; private set; }
 
     /// <summary>
+    /// Phase 74 -- the order's <b>Amount</b> discount, rupees off the whole tab (the vendor's <i>Options &gt;
+    /// Discount</i> with <i>Amount</i> chosen), never beside a <see cref="DiscountPct"/>. It is spread over the
+    /// dishes in proportion to what each comes to, live until the first bill, and then each line's share is
+    /// frozen (<see cref="PosOrderLine.OrderDiscountShare"/>): every part of a dish takes its quantity's share of
+    /// that dish's, and the last part what is left, so the bills add up to the order and no one guest's bill takes
+    /// the whole amount (the vendor's first split bill does, phase-74-status.md Decision B).
+    /// </summary>
+    public decimal DiscountAmount { get; private set; }
+
+    /// <summary>
     /// Phase 72 -- the guest declined the service charge, which they may: a mandatory one has been void
     /// since the Supreme Court's ruling of 2023-01-25 (phase-61-status.md Decision A). Every line is then
     /// billed without it, while each keeps its own frozen rate. The tab's decision, set and fixed like
@@ -367,6 +377,7 @@ public sealed class PosOrder
             var quantity = RequireQuantity(item.Quantity);
             var net = QuantitiesOf(line).Net;
             var billed = invoiced.GetValueOrDefault(line.Id);
+            EnsureShareStays(line, "discarded");
 
             if (quantity > net - billed)
             {
@@ -462,6 +473,7 @@ public sealed class PosOrder
         var quantities = QuantitiesOf(line);
         var billed = invoiced.GetValueOrDefault(line.Id);
         var markable = Math.Min(quantities.Outstanding, quantities.Net - billed);
+        EnsureShareStays(line, "marked as take away");
 
         if (q > markable)
         {
@@ -477,7 +489,7 @@ public sealed class PosOrder
         // whose discount was changed since is not those terms, so a second mark makes another.
         var parcel = _lines.FirstOrDefault(x =>
             x.ParcelledFromLineId == line.Id && x.ServiceChargeRate == rate && x.PackagingFee == packagingFee
-            && x.DiscountPct == line.DiscountPct);
+            && x.DiscountPct == line.DiscountPct && x.DiscountPerUnit == line.DiscountPerUnit);
 
         if (parcel is null)
         {
@@ -538,6 +550,16 @@ public sealed class PosOrder
 
         EnsureNotEmpty(items, "Choose what to transfer.");
         EnsureDistinct(items);
+
+        // Phase 74 -- an amount is off a whole tab: copying it to the other would give it twice, and moving food out
+        // of a tab with one changes what it is spread over (Decision B).
+        if (new[] { source, target }.FirstOrDefault(x => x.DiscountAmount != 0m) is { } spread)
+        {
+            throw new InvalidOperationException(
+                $"Order {spread.Code} has a discount of {spread.DiscountAmount:0.00} spread over its dishes, so items cannot "
+                + "be transferred to or from it. Give it a percentage discount instead, or remove it, first.");
+        }
+
         target.TakeTermsFor(source);
 
         var outgoing = new List<(PosOrderLine Line, decimal Quantity)>();
@@ -633,12 +655,22 @@ public sealed class PosOrder
     /// left of it, so a change now would land on the last part alone. Who may give one is the caller's check
     /// (<c>Sales.Invoice.Approve</c> at the order's location). Setting the value it already has changes nothing.
     /// </summary>
-    public void SetDiscount(decimal discountPct, IReadOnlyDictionary<Guid, decimal> invoiced)
+    public void SetDiscount(decimal discountPct, IReadOnlyDictionary<Guid, decimal> invoiced) =>
+        SetDiscount(PosDiscountKind.Percent, discountPct, invoiced);
+
+    /// <summary>Phase 74 -- the order's discount as a percentage or as an amount (<see cref="DiscountAmount"/>),
+    /// either one replacing the other. An amount is at most what the order comes to now.</summary>
+    public void SetDiscount(PosDiscountKind kind, decimal value, IReadOnlyDictionary<Guid, decimal> invoiced)
     {
         EnsureOpen();
-        var pct = RequireDiscountPct(discountPct);
+        var (pct, amount) = kind switch
+        {
+            PosDiscountKind.Percent => (RequireDiscountPct(value), 0m),
+            PosDiscountKind.Amount => (0m, RequireDiscountAmount(value)),
+            _ => throw new InvalidOperationException($"'{kind}' is not a kind of discount."),
+        };
 
-        if (pct == DiscountPct)
+        if (pct == DiscountPct && amount == DiscountAmount)
         {
             return;
         }
@@ -650,7 +682,16 @@ public sealed class PosOrder
                 + "terms, or the bills would not add up to the order.");
         }
 
+        var comesTo = _lines.Sum(x => PosLineArithmetic.NetOf(
+            QuantitiesOf(x).Net, x.Rate, x.DiscountPerUnit, x.DiscountPct, 0m));
+        if (amount > comesTo)
+        {
+            throw new InvalidOperationException(
+                $"Order {Code} comes to {comesTo:0.00} before VAT, so a discount of {amount:0.00} is more than the order.");
+        }
+
         DiscountPct = pct;
+        DiscountAmount = amount;
         Touch();
     }
 
@@ -659,13 +700,25 @@ public sealed class PosOrder
     /// off that dish, before the order's. Only while nothing of that line is billed, for the reason
     /// <see cref="SetDiscount"/> gives; the rest of the order is free to be billed already.
     /// </summary>
-    public void SetLineDiscount(Guid lineId, decimal discountPct, IReadOnlyDictionary<Guid, decimal> invoiced)
+    public void SetLineDiscount(Guid lineId, decimal discountPct, IReadOnlyDictionary<Guid, decimal> invoiced) =>
+        SetLineDiscount(lineId, PosDiscountKind.Percent, discountPct, invoiced);
+
+    /// <summary>Phase 74 -- a dish's discount as a percentage or as an amount off each unit
+    /// (<see cref="PosOrderLine.DiscountPerUnit"/>, as the vendor's <i>Edit Item</i> takes it), never more than
+    /// the dish's rate.</summary>
+    public void SetLineDiscount(
+        Guid lineId, PosDiscountKind kind, decimal value, IReadOnlyDictionary<Guid, decimal> invoiced)
     {
         EnsureOpen();
         var line = FindLine(lineId);
-        var pct = RequireDiscountPct(discountPct);
+        var (pct, perUnit) = kind switch
+        {
+            PosDiscountKind.Percent => (RequireDiscountPct(value), 0m),
+            PosDiscountKind.Amount => (0m, RequireDiscountAmount(value)),
+            _ => throw new InvalidOperationException($"'{kind}' is not a kind of discount."),
+        };
 
-        if (pct == line.DiscountPct)
+        if (pct == line.DiscountPct && perUnit == line.DiscountPerUnit)
         {
             return;
         }
@@ -677,8 +730,110 @@ public sealed class PosOrder
                 + "at the same terms.");
         }
 
-        line.SetDiscount(pct);
+        if (perUnit > line.Rate)
+        {
+            throw new InvalidOperationException(
+                $"Line {line.LineNo} is {line.Rate:0.00} a unit, so {perUnit:0.00} off each is more than the dish.");
+        }
+
+        // A dish not yet billed may still be discounted after its neighbours are paid (phase 72), but never below
+        // the share of the order's amount discount it took when the order was first billed.
+        if (line.OrderDiscountShare is { } share
+            && PosLineArithmetic.NetOf(QuantitiesOf(line).Net, line.Rate, perUnit, pct, 0m) < share)
+        {
+            throw new InvalidOperationException(
+                $"Line {line.LineNo} carries {share:0.00} of the order's discount, fixed at its first bill, so it cannot "
+                + "be discounted below that.");
+        }
+
+        line.SetDiscount(pct, perUnit);
         Touch();
+    }
+
+    /// <summary>
+    /// Phase 74 -- whether the order's Amount discount is spread for good: from its first bill, each line keeps the
+    /// share it had then (<see cref="FixDiscountShares"/>), and a dish sent later carries none.
+    /// </summary>
+    public bool DiscountSharesFixed => _lines.Any(x => x.OrderDiscountShare is not null);
+
+    /// <summary>
+    /// Phase 74 -- this line's share of <see cref="DiscountAmount"/>: the frozen one once the order is billed, and
+    /// until then the order's amount spread over its dishes as they stand (<see cref="PosLineArithmetic.Spread"/>,
+    /// by what each comes to after its own discount). Dishes discarded before the first bill can leave the order
+    /// coming to less than its amount; the spread then gives each line all of itself, and no more.
+    /// </summary>
+    public decimal DiscountShareOf(PosOrderLine line)
+    {
+        if (DiscountSharesFixed)
+        {
+            return line.OrderDiscountShare ?? 0m;
+        }
+
+        return DiscountAmount == 0m ? 0m : LiveDiscountShares().GetValueOrDefault(line.Id);
+    }
+
+    /// <summary>Phase 74 -- the part of a line's share that <paramref name="quantity"/> of it carries.</summary>
+    public decimal DiscountShareOf(PosOrderLine line, decimal quantity) =>
+        PosLineArithmetic.Prorate(DiscountShareOf(line), quantity, QuantitiesOf(line).Net);
+
+    /// <summary>
+    /// Phase 74 -- freezes each line's share of the order's Amount discount, called with the order's first bill.
+    /// Before it, the spread follows the dishes; after it, a bill already paid was priced with these shares, so
+    /// moving them would land the difference on whichever part came last. Does nothing without an amount, or a
+    /// second time.
+    /// </summary>
+    public void FixDiscountShares()
+    {
+        if (DiscountAmount == 0m || DiscountSharesFixed)
+        {
+            return;
+        }
+
+        var shares = LiveDiscountShares();
+        foreach (var line in _lines)
+        {
+            line.FixDiscountShare(shares.GetValueOrDefault(line.Id));
+        }
+
+        Touch();
+    }
+
+    /// <summary>Phase 74 -- a void of every bill unfixes the order's terms (phase 72), its discount shares
+    /// included: the spread follows the dishes again until the next first bill.</summary>
+    public void ReleaseDiscountShares(IReadOnlyDictionary<Guid, decimal> invoiced)
+    {
+        if (!DiscountSharesFixed || _lines.Any(x => invoiced.GetValueOrDefault(x.Id) > 0m))
+        {
+            return;
+        }
+
+        foreach (var line in _lines)
+        {
+            line.FixDiscountShare(null);
+        }
+
+        Touch();
+    }
+
+    private Dictionary<Guid, decimal> LiveDiscountShares()
+    {
+        var bases = _lines
+            .Select(x => PosLineArithmetic.NetOf(QuantitiesOf(x).Net, x.Rate, x.DiscountPerUnit, x.DiscountPct, 0m))
+            .ToList();
+        var shares = PosLineArithmetic.Spread(Math.Min(DiscountAmount, bases.Sum()), bases);
+        return _lines.Select((x, i) => (x.Id, shares[i])).ToDictionary(x => x.Id, x => x.Item2);
+    }
+
+    /// <summary>Phase 74 -- once the order's amount discount is fixed, a dish carrying a share keeps the quantity it
+    /// was spread over: discarding or parcelling part of it would leave its share on fewer units, or none.</summary>
+    private void EnsureShareStays(PosOrderLine line, string action)
+    {
+        if (line.OrderDiscountShare is > 0m)
+        {
+            throw new InvalidOperationException(
+                $"Line {line.LineNo} carries {line.OrderDiscountShare:0.00} of the order's discount, spread when the "
+                + $"order was first billed, so it cannot be {action} now. Bill it; a refund gives back what was not wanted.");
+        }
     }
 
     /// <summary>
@@ -718,8 +873,8 @@ public sealed class PosOrder
     /// </summary>
     public PosLineArithmetic.Figures FiguresOf(PosOrderLine line, decimal quantity) =>
         PosLineArithmetic.Compute(
-            quantity, line.Rate, line.VatRate.ToPercent(), line.DiscountPct, DiscountPct, ServiceChargeRateOf(line),
-            line.PackagingFee);
+            quantity, line.Rate, line.VatRate.ToPercent(), line.DiscountPerUnit, line.DiscountPct, DiscountPct,
+            DiscountShareOf(line, quantity), ServiceChargeRateOf(line), line.PackagingFee);
 
     /// <summary>Counts one more print of a ticket and returns its number: 1 is the original, and the
     /// paper marks anything after it a reprint, so a kitchen does not cook one ticket twice.</summary>
@@ -1028,6 +1183,18 @@ public sealed class PosOrder
         return quantity;
     }
 
+    /// <summary>Phase 74 -- an amount discount is whole paisa and never negative; what it may not exceed is the
+    /// caller's to say.</summary>
+    private static decimal RequireDiscountAmount(decimal amount)
+    {
+        if (amount < 0m || decimal.Round(amount, Invoice.PosMoneyScale) != amount)
+        {
+            throw new InvalidOperationException("A discount amount is whole paisa and never negative.");
+        }
+
+        return amount;
+    }
+
     /// <summary>Phase 72 -- a discount is a percentage from 0 to 100 with at most two decimal places, as a
     /// cashier types one.</summary>
     private static decimal RequireDiscountPct(decimal discountPct)
@@ -1150,6 +1317,15 @@ public sealed class PosOrderLine
     /// (<see cref="PosOrder.SetLineDiscount"/>). Zero when sent; fixed once any of the line is billed.</summary>
     public decimal DiscountPct { get; private set; }
 
+    /// <summary>Phase 74 -- this dish's Amount discount, rupees off each unit, set like <see cref="DiscountPct"/>
+    /// and never beside it.</summary>
+    public decimal DiscountPerUnit { get; private set; }
+
+    /// <summary>Phase 74 -- this dish's share of its order's <see cref="PosOrder.DiscountAmount"/>, frozen at the
+    /// order's first bill (<see cref="PosOrder.FixDiscountShares"/>); null while the order is unbilled, and on a dish
+    /// sent after that, which carries none.</summary>
+    public decimal? OrderDiscountShare { get; private set; }
+
     public string? Note { get; private set; }
 
     /// <summary>Where this line's tickets go: the product's station when first sent; null is Default.</summary>
@@ -1227,6 +1403,7 @@ public sealed class PosOrderLine
             PackagingFeeBasis = packagingFee.Basis,
             PackagingFeeValue = packagingFee.Value,
             DiscountPct = source.DiscountPct,
+            DiscountPerUnit = source.DiscountPerUnit,
             Note = source.Note,
             KitchenStationId = source.KitchenStationId,
             IsTakeAway = isTakeAway,
@@ -1243,6 +1420,7 @@ public sealed class PosOrderLine
         && ServiceChargeRate == other.ServiceChargeRate
         && PackagingFee == other.PackagingFee
         && DiscountPct == other.DiscountPct
+        && DiscountPerUnit == other.DiscountPerUnit
         && Note == other.Note
         && KitchenStationId == other.KitchenStationId
         && IsTakeAway == other.IsTakeAway;
@@ -1250,7 +1428,13 @@ public sealed class PosOrderLine
     // Phase 72 -- a line's money is priced by its order (PosOrder.FiguresOf), which alone knows the order's
     // discount and whether the guest declined the service charge.
 
-    internal void SetDiscount(decimal discountPct) => DiscountPct = discountPct;
+    internal void SetDiscount(decimal discountPct, decimal discountPerUnit)
+    {
+        DiscountPct = discountPct;
+        DiscountPerUnit = discountPerUnit;
+    }
+
+    internal void FixDiscountShare(decimal? share) => OrderDiscountShare = share;
 
     internal void AddServed(decimal quantity) => ServedQuantity += quantity;
 

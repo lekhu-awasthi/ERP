@@ -356,7 +356,7 @@ describe('PosTillPage', () => {
     expect(p.service.sent).toEqual([]);
   });
 
-  it('treats a price below the catalogue as a discount, and a higher one as any cashier\'s', () => {
+  it('treats any price but the catalogue\'s as needing approval, raised as well as lowered (phase 74)', () => {
     const p = page(till({ canDiscount: false }));
     p.tile('Chicken Momo');
 
@@ -364,7 +364,57 @@ describe('PosTillPage', () => {
     expect(p.text()).toContain('Sales.Invoice.Approve');
 
     setField(p, '[id^="pos-rate-"]', '210');
+    expect(p.text()).toContain('a price other than the catalogue\'s');
+
+    setField(p, '[id^="pos-rate-"]', '200');
     expect(p.text()).not.toContain('Sales.Invoice.Approve');
+  });
+
+  // ---- Phase 74: amounts ---------------------------------------------------------------------------
+
+  const chooseKind = (p: ReturnType<typeof page>, selector: string, kind: 'Percent' | 'Amount') => {
+    const select = p.element.querySelector<HTMLSelectElement>(selector)!;
+    select.value = kind;
+    select.dispatchEvent(new Event('change'));
+    p.render();
+  };
+
+  it('takes rupees off each unit of a line and sends them as the line\'s amount discount', () => {
+    const p = page();
+    p.tile('Chicken Momo');
+    p.tile('Chicken Momo');
+
+    chooseKind(p, '[id^="pos-discount-kind-"]', 'Amount');
+    setField(p, '[id^="pos-discount-"]', '10');
+
+    // 2 x 190 = 380, 38 of service charge, 13% of 418 is 54.34: 472.34, rounded to 472.
+    expect(p.text()).toContain('each');
+    p.press('Pay (F9)');
+    p.tender('cash', '472');
+    p.complete().click();
+    p.render();
+
+    expect(p.service.sent[0].lines.map((x) => [x.quantity, x.rate, x.discountPct, x.discountPerUnit])).toEqual([[2, 200, 0, 10]]);
+    expect(p.service.sent[0]).toEqual(expect.objectContaining({ discountPct: 0, discountAmount: 0 }));
+  });
+
+  it('takes rupees off the whole bill, and refuses more than the bill before sending it', () => {
+    const p = page();
+    p.tile('Coke 250ml');
+
+    chooseKind(p, '#pos-bill-discount-kind', 'Amount');
+    setField(p, '#pos-bill-discount', '60.01');
+    expect(p.text()).toContain('A discount of 60.01 is more than the bill comes to.');
+
+    // 60 less 10 is 50, 6.50 of VAT: 56.50, rounded to 57.
+    setField(p, '#pos-bill-discount', '10');
+    expect(p.text()).not.toContain('more than the bill');
+    p.press('Pay (F9)');
+    p.tender('cash', '57');
+    p.complete().click();
+    p.render();
+
+    expect(p.service.sent[0]).toEqual(expect.objectContaining({ discountPct: 0, discountAmount: 10 }));
   });
 
   it('lets a cashier who may approve invoices give a bill discount', () => {

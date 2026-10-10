@@ -151,6 +151,9 @@
                         @if (line.discountPct > 0) {
                           <span class="small text-body-secondary">&middot; {{ line.discountPct }}% off</span>
                         }
+                        @if (line.discountPerUnit > 0) {
+                          <span class="small text-body-secondary">&middot; {{ line.discountPerUnit | amount }} off each</span>
+                        }
                       </td>
                       <td class="text-end">{{ line.quantity }}</td>
                       <td class="text-end">{{ line.amount | amount }}</td>
@@ -161,7 +164,7 @@
               <dl class="pos-totals small">
                 @if (p.discount > 0) {
                   <dt>Gross</dt><dd>{{ p.gross | amount }}</dd>
-                  <dt>Discount{{ p.discountPct > 0 ? ' (' + p.discountPct + '% on the order)' : '' }}</dt><dd>{{ p.discount | amount }}</dd>
+                  <dt>Discount{{ p.discountPct > 0 ? ' (' + p.discountPct + '% on the order)' : '' }}@if (p.discountAmount > 0) { (incl. {{ p.discountAmount | amount }} off the order) }</dt><dd>{{ p.discount | amount }}</dd>
                 }
                 <dt>Sub total</dt><dd>{{ p.amount | amount }}</dd>
                 @if (p.serviceCharge > 0) {

@@ -135,7 +135,7 @@ describe('PosCart', () => {
 
     expect(cart.lines()[0].rate).toBe(1200);
     expect(cart.toSaleLines()[0]).toEqual({
-      productId: 'coke', quantity: 1, rate: 1200, vatRate: null, discountPct: 0, unitId: 'crate',
+      productId: 'coke', quantity: 1, rate: 1200, vatRate: null, discountPct: 0, discountPerUnit: 0, unitId: 'crate',
     });
 
     // The primary unit travels as null, as every ERP form sends it.

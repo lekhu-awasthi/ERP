@@ -75,6 +75,9 @@ import { POS_RECEIPT_STYLES } from './pos-receipt';
         @if (line.discountPct > 0) {
           <p class="r-indent">less {{ line.discountPct }}% discount</p>
         }
+        @if (line.discountPerUnit > 0) {
+          <p class="r-indent">less {{ line.discountPerUnit | amount }} each discount</p>
+        }
       }
       <div class="r-rule"></div>
       @if (r.discountAmount > 0) {

@@ -50,6 +50,9 @@ import { POS_RECEIPT_STYLES } from '../pos-receipt/pos-receipt';
       @for (line of p.lines; track line.orderLineId) {
         <p>{{ line.productName }}{{ line.unitName ? ' (' + line.unitName + ')' : '' }}</p>
         <p class="r-row r-indent"><span>{{ line.quantity }} × {{ line.rate | amount }}</span><span>{{ line.amount | amount }}</span></p>
+        @if (line.discountPerUnit > 0) {
+          <p class="r-indent">less {{ line.discountPerUnit | amount }} each discount</p>
+        }
         @if (line.discountPct > 0) {
           <p class="r-indent">less {{ line.discountPct }}% discount</p>
         }

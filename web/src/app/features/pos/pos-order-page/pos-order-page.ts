@@ -4,7 +4,7 @@ import { concatMap, from, toArray } from 'rxjs';
 
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { Contact } from '../../../core/contacts/contacts.models';
-import { POS_TAB_LABELS, PosProduct } from '../../../core/pos/pos.models';
+import { POS_TAB_LABELS, PosDiscountKind, PosProduct } from '../../../core/pos/pos.models';
 import {
   KitchenTicket,
   POS_ORDER_TYPES,
@@ -130,8 +130,9 @@ export class PosOrderPage {
   // ---- Inline actions ----
   protected readonly panel = signal<Panel | null>(null);
   protected readonly panelQuantity = signal(1);
-  /** Phase 72 -- the percentage in a discount panel. */
+  /** Phase 72 -- the percentage in a discount panel; phase 74 -- or the amount, as the panel's kind says. */
   protected readonly panelPercent = signal(0);
+  protected readonly panelDiscountKind = signal<PosDiscountKind>('Percent');
   protected readonly panelReason = signal('');
   protected readonly panelTableId = signal<string | null>(null);
   protected readonly panelError = signal<string | null>(null);
@@ -463,10 +464,13 @@ export class PosOrderPage {
       this.covers.set(this.order()?.covers ?? 1);
     }
     if (panel.kind === 'discount') {
-      this.panelPercent.set(this.order()?.discountPct ?? 0);
+      const order = this.order();
+      this.panelDiscountKind.set((order?.discountAmount ?? 0) > 0 ? 'Amount' : 'Percent');
+      this.panelPercent.set((order?.discountAmount ?? 0) > 0 ? order!.discountAmount : (order?.discountPct ?? 0));
     }
     if (panel.kind === 'lineDiscount') {
-      this.panelPercent.set(line?.discountPct ?? 0);
+      this.panelDiscountKind.set((line?.discountPerUnit ?? 0) > 0 ? 'Amount' : 'Percent');
+      this.panelPercent.set((line?.discountPerUnit ?? 0) > 0 ? line!.discountPerUnit : (line?.discountPct ?? 0));
     }
     afterNextRender(() => document.getElementById('pos-order-panel-first')?.focus(), { injector: this.injector });
   }
@@ -498,6 +502,13 @@ export class PosOrderPage {
 
   protected onPanelPercent(event: Event): void {
     this.panelPercent.set(Number((event.target as HTMLInputElement).value));
+  }
+
+  /** Phase 74 -- a change of kind starts the figure again at nothing: 10% is not Rs 10. */
+  protected onPanelDiscountKind(event: Event): void {
+    this.panelDiscountKind.set((event.target as HTMLSelectElement).value as PosDiscountKind);
+    this.panelPercent.set(0);
+    this.panelError.set(null);
   }
 
   /** Phase 72 -- whether any of the order is billed, which fixes its discount and its service charge. */
@@ -533,13 +544,24 @@ export class PosOrderPage {
       return;
     }
 
-    // Phase 72 -- the server's own rule, said before it is asked (0 to 100, at most two decimal places).
+    // Phase 72 -- the server's own rule, said before it is asked (0 to 100, at most two decimal places); phase 74 -- an
+    // amount is whole paisa, and on a line no more than its rate.
     const percent = this.panelPercent();
-    if ((panel.kind === 'discount' || panel.kind === 'lineDiscount')
-      && (!Number.isFinite(percent) || percent < 0 || percent > 100 || Number(percent.toFixed(2)) !== percent)) {
-      this.panelError.set('A discount is a percentage from 0 to 100, with at most two decimal places.');
-      document.getElementById('pos-order-panel-first')?.focus();
-      return;
+    const kind = this.panelDiscountKind();
+    if (panel.kind === 'discount' || panel.kind === 'lineDiscount') {
+      const rate = panel.kind === 'lineDiscount' ? order.lines.find((l) => l.id === panel.lineId)?.rate : undefined;
+      const why = !Number.isFinite(percent) || percent < 0 || Number(percent.toFixed(2)) !== percent
+        ? 'A discount is zero or more, with at most two decimal places.'
+        : kind === 'Percent' && percent > 100
+          ? 'A discount is a percentage from 0 to 100.'
+          : kind === 'Amount' && rate !== undefined && percent > rate
+            ? `The item is ${rate.toFixed(2)} a unit, so no more than that can come off each.`
+            : null;
+      if (why) {
+        this.panelError.set(why);
+        document.getElementById('pos-order-panel-first')?.focus();
+        return;
+      }
     }
 
     const request$ =
@@ -553,9 +575,9 @@ export class PosOrderPage {
           : panel.kind === 'void'
             ? this.restaurantService.voidOrder(this.organizationId, order.id, this.panelReason().trim())
           : panel.kind === 'discount'
-            ? this.restaurantService.setOrderDiscount(this.organizationId, order.id, percent)
+            ? this.restaurantService.setOrderDiscount(this.organizationId, order.id, kind, percent)
           : panel.kind === 'lineDiscount'
-            ? this.restaurantService.setLineDiscount(this.organizationId, order.id, panel.lineId, percent)
+            ? this.restaurantService.setLineDiscount(this.organizationId, order.id, panel.lineId, kind, percent)
           : panel.kind === 'serviceCharge'
             ? this.restaurantService.setServiceChargeWaived(this.organizationId, order.id, !order.serviceChargeWaived)
             : this.restaurantService.updateOrder(this.organizationId, order.id, {
@@ -697,7 +719,11 @@ export class PosOrderPage {
       case 'void':
         return `Order ${saved.code} is voided and its table is free.`;
       case 'discount':
-        return saved.discountPct > 0 ? `A ${saved.discountPct}% discount is on the whole order.` : 'The order has no discount now.';
+        return saved.discountPct > 0
+          ? `A ${saved.discountPct}% discount is on the whole order.`
+          : saved.discountAmount > 0
+            ? `A discount of ${saved.discountAmount.toFixed(2)} is on the whole order.`
+            : 'The order has no discount now.';
       case 'lineDiscount':
         return 'The item\'s discount is saved.';
       case 'serviceCharge':

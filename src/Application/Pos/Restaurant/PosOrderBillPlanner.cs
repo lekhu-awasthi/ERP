@@ -30,7 +30,9 @@ public sealed record PosOrderBillLineDto(
     decimal Total,
     decimal RemainingAfter,
     decimal DiscountPct = 0m,
-    decimal Gross = 0m);
+    decimal Gross = 0m,
+    decimal DiscountPerUnit = 0m,
+    decimal BillDiscountShare = 0m);
 
 /// <summary>
 /// A part of an order priced by the server, which is what the till shows before money changes hands and
@@ -58,7 +60,8 @@ public sealed record PosOrderBillPreviewDto(
     decimal Gross = 0m,
     decimal Discount = 0m,
     decimal DiscountPct = 0m,
-    bool ServiceChargeWaived = false);
+    bool ServiceChargeWaived = false,
+    decimal DiscountAmount = 0m);
 
 /// <summary>
 /// Phase 65 -- the one planner the preview, the estimate bill and the bill itself call (phase 63's rule:
@@ -100,7 +103,8 @@ internal static class PosOrderBillPlanner
                     x.Line.Id, x.Line.LineNo, name.ProductName, name.UnitName, x.Line.Note, x.Quantity, x.Line.Rate,
                     order.ServiceChargeRateOf(x.Line), x.Figures.Amount, x.Figures.ServiceChargeAmount,
                     x.Figures.PackagingFeeAmount, x.Figures.VatAmount, x.Total, x.RemainingAfter,
-                    x.Line.DiscountPct, PosLineArithmetic.RoundMoney(x.Quantity * x.Line.Rate));
+                    x.Line.DiscountPct, PosLineArithmetic.RoundMoney(x.Quantity * x.Line.Rate), x.Line.DiscountPerUnit,
+                    x.BillDiscountShare);
             })
             .ToList();
 
@@ -126,6 +130,7 @@ internal static class PosOrderBillPlanner
             gross,
             gross - amount,
             order.DiscountPct,
-            order.ServiceChargeWaived);
+            order.ServiceChargeWaived,
+            lines.Sum(x => x.BillDiscountShare));
     }
 }

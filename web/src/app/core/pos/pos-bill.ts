@@ -22,6 +22,10 @@ import { PackagingFeeBasis } from './pos.models';
  * (a percent) or per unit (a flat amount), and is inside the VAT base: `PosLineArithmetic.Compute`.
  * Its two fields are required, not optional -- an optional field is where a sweep silently stops
  * (phase 52), and a line that forgot them would be billed a different total than the server's.</p>
+ *
+ * <p><b>Phase 74 -- the Amount discounts</b>: a line's is taken off each unit before anything else, and a bill's is
+ * spread over the lines by what each comes to, the residue on the largest (`PosLineArithmetic.Spread`), and taken
+ * off each line's rounded amount before the service charge, the fee and VAT.</p>
  */
 
 export interface BillLineInput {
@@ -31,6 +35,11 @@ export interface BillLineInput {
   vatRate: VatRate;
   /** The line's own discount, percent. */
   discountPct: number;
+  /**
+   * Phase 74 -- the line's Amount discount, rupees off each unit; never beside `discountPct`. Required, like the fee's
+   * two fields: an optional field is where a sweep silently stops.
+   */
+  discountPerUnit: number;
   /** Percent; zero unless the location charges it and the product carries the flag. */
   serviceChargeRate: number;
   /** Phase 70 -- 'None' unless the line is a parcel of a product not exempted and the location charges a fee. */
@@ -49,6 +58,8 @@ export interface BillLineFigures {
 
 export interface BillFigures {
   lines: BillLineFigures[];
+  /** Phase 74 -- the bill's Amount discount as spread: what was asked for, or the whole bill if that was more. */
+  billDiscount: number;
   subTotal: number;
   serviceCharge: number;
   packagingFee: number;
@@ -94,16 +105,52 @@ function packagingFeeOf(line: BillLineInput, amountPaisa: bigint): bigint {
   }
 }
 
-/** The whole bill, line by line, as the server will bill it. */
-export function computeBill(lines: readonly BillLineInput[], billDiscountPct: number, roundOff: boolean): BillFigures {
+/**
+ * Phase 74 -- a bill's amount in paisa as each line's share, in proportion to what each comes to, the residue on the
+ * largest line (the first of equals): the server's `PosLineArithmetic.Spread`. An amount over the bill is spread as the
+ * whole bill; the server refuses it, and the till says so before it is sent.
+ */
+function spread(amount: bigint, bases: readonly bigint[]): bigint[] {
+  const total = bases.reduce((sum, x) => sum + x, 0n);
+  const whole = amount > total ? total : amount;
+  if (whole <= 0n || total === 0n) {
+    return bases.map(() => 0n);
+  }
+
+  const shares = bases.map((base) => divideHalfAway(whole * base, total));
+  let largest = 0;
+  bases.forEach((base, i) => {
+    if (base > bases[largest]) {
+      largest = i;
+    }
+  });
+  shares[largest] += whole - shares.reduce((sum, x) => sum + x, 0n);
+  return shares;
+}
+
+/** The whole bill, line by line, as the server will bill it. Phase 74 -- `billDiscountAmount` is rupees off the bill,
+ * never beside `billDiscountPct`. */
+export function computeBill(
+  lines: readonly BillLineInput[],
+  billDiscountPct: number,
+  roundOff: boolean,
+  billDiscountAmount: number,
+): BillFigures {
   const header = HUNDRED_PERCENT - micro(billDiscountPct);
   let total = 0n;
 
-  const figures = lines.map((line) => {
-    // quantity × rate × (1 − line discount) × (1 − bill discount), to the paisa.
-    const numerator = micro(line.quantity) * micro(line.rate) * (HUNDRED_PERCENT - micro(line.discountPct)) * header * 100n;
+  // quantity × (rate − its amount off) × (1 − line discount) × (1 − bill discount), to the paisa: what a bill's amount
+  // is spread by, and taken from.
+  const nets = lines.map((line) => {
+    const numerator =
+      micro(line.quantity) * (micro(line.rate) - micro(line.discountPerUnit)) * (HUNDRED_PERCENT - micro(line.discountPct)) * header * 100n;
     const denominator = MICRO * MICRO * HUNDRED_PERCENT * HUNDRED_PERCENT;
-    const amount = divideHalfAway(numerator, denominator);
+    return divideHalfAway(numerator, denominator);
+  });
+  const shares = spread(micro(billDiscountAmount) / 10_000n, nets);
+
+  const figures = lines.map((line, i) => {
+    const amount = nets[i] - shares[i];
 
     // Service charge on the rounded amount, the packaging fee beside it (phase 70), and VAT on the
     // amount plus both -- each rounded to the paisa as the server does (phase 61 Decision L).
@@ -127,6 +174,7 @@ export function computeBill(lines: readonly BillLineInput[], billDiscountPct: nu
       vat: rupees(x.vat),
       total: rupees(x.lineTotal),
     })),
+    billDiscount: rupees(shares.reduce((sum, x) => sum + x, 0n)),
     subTotal: rupees(figures.reduce((sum, x) => sum + x.amount, 0n)),
     serviceCharge: rupees(figures.reduce((sum, x) => sum + x.serviceCharge, 0n)),
     packagingFee: rupees(figures.reduce((sum, x) => sum + x.packagingFee, 0n)),

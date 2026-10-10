@@ -67,6 +67,11 @@ public sealed class CreditNote
     public Guid? ReferrerId { get; private set; }
     public decimal DiscountPct { get; private set; }
 
+    /// <summary>Phase 74 -- the part of the sale's Amount discount this refund gives back: the sum of its lines'
+    /// <see cref="CreditNoteLine.BillDiscountAmount"/>, as the sale's is of its lines'
+    /// (<see cref="Invoice.DiscountAmount"/>). Zero on every ERP credit note.</summary>
+    public decimal DiscountAmount { get; private set; }
+
     /// <summary>Phase 27b -- the "+ Add Terms and Conditions" block's stored text (FR-11.3's
     /// CustomTemplate finding its first consumer). Free text on the document, <b>not</b> a pointer
     /// to the CustomTemplate it was seeded from: the reference product pre-fills the editor from a
@@ -189,28 +194,47 @@ public sealed class CreditNote
         return note;
     }
 
+    /// <summary>One returned line as <see cref="AddPosLine"/> takes it: the sale line's terms, copied from it, and
+    /// the quantity that came back.</summary>
+    /// <param name="DiscountPerUnit">Phase 74 -- the sale line's Amount discount per unit.</param>
+    /// <param name="BillDiscountShare">Phase 74 -- what of the sale line's share of the bill's Amount discount these
+    /// units carry back.</param>
+    /// <param name="TheRest">Phase 74 -- for the refund returning the last of the sale line, what is left of its
+    /// figures; null to price the quantity afresh.</param>
+    public sealed record PosLineInput(
+        Guid ProductId, decimal Quantity, decimal Rate, VatRate VatRate, decimal DiscountPerUnit, decimal DiscountPct,
+        decimal BillDiscountShare, Guid? UnitId, decimal ConversionFactor, Guid? BatchId, decimal ServiceChargeRate,
+        PackagingFee PackagingFee, PosLineArithmetic.Figures? TheRest);
+
     /// <summary>Phase 63 -- one returned line, at the sale line's rate, discount, VAT rate, unit factor
     /// and service charge rate (and, phase 70, packaging fee terms). The caller copies those from the sale
-    /// line; the quantity is what came back.</summary>
-    public void AddPosLine(
-        Guid productId, decimal quantity, decimal rate, VatRate vatRate, decimal discountPct,
-        Guid? unitId, decimal conversionFactor, Guid? batchId, decimal serviceChargeRate, PackagingFee packagingFee)
+    /// line; the quantity is what came back. Phase 74 -- with the sale line's Amount discount and its share of the
+    /// bill's, and what is left of its figures when this returns the last of it.</summary>
+    public void AddPosLine(PosLineInput line)
     {
         EnsureDraft();
         EnsurePos();
         EnsureUnpaid();
 
-        if (quantity <= 0 || rate < 0)
+        if (line.Quantity <= 0 || line.Rate < 0)
         {
             throw new InvalidOperationException("A credit note line needs a positive Quantity and a non-negative Rate.");
         }
 
-        EnsureValidDiscountPct(discountPct);
+        EnsureValidDiscountPct(line.DiscountPct);
+        Invoice.EnsureOneKindOfLineDiscount(line.DiscountPct, line.DiscountPerUnit);
+
+        if (line.BillDiscountShare != 0m && DiscountPct != 0m)
+        {
+            throw new InvalidOperationException("A bill's discount is a percentage or an amount, not both.");
+        }
 
         _lines.Add(CreditNoteLine.CreatePos(
-            Id, productId, quantity, rate, vatRate, discountPct, DiscountPct, batchId, unitId, conversionFactor,
-            serviceChargeRate, packagingFee));
+            Id, line.ProductId, line.Quantity, line.Rate, line.VatRate, line.DiscountPerUnit, line.DiscountPct,
+            DiscountPct, line.BillDiscountShare, line.BatchId, line.UnitId, line.ConversionFactor,
+            line.ServiceChargeRate, line.PackagingFee, line.TheRest));
 
+        DiscountAmount += line.BillDiscountShare;
         RoundOff = 0m;
     }
 

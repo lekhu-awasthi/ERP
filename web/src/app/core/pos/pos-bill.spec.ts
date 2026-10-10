@@ -11,6 +11,8 @@ import { PackagingFeeBasis } from './pos.models';
  *
  * Phase 70 -- a line's `packagingFeeBasis`/`packagingFeeValue` and an expectation's `packagingFee` are
  * optional in the file; absent means none, exactly as the server reads them.
+ *
+ * Phase 74 -- the same for a line's `discountPerUnit` and a case's `discountAmount`.
  */
 
 const fixture = import.meta.glob('./pos-bill-cases.json', {
@@ -23,12 +25,14 @@ interface SharedCase {
   readonly why: string;
   readonly roundOff: boolean;
   readonly discountPct: number;
+  readonly discountAmount?: number;
   readonly lines: readonly {
     quantity: number;
     rate: number;
     vatRate: VatRate;
     discountPct: number;
     serviceChargeRate: number;
+    discountPerUnit?: number;
     packagingFeeBasis?: PackagingFeeBasis;
     packagingFeeValue?: number;
   }[];
@@ -59,6 +63,7 @@ function inputs(c: SharedCase): BillLineInput[] {
     ...l,
     packagingFeeBasis: l.packagingFeeBasis ?? 'None',
     packagingFeeValue: l.packagingFeeValue ?? 0,
+    discountPerUnit: l.discountPerUnit ?? 0,
   }));
 }
 
@@ -70,11 +75,15 @@ describe('the shared till-bill contract', () => {
     const bases = sharedCases().flatMap((c) => c.lines.map((l) => l.packagingFeeBasis ?? 'None'));
     expect(bases).toContain('Percent');
     expect(bases).toContain('PerUnit');
+
+    // Phase 74 -- and both Amount discounts.
+    expect(sharedCases().some((c) => (c.discountAmount ?? 0) > 0)).toBe(true);
+    expect(sharedCases().some((c) => c.lines.some((l) => (l.discountPerUnit ?? 0) > 0))).toBe(true);
   });
 
   for (const [index, c] of sharedCases().entries()) {
     it(`bills case ${index + 1} exactly as the server does: ${c.why}`, () => {
-      const bill = computeBill(inputs(c), c.discountPct, c.roundOff);
+      const bill = computeBill(inputs(c), c.discountPct, c.roundOff, c.discountAmount ?? 0);
 
       expect(bill.lines).toEqual(c.expected.lines.map((l) => ({ ...l, packagingFee: l.packagingFee ?? 0 })));
       expect(bill.subTotal).toBe(c.expected.subTotal);
@@ -91,9 +100,10 @@ describe('the shared till-bill contract', () => {
     expect(Math.round(1.005 * 100) / 100).toBe(1);
     expect(
       computeBill(
-        [{ quantity: 1, rate: 1.005, vatRate: 'NoVat', discountPct: 0, serviceChargeRate: 0, packagingFeeBasis: 'None', packagingFeeValue: 0 }],
+        [{ quantity: 1, rate: 1.005, vatRate: 'NoVat', discountPct: 0, discountPerUnit: 0, serviceChargeRate: 0, packagingFeeBasis: 'None', packagingFeeValue: 0 }],
         0,
         false,
+        0,
       ).grandTotal,
     ).toBe(1.01);
   });

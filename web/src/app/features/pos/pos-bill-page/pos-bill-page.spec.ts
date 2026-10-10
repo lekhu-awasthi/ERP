@@ -50,7 +50,7 @@ describe('PosBillPage', () => {
     vatRate: 'ThirteenPercentVat' as const, serviceChargeRate: 10, note: null, kitchenStationId: null,
     kitchenStationName: 'Default', ordered: quantity, discarded: 0, quantity, served: 0, outstanding: quantity,
     invoiced: 0, toBill: quantity, amount: 0, serviceChargeAmount: 0, packagingFeeAmount: 0, vatAmount: 0, total: 0, isTakeAway: false, parcelledFromLineId: null, movedIn: 0, movedOut: 0,
-    discountPct: 0, gross: quantity * 200,
+    discountPct: 0, gross: quantity * 200, discountPerUnit: 0, orderDiscountShare: 0,
   });
 
   const order = (overrides: Partial<PosOrder> = {}): PosOrder => ({
@@ -59,7 +59,7 @@ describe('PosBillPage', () => {
     contactName: 'Cash Customer', date: '2026-10-02', createdAt: '2026-10-02T04:00:00Z', createdByName: 'Sita',
     voidReason: null, voidedAt: null, voidedByName: null, amount: 520, serviceCharge: 40, packagingFee: 0, vat: 72.8, total: 632.8,
     outstanding: 4, settledAt: null, billed: 0, toBill: 4, invoices: [], tickets: [],
-    discountPct: 0, serviceChargeWaived: false, gross: 520, discount: 0,
+    discountPct: 0, serviceChargeWaived: false, gross: 520, discount: 0, discountAmount: 0,
     lines: [line('momo', 'Chicken Momo', 2), line('coke', 'Coke 250ml', 2)],
     ...overrides,
   });
@@ -73,7 +73,7 @@ describe('PosBillPage', () => {
       serviceCharge: part === 'whole' ? 40 : 20, packagingFee: 0, vat: part === 'whole' ? 72.8 : 36.4, unrounded,
       roundOff: Math.round((total - unrounded) * 100) / 100, total, billsTheRest: part !== 'first', orderTotal: 633,
       billedBefore: part === 'rest' ? 316 : 0, leftAfter: part === 'first' ? 317 : 0,
-      gross: unrounded === 632.8 ? 520 : 260, discount: 0, discountPct: 0, serviceChargeWaived: false,
+      gross: unrounded === 632.8 ? 520 : 260, discount: 0, discountPct: 0, serviceChargeWaived: false, discountAmount: 0,
     };
   };
 
@@ -266,7 +266,7 @@ describe('PosBillPage', () => {
     const p = page({
       preview: {
         ...preview('whole'), amount: 456, serviceCharge: 0, vat: 59.28, unrounded: 515.28, roundOff: -0.28, total: 515, orderTotal: 515,
-        gross: 520, discount: 64, discountPct: 5, serviceChargeWaived: true,
+        gross: 520, discount: 64, discountPct: 5, serviceChargeWaived: true, discountAmount: 0,
       },
     });
 

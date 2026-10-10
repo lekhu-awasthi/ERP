@@ -2060,3 +2060,26 @@ TypeScript copy; a locked element is checked and disabled with its reason beside
 
 **Look at the PDF.** Two new columns made money wrap in ruled cells and a quantity run into its unit; extracted text
 read both as ordinary lines and no test failed.
+
+## Phase 74 — Till pricing: Amount discounts at both tills, refunds that tie out to the paisa, and any changed price needs Approve
+
+**Read `phase-74-status.md` before adding a part to a line's money that a refund must give back, spreading a figure over
+lines, or gating a till price.**
+
+**The last of a line takes what is left, on the way back as well as on the way in.** Phase 65 made the last part of an
+order line take what was left of its money; refunds priced afresh, so three thirds of a share of 25.61 came back as
+25.62, and a sale returned in parts could keep a paisa of VAT. `PosRefundPlanner` now gives the refund that returns the
+last of a sale key the sale's figures less what earlier refunds gave back, figure by figure. The vendor's refunds of an
+amount-discounted sale took its bill discount twice and left 2.08 of VAT behind.
+
+**An amount is spread once and stored per line** (`PosLineArithmetic.Spread`, residue on the largest line): each sale
+line's `BillDiscountAmount` is what a refund prorates. **A spread over a set that can change must freeze before anyone
+pays**: an order's amount follows its dishes until the first bill, then each line keeps its share
+(`PosOrderLine.OrderDiscountShare`), and a dish carrying one keeps its quantity.
+
+**A gate on a price is about the price, not the direction.** Phase 72 gated a lower price because the drawer cannot see
+it; a raised one overcharges the customer just as invisibly. The vendor's *Can Change Rate* disables the field either
+way, and so the one review key here now covers any price but the catalogue's.
+
+**Look at the PDF.** The bill's amount first printed under a Sub Total it was already inside, which reads as a second
+subtraction; extracted text read it as fine.

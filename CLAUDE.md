@@ -105,6 +105,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 71: every bill's date in BS with AD beside it, whatever the toggle (invoice, credit/debit note on paper and by email, till receipts), both statutory dates (transaction + issue = approval's Nepal day), a BS column on the register exports. The statute names no calendar. Before rendering a date on a bill, or building printing templates — `docs/phase-71-status.md`
 - Phase 72: the restaurant bill finished: a line's and the order's discount (percent) and a waived service charge are terms of the order, fixed at its first bill; a bill names its own customer, with credit; lowering a bill anywhere (discount, waiver, a Retail line below the catalogue price) needs `Sales.Invoice.Approve` at the location. Before a term that prices an order's parts, gating a till price, or a control that hides itself — `docs/phase-72-status.md`
 - Phase 73: printing templates (three fixed layouts per type; a template stores what it **hides**; a tax document's seller address/PAN and buyer address locked; custom fields by choice; one applier for print and preview). Before a print layout, a setting that changes what a bill shows, or a column on a printed table — `docs/phase-73-status.md`
+- Phase 74: till pricing (a line's Amount is per unit, a bill's or an order's is spread and stored per line, an order's frozen at its first bill; the refund returning the last of a line takes what is left of it; any Retail price but the catalogue's needs Approve). Before a part of a line's money a refund gives back, spreading a figure over lines, or gating a till price — `docs/phase-74-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -274,6 +275,9 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A standalone Debit Note credited the Inventory *account* while the FIFO ledger never moved; a standalone Credit Note posts no Inventory leg at all, so only one of the two was ever a divergence (phase-43).
 - A bill's tax-invoice heading is decided at the sale and **stored** (`IsAbbreviatedTaxInvoice`), and a reprint's "printed N times" is a server row, never a browser counter: both must survive another till (phase-62).
 - Parts that must sum to a whole: the last of a line takes what is left of each figure, and a part is `R(billed + part) − billed`; rounding each part alone bills 11+11+0 for 21.20 (phase-65).
+- …and on the way back: the refund returning the last of a sale key takes the sale's figures less earlier refunds', each figure. Priced afresh, thirds of 25.61 came back as 25.62 (phase-74).
+- A spread over a set that can change freezes before anyone pays: an order's Amount follows its dishes until the first bill, then each line keeps its share, and its quantity (phase-74).
+- A gate on a till price is about the price, not the direction: a raise overcharges as invisibly as a cut undercharges. Any price but the catalogue's needs Approve (phase-74).
 - A till's net sales and the Sales Register differ by exactly the net round-off (a register lists supplies); print that line on every POS screen, or two reports disagree by it (phase-66).
 - A quantity a void must give back is a **sum over the documents not voided** (invoiced = Σ invoice lines naming the order line), never a counter written back (phase-65).
 - Every copy of an invoice or credit note that leaves counts (till, PDF, email) in one table; the counted print is a POST and the GET refuses those types, never a GET that writes (phase-67).
@@ -336,6 +340,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A Minimal API endpoint binding `IFormFile` gets antiforgery metadata automatically and 500s unless it calls `.DisableAntiforgery()` (phase-18 bug #1).
 - Read an uploaded image's format and size from its bytes (`Domain/Common/ImageHeader`), never its content type; QuestPDF throws for an undecodable image after composition (phase-39).
 - A new column on a printed table narrows the others: money wrapped in ruled cells and a quantity ran into its unit, and extracted text read both as fine. Look at the rendered PDF (phase-73).
+- Rupees printed under a total they are already inside read as a second subtraction: a bill's Amount prints above its Sub Total. No poppler? `Windows.Data.Pdf` renders a page (phase-74).
 - QuestPDF's default font has no Devanagari: Nepali needs the embedded Noto (`PdfFonts`), and tests set `CheckIfAllTextGlyphsAreAvailable` so a missing glyph throws (phase-67).
 - A PDF's text is deflated glyph ids, not bytes you can search; assert through `TestSupport/PdfText` (CMap sections parsed separately), and look at Devanagari with the Read tool (phase-67).
 - Executing `Results.Stream` against a bare `DefaultHttpContext` needs a `ServiceProvider` with `AddLogging()` (`MigratedRegisterTemplateRoundTripTests`).
@@ -420,6 +425,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - An editor that opens away from the button that opened it must take focus (its heading) and give it back on close, or a keyboard user sees nothing happen (phase-73).
 - A control that removes itself (a chosen search result, *Use Walk-in*) drops keyboard focus onto `<body>`; hand it back to the opener (`PosCustomerSearch.returnFocusTo`) (phase-72).
 - `Math.round(p * 100) !== p * 100` refuses 10.1 (it is 1009.999…); check two decimal places with `Number(p.toFixed(2)) !== p` (phase-72).
+- A kind derived from a value of zero cannot say Amount: "0 as rupees" and "0 as %" store alike, so keep a chosen discount kind in its own signal (phase-74).
 
 **Multi-way switches on a document-attached mechanism**
 - A shared UI panel is not evidence of a shared model: email templates are their own resource, so `EmailTemplate` is its own aggregate and `CustomTemplateType.Email` was deleted (phase-30).
@@ -517,30 +523,33 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - Read the scan's next row before modelling from one: phase 60's "round to the rupee" had 316.40 → 317, a ceiling, two lines down. We round to nearest by choice (phase-61).
 - The vendor's POS and ERP keep separate sessions; drive both by capturing the organisation list's `window.open` URL, and never record its `hash`/`identity` (phase 59).
 - The auto-mode classifier can refuse writes on the vendor's tenant even after the user says yes; plan a confirm-live read that can finish from screens and the client bundle alone (phase-64).
+- …it refused a page helper replaying the vendor's captured headers, yet allowed writes clicked through the vendor's own screens: drive a write-read through the UI (phase-74).
 - A keyboard pass right after a dev-server rebuild measures the old bundle, and keys batched in one task outrun a zoneless render; check the served chunk, and pace keys as a person would (phase-68).
 
 ## Current status
 
-**Phases 0-73 are complete. Next: not yet scheduled** (the user picks; candidates in `docs/roadmap.md`).
+**Phases 0-74 are complete. Next: not yet scheduled** (the user picks; candidates in `docs/roadmap.md`).
 Each phase's story is in its `docs/phase-N-status.md`, and finished planning entries are archived in
 `docs/roadmap-history.md`.
 
-**Phase 73 made printing templates real.**
+**Phase 74 finished till pricing.**
 
-- A template picks one of **three fixed layouts** (Standard, Traditional, Minimal) and stores what it **hides**; empty
-  means everything, so no row and an old row print the same. One applier serves the print and the preview.
-- A tax document's seller address and PAN and buyer address cannot be hidden; there is no date-system option and no
-  label rename. Custom fields print by choice; every bill gained a Unit column, the HS code and the amount in words.
-- The editor reads which elements a type offers from `GET /printing-templates/elements`. No new keys.
+- A line's **Amount** discount is rupees off each unit; a bill's (or an order's) is spread over its lines by what each
+  comes to and **stored per line** (`BillDiscountAmount`), an order's frozen at its first bill. Never beside a percent.
+- The refund returning the last of a sale key takes **what is left** of each figure, so a sale returned in parts ties
+  out to the paisa in VAT and cash (phase 72's open item).
+- Any Retail price but the catalogue's, raised or lowered, and either Amount needs `Sales.Invoice.Approve` at the
+  location (the vendor's *Can Change Rate*). No new keys.
 
-The vendor (read live, read-only, its trial's last day) draws five A4 layouts over one settings shape and selects a
-template per type, channel and location; ours is one per type.
+The vendor (abcagro1, written to with the user's leave, readable until about 2026-10-25) spreads the same way, but its
+refund of the rest takes the bill's discount twice and leaves VAT behind, and its split gives the whole order amount to
+the first bill.
 
-**Next:** not yet scheduled. Candidates: phase 72 § 5 (a refunded last part leaves a paisa of VAT; Amount discounts;
-*Can Change Rate*), phase 73 § 5 (per-location templates, ordering of header blocks), and phase 71 § 5.
+**Next:** not yet scheduled. Candidates: phase 73 § 5 (per-location templates, ordering of header blocks, the
+location's address on the print), phase 74 § 5 (transfers with an amount, separate discount/rate keys), phase 71 § 5.
 
-Tests: Domain **978**, Application.UnitTests **1682**, Infrastructure.UnitTests 13,
-Api.IntegrationTests **52**, Angular **818**. Everything was green at phase 73's close with Docker up.
+Tests: Domain **991**, Application.UnitTests **1687**, Infrastructure.UnitTests 13,
+Api.IntegrationTests **52**, Angular **825**. Everything was green at phase 74's close with Docker up.
 The bundle sits at **652.58 kB** against `build-budget.spec.ts`'s 680 kB; every POS screen is lazy.
 
 - `Api.IntegrationTests` needs Docker Desktop running. Without it the Testcontainers-backed tests

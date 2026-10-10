@@ -53,9 +53,9 @@ describe('PosRefundPage', () => {
     settled: 633, owed: 0,
     lines: [
       { invoiceLineId: 'l-momo', productId: 'momo', productName: 'Chicken Momo', unitShortName: 'pc', sold: 2, remaining: 2,
-        rate: 200, discountPct: 0, serviceChargeRate: 10, packagingFeeAmount: 0, vatRate: 'ThirteenPercentVat', lineTotal: 497.2 },
+        rate: 200, discountPct: 0, serviceChargeRate: 10, packagingFeeAmount: 0, vatRate: 'ThirteenPercentVat', lineTotal: 497.2, discountPerUnit: 0 },
       { invoiceLineId: 'l-coke', productId: 'coke', productName: 'Coke 250ml', unitShortName: 'pc', sold: 2, remaining: 2,
-        rate: 60, discountPct: 0, serviceChargeRate: 0, packagingFeeAmount: 0, vatRate: 'ThirteenPercentVat', lineTotal: 135.6 },
+        rate: 60, discountPct: 0, serviceChargeRate: 0, packagingFeeAmount: 0, vatRate: 'ThirteenPercentVat', lineTotal: 135.6, discountPerUnit: 0 },
     ],
     priorRefunds: [], canRefund: true,
     ...overrides,

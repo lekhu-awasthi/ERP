@@ -104,6 +104,8 @@ public sealed class PosOrderConfiguration : IEntityTypeConfiguration<PosOrder>
         // Phase 72 -- every existing order was taken with no discount and its service charge charged, so the
         // defaults are true of every row and nothing is backfilled. Sent on every insert (phase 70's arrangement).
         builder.Property(x => x.DiscountPct).HasPrecision(5, 2).IsRequired().HasDefaultValue(0m).ValueGeneratedNever();
+        // Phase 74 -- no existing order has an amount discount.
+        builder.Property(x => x.DiscountAmount).HasPrecision(18, 2).IsRequired().HasDefaultValue(0m).ValueGeneratedNever();
         builder.Property(x => x.ServiceChargeWaived).IsRequired().HasDefaultValue(false).ValueGeneratedNever();
 
         // One open order per table, as a constraint rather than a read-then-write check: two waiters
@@ -173,6 +175,11 @@ public sealed class PosOrderLineConfiguration : IEntityTypeConfiguration<PosOrde
 
         // Phase 72 -- every existing order line was sent with no discount of its own.
         builder.Property(x => x.DiscountPct).HasPrecision(5, 2).IsRequired().HasDefaultValue(0m).ValueGeneratedNever();
+
+        // Phase 74 -- nor an amount off each unit; and no order has had an amount discount to fix a share of (null is
+        // "not fixed", which is what every existing line is).
+        builder.Property(x => x.DiscountPerUnit).HasPrecision(18, 2).IsRequired().HasDefaultValue(0m).ValueGeneratedNever();
+        builder.Property(x => x.OrderDiscountShare).HasPrecision(18, 2);
 
         builder.HasIndex(x => new { x.PosOrderId, x.LineNo }).IsUnique();
 

@@ -125,6 +125,14 @@ public sealed class Invoice
     public Guid? ReferrerId { get; private set; }
     public decimal DiscountPct { get; private set; }
 
+    /// <summary>
+    /// Phase 74 -- a till sale's <b>Amount</b> discount off the whole bill, in rupees: the sum of its lines'
+    /// <see cref="InvoiceLine.BillDiscountAmount"/>. A Retail sale's is the cashier's figure, spread over its lines
+    /// by <see cref="AddPosLines"/>; a restaurant bill's is what its parts carried of the order's
+    /// (<see cref="AddPosOrderLine"/>). Never beside a <see cref="DiscountPct"/>; zero on every ERP invoice.
+    /// </summary>
+    public decimal DiscountAmount { get; private set; }
+
     /// <summary>Phase 27b -- the "+ Add Terms and Conditions" block's stored text (FR-11.3's
     /// CustomTemplate finding its first consumer). Free text on the document, <b>not</b> a pointer
     /// to the CustomTemplate it was seeded from: the reference product pre-fills the editor from a
@@ -341,12 +349,15 @@ public sealed class Invoice
         Guid locationId,
         Guid posSessionId,
         PosTab orderType,
-        decimal discountPct = 0)
+        decimal discountPct = 0,
+        decimal discountAmount = 0)
     {
         if (locationId == Guid.Empty || posSessionId == Guid.Empty)
         {
             throw new InvalidOperationException("A till sale names its location and its session.");
         }
+
+        EnsureOneKindOfBillDiscount(discountPct, discountAmount);
 
         if (!Enum.IsDefined(orderType))
         {
@@ -355,6 +366,7 @@ public sealed class Invoice
 
         var invoice = Create(organizationId, contactId, warehouseId, date, null, null, null, date, discountPct);
         invoice.Channel = SalesChannel.Pos;
+        invoice.DiscountAmount = discountAmount;
         invoice.PosSessionId = posSessionId;
         invoice.OrderType = orderType;
         invoice.LocationId = locationId;
@@ -362,28 +374,105 @@ public sealed class Invoice
     }
 
     /// <summary>Phase 61 -- adds a till line carrying its own service charge rate (and, phase 70, its own
-    /// packaging fee terms). See <see cref="InvoiceLine.CreatePos"/>.</summary>
+    /// packaging fee terms). See <see cref="InvoiceLine.CreatePos"/>. Phase 74 -- a percentage discount only; a
+    /// line with an Amount discount, or any line of a bill with one, goes through <see cref="AddPosLines"/>.</summary>
     public void AddPosLine(
         Guid productId, decimal quantity, decimal rate, VatRate vatRate, decimal discountPct,
         Guid? unitId, decimal conversionFactor, Guid? batchId, decimal serviceChargeRate, PackagingFee packagingFee)
+    {
+        if (DiscountAmount != 0m)
+        {
+            throw new InvalidOperationException(
+                "A bill with an amount discount spreads it over all its lines at once; add them with AddPosLines.");
+        }
+
+        AddPosLineCore(new PosLineInput(
+            productId, quantity, rate, vatRate, 0m, discountPct, unitId, conversionFactor, batchId, serviceChargeRate,
+            packagingFee), 0m);
+    }
+
+    /// <summary>One line rung up at a till, as <see cref="AddPosLines"/> takes it.</summary>
+    /// <param name="DiscountPerUnit">Phase 74 -- the line's Amount discount, rupees off each unit.</param>
+    public sealed record PosLineInput(
+        Guid ProductId, decimal Quantity, decimal Rate, VatRate VatRate, decimal DiscountPerUnit, decimal DiscountPct,
+        Guid? UnitId, decimal ConversionFactor, Guid? BatchId, decimal ServiceChargeRate, PackagingFee PackagingFee);
+
+    /// <summary>
+    /// Phase 74 -- adds every line of a till sale at once, which is what a bill's <see cref="DiscountAmount"/> needs:
+    /// it is spread over the lines in proportion to what each comes to (<see cref="PosLineArithmetic.Spread"/>), so
+    /// the shares add up to the amount to the paisa and each line carries its own, for a refund to give back.
+    /// </summary>
+    public void AddPosLines(IReadOnlyList<PosLineInput> lines)
+    {
+        EnsureDraft();
+        EnsurePos();
+
+        if (_lines.Count > 0)
+        {
+            throw new InvalidOperationException("A till sale's lines are added once, together.");
+        }
+
+        var nets = lines
+            .Select(x => PosLineArithmetic.NetOf(x.Quantity, x.Rate, x.DiscountPerUnit, x.DiscountPct, DiscountPct))
+            .ToList();
+        var shares = PosLineArithmetic.Spread(DiscountAmount, nets);
+
+        for (var i = 0; i < lines.Count; i++)
+        {
+            AddPosLineCore(lines[i], shares[i]);
+        }
+    }
+
+    private void AddPosLineCore(PosLineInput line, decimal billDiscountShare)
     {
         EnsureDraft();
         EnsurePos();
         EnsureUnsettled();
 
-        if (quantity <= 0 || rate < 0)
+        if (line.Quantity <= 0 || line.Rate < 0)
         {
             throw new InvalidOperationException("An invoice line needs a positive Quantity and a non-negative Rate.");
         }
 
-        EnsureValidDiscountPct(discountPct);
+        EnsureValidDiscountPct(line.DiscountPct);
+        EnsureOneKindOfLineDiscount(line.DiscountPct, line.DiscountPerUnit);
 
         _lines.Add(InvoiceLine.CreatePos(
-            Id, productId, quantity, rate, vatRate, discountPct, DiscountPct, batchId, unitId,
-            conversionFactor, serviceChargeRate, packagingFee));
+            Id, line.ProductId, line.Quantity, line.Rate, line.VatRate, line.DiscountPerUnit, line.DiscountPct,
+            DiscountPct, billDiscountShare, line.BatchId, line.UnitId, line.ConversionFactor, line.ServiceChargeRate,
+            line.PackagingFee));
 
         // A line added after a rounding would leave the bill rounded to the wrong rupee.
         RoundOff = 0m;
+    }
+
+    /// <summary>Phase 74 -- a discount is a percentage or an amount, never both: the vendor's toggle offers one,
+    /// and two would leave which comes first a question every reader answers its own way.</summary>
+    internal static void EnsureOneKindOfLineDiscount(decimal discountPct, decimal discountPerUnit)
+    {
+        if (discountPerUnit < 0m || decimal.Round(discountPerUnit, PosMoneyScale) != discountPerUnit)
+        {
+            throw new InvalidOperationException("A discount per unit is whole paisa and never negative.");
+        }
+
+        if (discountPct != 0m && discountPerUnit != 0m)
+        {
+            throw new InvalidOperationException("A line's discount is a percentage or an amount, not both.");
+        }
+    }
+
+    /// <inheritdoc cref="EnsureOneKindOfLineDiscount"/>
+    internal static void EnsureOneKindOfBillDiscount(decimal discountPct, decimal discountAmount)
+    {
+        if (discountAmount < 0m || decimal.Round(discountAmount, PosMoneyScale) != discountAmount)
+        {
+            throw new InvalidOperationException("A discount amount is whole paisa and never negative.");
+        }
+
+        if (discountPct != 0m && discountAmount != 0m)
+        {
+            throw new InvalidOperationException("A bill's discount is a percentage or an amount, not both.");
+        }
     }
 
     /// <summary>
@@ -410,11 +499,15 @@ public sealed class Invoice
     /// the order's as this invoice's header <see cref="DiscountPct"/> (set by <see cref="CreatePosSale"/>), and the
     /// service charge rate the line is billed at (none when the guest declined it). The figures are the
     /// planner's, priced from exactly those, so a refund (phase 63) and every reader that rebuilds a discount
-    /// from the percentages agree with what was charged.</para></summary>
+    /// from the percentages agree with what was charged.</para>
+    ///
+    /// <para>Phase 74 -- the line's Amount discount per unit beside its percentage, and
+    /// <paramref name="billDiscountShare"/>, what this part carries of the order's Amount discount: the bill's own
+    /// <see cref="DiscountAmount"/> is the sum of its lines' shares.</para></summary>
     public void AddPosOrderLine(
-        Guid posOrderLineId, Guid productId, decimal quantity, decimal rate, VatRate vatRate, decimal discountPct,
-        Guid? unitId, decimal conversionFactor, decimal serviceChargeRate, PackagingFee packagingFee,
-        PosLineArithmetic.Figures figures)
+        Guid posOrderLineId, Guid productId, decimal quantity, decimal rate, VatRate vatRate, decimal discountPerUnit,
+        decimal discountPct, decimal billDiscountShare, Guid? unitId, decimal conversionFactor, decimal serviceChargeRate,
+        PackagingFee packagingFee, PosLineArithmetic.Figures figures)
     {
         EnsureDraft();
         EnsurePos();
@@ -431,11 +524,18 @@ public sealed class Invoice
         }
 
         EnsureValidDiscountPct(discountPct);
+        EnsureOneKindOfLineDiscount(discountPct, discountPerUnit);
+
+        if (billDiscountShare != 0m && DiscountPct != 0m)
+        {
+            throw new InvalidOperationException("A bill's discount is a percentage or an amount, not both.");
+        }
 
         _lines.Add(InvoiceLine.CreatePosOrderPart(
-            Id, posOrderLineId, productId, quantity, rate, vatRate, discountPct, unitId, conversionFactor,
-            serviceChargeRate, packagingFee, figures));
+            Id, posOrderLineId, productId, quantity, rate, vatRate, discountPerUnit, discountPct, billDiscountShare,
+            unitId, conversionFactor, serviceChargeRate, packagingFee, figures));
 
+        DiscountAmount += billDiscountShare;
         RoundOff = 0m;
     }
 

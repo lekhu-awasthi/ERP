@@ -281,7 +281,8 @@
                      Product / service | Qty | Item Batch | Rate | Discount | Tax | Amount. -->
                 <th scope="col" style="width: 180px;">Item Batch</th>
                 <th scope="col" style="width: 130px;" class="text-end">Rate</th>
-                <th scope="col" style="width: 110px;" class="text-end">Discount %</th>
+                <!-- Phase 74 -- a till line's discount can be rupees off each unit, so the heading says which. -->
+                <th scope="col" style="width: 110px;" class="text-end">Discount{{ perUnitDiscounts() ? '' : ' %' }}</th>
                 <th scope="col" style="width: 150px;">VAT</th>
                 <th scope="col" style="width: 120px;" class="text-end">Amount</th>
                 @if (isDraft()) {
@@ -391,6 +392,9 @@
                         [value]="line.discountPct || ''"
                         (input)="onDiscountPctChange(line.key, $event)"
                       />
+                    } @else if (line.discountPerUnit > 0) {
+                      <!-- Phase 74 -- a till line's Amount discount, rupees off each unit. -->
+                      {{ (line.discountPerUnit | amount) }} each
                     } @else {
                       {{ (line.discountPct | amount) }}
                     }
@@ -412,7 +416,7 @@
                       {{ line.vatRate }}
                     }
                   </td>
-                  <td class="text-end">{{ ((line.quantity * line.rate * (1 - line.discountPct / 100)) | amount) }}</td>
+                  <td class="text-end">{{ ((line.quantity * (line.rate - line.discountPerUnit) * (1 - line.discountPct / 100)) | amount) }}</td>
                   @if (isDraft()) {
                     <td>
                       <button aria-label="Remove line" type="button" class="btn btn-outline-danger btn-sm" (click)="removeLine(line.key)">
@@ -435,7 +439,7 @@
               <tr>
                 <td colspan="4"></td>
                 <td class="text-end fw-semibold">
-                  Discount %
+                  Discount{{ billAmountDiscount() ? '' : ' %' }}
                   @if (isDraft()) {
                     <input aria-label="Discount %"
                       type="number"

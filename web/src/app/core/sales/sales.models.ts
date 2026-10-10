@@ -216,6 +216,10 @@ export interface InvoiceLineDto extends InvoiceLineInput {
   serviceChargeAmount: number;
   /** Phase 70 -- a parcel's packaging fee, also inside the VAT base; zero on every ERP line. */
   packagingFeeAmount: number;
+  /** Phase 74 -- a till line's Amount discount, rupees off each unit, and its share of the bill's; zero on every ERP
+   *  line. */
+  discountPerUnit: number;
+  billDiscountAmount: number;
 }
 
 /** Phase 61 -- which front end raised an invoice. */
@@ -242,6 +246,8 @@ export interface InvoicePosSaleDto {
   tenderedAmount: number;
   changeAmount: number;
   creditAmount: number;
+  /** Phase 74 -- the bill's Amount discount, the sum of its lines' shares; zero for a percentage. */
+  discountAmount: number;
 }
 
 export interface PostedGlLineDto {
@@ -580,6 +586,9 @@ export interface CreditNoteLineDto extends CreditNoteLineInput {
   serviceChargeAmount: number;
   /** Phase 70 -- the packaging fee it gives back. */
   packagingFeeAmount: number;
+  /** Phase 74 -- the sale line's Amount discount per unit, and what this line gives back of the bill's. */
+  discountPerUnit: number;
+  billDiscountAmount: number;
 }
 
 /** Phase 63 -- one way a till refund was paid back, as frozen on the credit note. */

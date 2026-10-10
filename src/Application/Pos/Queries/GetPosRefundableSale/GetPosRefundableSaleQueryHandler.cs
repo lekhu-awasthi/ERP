@@ -52,11 +52,11 @@ public sealed class GetPosRefundableSaleQueryHandler(IAppDbContext db, ICurrentU
 
         // What is left is counted per (product, rate, VAT, discount, unit) key -- phase 6's cap -- so two
         // sale lines sharing a key share what is left of it. It is handed out to them in bill order.
-        var left = new Dictionary<(Guid, decimal, Domain.Catalog.VatRate, decimal, Guid?), decimal>(remainingByKey);
+        var left = new Dictionary<SaleLineKey, decimal>(remainingByKey);
         var lines = new List<PosRefundableLineDto>();
         foreach (var line in invoice.Lines)
         {
-            var key = (line.ProductId, line.Rate, line.VatRate, line.DiscountPct, line.UnitId);
+            var key = SaleLineKey.Of(line);
             var remaining = Math.Max(0m, Math.Min(line.Quantity, left.GetValueOrDefault(key)));
             left[key] = left.GetValueOrDefault(key) - remaining;
 
@@ -74,7 +74,8 @@ public sealed class GetPosRefundableSaleQueryHandler(IAppDbContext db, ICurrentU
                 line.ServiceChargeRate,
                 line.PackagingFeeAmount,
                 line.VatRate,
-                line.LineTotal));
+                line.LineTotal,
+                line.DiscountPerUnit));
         }
 
         var priorRefunds = await db.CreditNotes

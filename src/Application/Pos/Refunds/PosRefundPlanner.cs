@@ -38,6 +38,12 @@ internal sealed record PosRefundPlan(Invoice Invoice, CreditNote CreditNote, dec
 /// gives back exactly what is left of its total, so a bill refunded in parts ties out to the paisa.</item>
 /// <item><b>What is handed back</b> (D): the refund first comes off what the customer still owes on this
 /// sale (the one reader of what is owed, phase 36), and the rest is paid out.</item>
+/// <item><b>Phase 74 -- the last of a line takes what is left of it.</b> A refund that returns the last units
+/// of a sale's (product, rate, VAT, discount, unit) key gives back exactly what the sale charged for them, less
+/// what earlier refunds gave back: amount, service charge, packaging fee, VAT and share of the bill's Amount
+/// discount, each. Priced afresh, the parts' rounding could leave a paisa of VAT in the VAT account on a fully
+/// returned sale (phase 72's open item); the vendor's left 2.08, by taking its bill discount off twice (read live
+/// 2026-10-10). Any other refund line is priced afresh, with its quantity's share of the bill discount.</item>
 /// </list>
 /// </summary>
 internal static class PosRefundPlanner
@@ -67,22 +73,47 @@ internal static class PosRefundPlanner
         // this invoice is counted under -- including any raised from the ERP before this phase.
         await SalesValidation.EnsureCreditNoteLinesWithinInvoiceRemainingAsync(
             db, organizationId, invoice.Id, invoice.ContactId, invoice.DiscountPct,
-            [.. chosen.Select(x => new CreditNoteLineInput(
-                x.Line.ProductId, x.Quantity, x.Line.Rate, x.Line.VatRate, x.Line.DiscountPct, x.Line.UnitId))],
+            [.. chosen.Select(x => (SaleLineKey.Of(x.Line), x.Quantity))],
             cancellationToken);
 
         var creditNote = CreditNote.CreatePosRefund(
             organizationId, invoice.ContactId, date, till.Location.Id, sessionId, invoice.Id, invoice.Code,
             invoice.DiscountPct, reason);
 
+        var priorNotes = await PriorRefundsQuery(db, organizationId, invoice)
+            .AsNoTracking()
+            .Include(x => x.Lines)
+            .ToListAsync(cancellationToken);
+        var priorLines = priorNotes.SelectMany(x => x.Lines).ToList();
+        var remaining = await SalesValidation.GetInvoiceRemainingByLineAsync(db, organizationId, invoice, cancellationToken);
+        var lastOfKey = chosen
+            .GroupBy(x => SaleLineKey.Of(x.Line))
+            .Where(g => remaining.GetValueOrDefault(g.Key) - g.Sum(x => x.Quantity) == 0m)
+            .ToDictionary(g => g.Key, g => g.Last().Line.Id);
+
         foreach (var (line, quantity) in chosen)
         {
-            creditNote.AddPosLine(
-                line.ProductId, quantity, line.Rate, line.VatRate, line.DiscountPct, line.UnitId,
-                line.ConversionFactor, line.BatchId, line.ServiceChargeRate, line.PackagingFee);
+            var key = SaleLineKey.Of(line);
+            PosLineArithmetic.Figures? theRest = null;
+            var share = PosLineArithmetic.Prorate(line.BillDiscountAmount, quantity, line.Quantity);
+
+            if (lastOfKey.GetValueOrDefault(key) == line.Id)
+            {
+                var sold = invoice.Lines.Where(x => SaleLineKey.Of(x) == key).ToList();
+                var givenBack = priorLines.Where(x => SaleLineKey.Of(x) == key)
+                    .Concat(creditNote.Lines.Where(x => SaleLineKey.Of(x) == key))
+                    .ToList();
+
+                theRest = Sum(sold.Select(x => x.Figures)) - Sum(givenBack.Select(x => x.Figures));
+                share = sold.Sum(x => x.BillDiscountAmount) - givenBack.Sum(x => x.BillDiscountAmount);
+            }
+
+            creditNote.AddPosLine(new CreditNote.PosLineInput(
+                line.ProductId, quantity, line.Rate, line.VatRate, line.DiscountPerUnit, line.DiscountPct, share,
+                line.UnitId, line.ConversionFactor, line.BatchId, line.ServiceChargeRate, line.PackagingFee, theRest));
         }
 
-        await ApplyRoundOffAsync(db, organizationId, invoice, till, chosen, creditNote, cancellationToken);
+        ApplyRoundOff(invoice, till, priorNotes, lastOfKey.Count == remaining.Count(x => x.Value > 0m), creditNote);
 
         var owed = await OwedOnSaleAsync(db, organizationId, invoice, date, cancellationToken);
         var requiredPayout = creditNote.GrandTotal - Math.Min(creditNote.GrandTotal, owed);
@@ -142,34 +173,27 @@ internal static class PosRefundPlanner
         return [.. invoice.Lines.Where(x => quantities.ContainsKey(x.Id)).Select(x => (x, quantities[x.Id]))];
     }
 
+    private static IQueryable<CreditNote> PriorRefundsQuery(IAppDbContext db, Guid organizationId, Invoice invoice) =>
+        db.CreditNotes.Where(x => x.OrganizationId == organizationId
+            && x.ReferrerType == DocumentType.Invoice && x.ReferrerId == invoice.Id
+            && x.Status != CreditNoteStatus.Void);
+
+    private static PosLineArithmetic.Figures Sum(IEnumerable<PosLineArithmetic.Figures> figures) =>
+        figures.Aggregate(PosLineArithmetic.Figures.Zero, (sum, x) => sum + x);
+
     /// <summary>
     /// Decision F. The sale's earlier refunds are what makes this the planner's job and not the
     /// aggregate's: whether this refund returns the last of the sale, and how much of the sale's total
     /// is left to give back, are facts about other credit notes.
     /// </summary>
-    private static async Task ApplyRoundOffAsync(
-        IAppDbContext db, Guid organizationId, Invoice invoice, PosTillContext till,
-        List<(InvoiceLine Line, decimal Quantity)> chosen, CreditNote creditNote, CancellationToken cancellationToken)
+    private static void ApplyRoundOff(
+        Invoice invoice, PosTillContext till, IReadOnlyList<CreditNote> priorNotes, bool returnsTheRest,
+        CreditNote creditNote)
     {
-        var priorNotes = db.CreditNotes.Where(x => x.OrganizationId == organizationId
-            && x.ReferrerType == DocumentType.Invoice && x.ReferrerId == invoice.Id
-            && x.Status != CreditNoteStatus.Void);
-
-        var priorLines = await (
-                from line in db.CreditNoteLines
-                join note in priorNotes on line.CreditNoteId equals note.Id
-                select line.Amount + line.ServiceChargeAmount + line.PackagingFeeAmount + line.VatAmount)
-            .SumAsync(cancellationToken);
-        var priorTotal = priorLines + await priorNotes.SumAsync(x => x.RoundOff, cancellationToken);
+        var priorTotal = priorNotes.Sum(x => x.Lines.Sum(l => l.LineTotal) + x.RoundOff);
 
         var leftOfSale = invoice.GrandTotal - priorTotal;
         var unrounded = creditNote.Lines.Sum(x => x.LineTotal);
-
-        var remaining = await SalesValidation.GetInvoiceRemainingByLineAsync(db, organizationId, invoice, cancellationToken);
-        var returnedNow = chosen
-            .GroupBy(x => (x.Line.ProductId, x.Line.Rate, x.Line.VatRate, x.Line.DiscountPct, x.Line.UnitId))
-            .ToDictionary(g => g.Key, g => g.Sum(x => x.Quantity));
-        var returnsTheRest = remaining.All(x => x.Value - returnedNow.GetValueOrDefault(x.Key) == 0m);
 
         decimal total;
         if (returnsTheRest)

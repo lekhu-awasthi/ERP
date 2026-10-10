@@ -13,6 +13,15 @@ public sealed class CreditNoteLine
     public decimal Rate { get; private set; }
     public VatRate VatRate { get; private set; }
     public decimal DiscountPct { get; private set; }
+
+    /// <summary>Phase 74 -- the returned sale line's Amount discount per unit, copied from it
+    /// (<see cref="InvoiceLine.DiscountPerUnit"/>); zero on every ERP line.</summary>
+    public decimal DiscountPerUnit { get; private set; }
+
+    /// <summary>Phase 74 -- the part of the sale line's share of its bill's Amount discount that this return
+    /// gives back (<see cref="InvoiceLine.BillDiscountAmount"/>), already taken off <see cref="Amount"/>.</summary>
+    public decimal BillDiscountAmount { get; private set; }
+
     public decimal Amount { get; private set; }
     public decimal VatAmount { get; private set; }
 
@@ -46,6 +55,10 @@ public sealed class CreditNoteLine
 
     /// <summary>What this line takes off what the customer owes.</summary>
     public decimal LineTotal => Amount + ServiceChargeAmount + PackagingFeeAmount + VatAmount;
+
+    /// <summary>Phase 74 -- this line's money as the till's arithmetic names it, for a caller that adds lines up
+    /// (<see cref="InvoiceLine.Figures"/>).</summary>
+    public PosLineArithmetic.Figures Figures => new(Amount, ServiceChargeAmount, PackagingFeeAmount, VatAmount);
 
     /// <summary>
     /// Phase 51 -- the <b>batch</b> this line receives into or issues from, or null when the
@@ -113,14 +126,29 @@ public sealed class CreditNoteLine
     /// Phase 63 -- a line of a refund at the till: the returned quantity of a sale line, priced by the
     /// arithmetic that priced the sale (<see cref="PosLineArithmetic"/>). Returning every unit of a line
     /// therefore gives back its amount, service charge and VAT to the paisa.
+    ///
+    /// <para>Phase 74 -- <paramref name="theRest"/>, when given, is what is left of the sale line's figures after
+    /// its earlier refunds, for the refund that returns its last units: priced afresh, a part's rounding could
+    /// leave a paisa of VAT behind (phase 72's open item), and the vendor's left 2.08 (its bill discount taken
+    /// twice). Its share of the bill discount is then what is left of that too.</para>
     /// </summary>
     internal static CreditNoteLine CreatePos(
         Guid creditNoteId, Guid productId, decimal quantity, decimal rate, VatRate vatRate,
-        decimal discountPct, decimal headerDiscountPct, Guid? batchId, Guid? unitId,
-        decimal conversionFactor, decimal serviceChargeRate, PackagingFee packagingFee)
+        decimal discountPerUnit, decimal discountPct, decimal headerDiscountPct, decimal billDiscountShare,
+        Guid? batchId, Guid? unitId, decimal conversionFactor, decimal serviceChargeRate, PackagingFee packagingFee,
+        PosLineArithmetic.Figures? theRest)
     {
-        var figures = PosLineArithmetic.Compute(
-            quantity, rate, vatRate.ToPercent(), discountPct, headerDiscountPct, serviceChargeRate, packagingFee);
+        var figures = theRest ?? PosLineArithmetic.Compute(
+            quantity, rate, vatRate.ToPercent(), discountPerUnit, discountPct, headerDiscountPct, billDiscountShare,
+            serviceChargeRate, packagingFee);
+
+        foreach (var value in figures.Parts.Append(billDiscountShare))
+        {
+            if (value < 0m || decimal.Round(value, Invoice.PosMoneyScale) != value)
+            {
+                throw new InvalidOperationException("A till refund's figures are whole paisa and never negative.");
+            }
+        }
 
         return new CreditNoteLine
         {
@@ -133,6 +161,8 @@ public sealed class CreditNoteLine
             Rate = rate,
             VatRate = vatRate,
             DiscountPct = discountPct,
+            DiscountPerUnit = discountPerUnit,
+            BillDiscountAmount = billDiscountShare,
             Amount = figures.Amount,
             ServiceChargeRate = serviceChargeRate,
             ServiceChargeAmount = figures.ServiceChargeAmount,

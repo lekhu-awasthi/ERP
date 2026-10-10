@@ -61,7 +61,7 @@ public sealed class SalesMasterReportQueryHandler(IAppDbContext db, ICurrentUser
         }
 
         var invoiceLines = await invoiceLinesQuery
-            .Select(x => new { x.InvoiceId, x.ProductId, x.Quantity, x.Rate, x.VatRate, x.DiscountPct, x.Amount, x.ServiceChargeAmount, x.PackagingFeeAmount, x.VatAmount })
+            .Select(x => new { x.InvoiceId, x.ProductId, x.Quantity, x.Rate, x.VatRate, x.DiscountPct, x.DiscountPerUnit, x.Amount, x.ServiceChargeAmount, x.PackagingFeeAmount, x.VatAmount })
             .ToListAsync(cancellationToken);
 
         var creditNoteQuery = db.CreditNotes.Where(x =>
@@ -94,7 +94,7 @@ public sealed class SalesMasterReportQueryHandler(IAppDbContext db, ICurrentUser
         }
 
         var creditNoteLines = await creditNoteLinesQuery
-            .Select(x => new { x.CreditNoteId, x.ProductId, x.Quantity, x.Rate, x.VatRate, x.DiscountPct, x.Amount, x.ServiceChargeAmount, x.PackagingFeeAmount, x.VatAmount })
+            .Select(x => new { x.CreditNoteId, x.ProductId, x.Quantity, x.Rate, x.VatRate, x.DiscountPct, x.DiscountPerUnit, x.Amount, x.ServiceChargeAmount, x.PackagingFeeAmount, x.VatAmount })
             .ToListAsync(cancellationToken);
 
         // CreditNote carries no WarehouseId of its own -- resolve it from the source Invoice when
@@ -178,8 +178,9 @@ public sealed class SalesMasterReportQueryHandler(IAppDbContext db, ICurrentUser
             var contact = contacts[invoice.ContactId];
             var product = products[line.ProductId];
 
+            // Phase 74 -- a till line's Amount discount is an item discount too: rupees off each unit.
             var grossAmount = line.Quantity * line.Rate;
-            var itemDiscount = grossAmount * line.DiscountPct / 100m;
+            var itemDiscount = grossAmount * line.DiscountPct / 100m + line.Quantity * line.DiscountPerUnit;
             var netAfterLineDiscount = grossAmount - itemDiscount;
             var transactionDiscount = netAfterLineDiscount - line.Amount;
 
@@ -217,8 +218,9 @@ public sealed class SalesMasterReportQueryHandler(IAppDbContext db, ICurrentUser
             var contact = contacts[creditNote.ContactId];
             var product = products[line.ProductId];
 
+            // Phase 74 -- a till line's Amount discount is an item discount too: rupees off each unit.
             var grossAmount = line.Quantity * line.Rate;
-            var itemDiscount = grossAmount * line.DiscountPct / 100m;
+            var itemDiscount = grossAmount * line.DiscountPct / 100m + line.Quantity * line.DiscountPerUnit;
             var netAfterLineDiscount = grossAmount - itemDiscount;
             var transactionDiscount = netAfterLineDiscount - line.Amount;
 

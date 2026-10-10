@@ -118,7 +118,8 @@ public sealed class PrintPosReceiptCommandHandler(IAppDbContext db, ICurrentUser
                     x.PackagingFeeAmount,
                     x.VatRate,
                     x.VatAmount,
-                    x.LineTotal);
+                    x.LineTotal,
+                    x.DiscountPerUnit);
             })
             .ToList();
 

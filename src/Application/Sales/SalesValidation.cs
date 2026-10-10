@@ -9,6 +9,25 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ErpApp.Application.Sales;
 
+/// <summary>
+/// The terms a credit note line must match a line of its invoice on (phase 6's cap): product, rate, VAT rate, the
+/// line's own discount and (phase 52) its unit. Phase 74 -- the line's Amount discount per unit is a discount term
+/// like its percentage, zero on every ERP line, so ERP keys are what they always were.
+/// </summary>
+internal readonly record struct SaleLineKey(
+    Guid ProductId, decimal Rate, VatRate VatRate, decimal DiscountPct, decimal DiscountPerUnit, Guid? UnitId)
+{
+    public static SaleLineKey Of(InvoiceLine line) =>
+        new(line.ProductId, line.Rate, line.VatRate, line.DiscountPct, line.DiscountPerUnit, line.UnitId);
+
+    public static SaleLineKey Of(CreditNoteLine line) =>
+        new(line.ProductId, line.Rate, line.VatRate, line.DiscountPct, line.DiscountPerUnit, line.UnitId);
+
+    /// <summary>An ERP credit note line, which has no Amount discount.</summary>
+    public static SaleLineKey Of(CreditNoteLineInput line) =>
+        new(line.ProductId, line.Rate, line.VatRate, line.DiscountPct, 0m, line.UnitId);
+}
+
 /// <summary>Shared existence checks reused by every Sales/Payments Create/Update handler --
 /// mirrors Accounting.AccountingValidation's precedent.</summary>
 internal static class SalesValidation
@@ -58,7 +77,7 @@ internal static class SalesValidation
     /// part of this per-line key -- it's a single document-wide value already implicitly constant
     /// across every line of the one source Invoice being credited against; it's checked separately
     /// in EnsureCreditNoteLinesWithinInvoiceRemainingAsync below.</summary>
-    public static async Task<Dictionary<(Guid ProductId, decimal Rate, VatRate VatRate, decimal DiscountPct, Guid? UnitId), decimal>>
+    public static async Task<Dictionary<SaleLineKey, decimal>>
         GetInvoiceRemainingByLineAsync(
             IAppDbContext db, Guid organizationId, Invoice invoice, CancellationToken cancellationToken,
             Guid? excludingCreditNoteId = null)
@@ -78,15 +97,15 @@ internal static class SalesValidation
 
         var creditedLines = await notes
             .SelectMany(x => x.Lines)
-            .Select(x => new { x.ProductId, x.Rate, x.VatRate, x.DiscountPct, x.UnitId, x.Quantity })
+            .Select(x => new { x.ProductId, x.Rate, x.VatRate, x.DiscountPct, x.DiscountPerUnit, x.UnitId, x.Quantity })
             .ToListAsync(cancellationToken);
 
         var creditedByLine = creditedLines
-            .GroupBy(x => (x.ProductId, x.Rate, x.VatRate, x.DiscountPct, x.UnitId))
+            .GroupBy(x => new SaleLineKey(x.ProductId, x.Rate, x.VatRate, x.DiscountPct, x.DiscountPerUnit, x.UnitId))
             .ToDictionary(g => g.Key, g => g.Sum(x => x.Quantity));
 
         return invoice.Lines
-            .GroupBy(x => (x.ProductId, x.Rate, x.VatRate, x.DiscountPct, x.UnitId))
+            .GroupBy(SaleLineKey.Of)
             .ToDictionary(g => g.Key, g => g.Sum(x => x.Quantity) - creditedByLine.GetValueOrDefault(g.Key));
     }
 
@@ -112,13 +131,28 @@ internal static class SalesValidation
         }
     }
 
-    public static async Task EnsureCreditNoteLinesWithinInvoiceRemainingAsync(
+    public static Task EnsureCreditNoteLinesWithinInvoiceRemainingAsync(
         IAppDbContext db,
         Guid organizationId,
         Guid invoiceId,
         Guid contactId,
         decimal discountPct,
         IReadOnlyList<CreditNoteLineInput> requestedLines,
+        CancellationToken cancellationToken,
+        Guid? excludingCreditNoteId = null) =>
+        EnsureCreditNoteLinesWithinInvoiceRemainingAsync(
+            db, organizationId, invoiceId, contactId, discountPct,
+            [.. requestedLines.Select(x => (SaleLineKey.Of(x), x.Quantity))], cancellationToken, excludingCreditNoteId);
+
+    /// <summary>Phase 74 -- the same guard over keys, for a till refund, whose lines carry the sale line's Amount
+    /// discount as well.</summary>
+    public static async Task EnsureCreditNoteLinesWithinInvoiceRemainingAsync(
+        IAppDbContext db,
+        Guid organizationId,
+        Guid invoiceId,
+        Guid contactId,
+        decimal discountPct,
+        IReadOnlyList<(SaleLineKey Key, decimal Quantity)> requestedLines,
         CancellationToken cancellationToken,
         Guid? excludingCreditNoteId = null)
     {
@@ -142,7 +176,7 @@ internal static class SalesValidation
             db, organizationId, invoice, cancellationToken, excludingCreditNoteId);
 
         var requestedByLine = requestedLines
-            .GroupBy(x => (x.ProductId, x.Rate, x.VatRate, x.DiscountPct, x.UnitId))
+            .GroupBy(x => x.Key)
             .ToDictionary(g => g.Key, g => g.Sum(x => x.Quantity));
 
         foreach (var (key, requestedQuantity) in requestedByLine)

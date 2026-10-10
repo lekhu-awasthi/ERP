@@ -21,16 +21,19 @@ namespace ErpApp.Domain.UnitTests.Pos;
 /// <para>Phase 70 -- a line may carry <c>packagingFeeBasis</c> and <c>packagingFeeValue</c>, and its
 /// expectation a <c>packagingFee</c>. Absent means none, which is what every phase 62 case meant, so those
 /// cases are untouched; both readers treat absence identically.</para>
+///
+/// <para>Phase 74 -- the same for a line's <c>discountPerUnit</c> and a case's <c>discountAmount</c>.</para>
 /// </summary>
 public class PosBillSharedCasesTests
 {
     private sealed record Line(
-        decimal Quantity, decimal Rate, VatRate VatRate, decimal DiscountPct, decimal ServiceChargeRate, PackagingFee PackagingFee);
+        decimal Quantity, decimal Rate, VatRate VatRate, decimal DiscountPct, decimal ServiceChargeRate, PackagingFee PackagingFee,
+        decimal DiscountPerUnit);
 
     private sealed record ExpectedLine(decimal Amount, decimal ServiceCharge, decimal PackagingFee, decimal Vat, decimal Total);
 
     private sealed record Case(
-        string Why, bool RoundOff, decimal DiscountPct, IReadOnlyList<Line> Lines, IReadOnlyList<ExpectedLine> ExpectedLines,
+        string Why, bool RoundOff, decimal DiscountPct, decimal DiscountAmount, IReadOnlyList<Line> Lines, IReadOnlyList<ExpectedLine> ExpectedLines,
         decimal SubTotal, decimal ServiceCharge, decimal PackagingFee, decimal Vat, decimal ExpectedRoundOff, decimal GrandTotal);
 
     private static decimal OptionalDecimal(JsonElement element, string name) =>
@@ -57,6 +60,7 @@ public class PosBillSharedCasesTests
                     x.GetProperty("why").GetString()!,
                     x.GetProperty("roundOff").GetBoolean(),
                     x.GetProperty("discountPct").GetDecimal(),
+                    OptionalDecimal(x, "discountAmount"),
                     x.GetProperty("lines").EnumerateArray()
                         .Select(l => new Line(
                             l.GetProperty("quantity").GetDecimal(),
@@ -64,7 +68,8 @@ public class PosBillSharedCasesTests
                             Enum.Parse<VatRate>(l.GetProperty("vatRate").GetString()!),
                             l.GetProperty("discountPct").GetDecimal(),
                             l.GetProperty("serviceChargeRate").GetDecimal(),
-                            OptionalFee(l)))
+                            OptionalFee(l),
+                            OptionalDecimal(l, "discountPerUnit")))
                         .ToList(),
                     expected.GetProperty("lines").EnumerateArray()
                         .Select(l => new ExpectedLine(
@@ -106,6 +111,10 @@ public class PosBillSharedCasesTests
         var fees = Cases().SelectMany(x => x.Lines).Select(x => x.PackagingFee.Basis).ToList();
         Assert.Contains(PackagingFeeBasis.Percent, fees);
         Assert.Contains(PackagingFeeBasis.PerUnit, fees);
+
+        // Phase 74 -- and the two Amount discounts.
+        Assert.Contains(Cases(), x => x.DiscountAmount > 0m);
+        Assert.Contains(Cases().SelectMany(x => x.Lines), x => x.DiscountPerUnit > 0m);
     }
 
     [Theory]
@@ -116,14 +125,11 @@ public class PosBillSharedCasesTests
 
         var sale = Invoice.CreatePosSale(
             Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), new DateOnly(2026, 10, 1), Guid.NewGuid(), Guid.NewGuid(),
-            PosTab.Retail, c.DiscountPct);
+            PosTab.Retail, c.DiscountPct, c.DiscountAmount);
 
-        foreach (var line in c.Lines)
-        {
-            sale.AddPosLine(
-                Guid.NewGuid(), line.Quantity, line.Rate, line.VatRate, line.DiscountPct, null, 1m, null,
-                line.ServiceChargeRate, line.PackagingFee);
-        }
+        sale.AddPosLines([.. c.Lines.Select(line => new Invoice.PosLineInput(
+            Guid.NewGuid(), line.Quantity, line.Rate, line.VatRate, line.DiscountPerUnit, line.DiscountPct, null, 1m, null,
+            line.ServiceChargeRate, line.PackagingFee))]);
 
         if (c.RoundOff)
         {

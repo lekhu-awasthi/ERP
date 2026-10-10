@@ -241,19 +241,19 @@ public class PosOrderDiscountHandlerTests
         Assert.Equal(0m, await r.Till.BalanceAsync(await r.Till.ReceivableAccountIdAsync()));
     }
 
-    // ---- The retail till: a lowered price needs Approve too -------------------------------------------------
+    // ---- The retail till: a changed price needs Approve too --------------------------------------------------
 
     private static Task<CreatePosSaleResult> SellAsync(
         PosTestTill till, Guid sessionId, IReadOnlyList<PosSaleLineInput> lines, IReadOnlyList<PosTenderInput> tenders,
-        decimal billDiscountPct = 0m) =>
+        decimal billDiscountPct = 0m, decimal billDiscountAmount = 0m) =>
         till.SaleHandler().Handle(
             new CreatePosSaleCommand(
                 till.OrganizationId, sessionId, till.Location.Id, lines, tenders, 0m, null, till.Seed.WarehouseId,
-                DiscountPct: billDiscountPct),
+                DiscountPct: billDiscountPct, DiscountAmount: billDiscountAmount),
             CancellationToken.None);
 
     [Fact]
-    public async Task A_retail_discount_or_a_price_below_the_catalogue_needs_approve_and_a_higher_price_does_not()
+    public async Task A_retail_discount_or_any_price_but_the_catalogue_needs_approve()
     {
         var till = await PosTestTill.CreateAsync(WithoutApprove(PosTestTill.CashierKeys));
         var session = await till.OpenAsync();
@@ -266,13 +266,21 @@ public class PosOrderDiscountHandlerTests
                 SellAsync(till, session.Id, [till.Coke(1)], [till.Cash(61)], billDiscountPct: 10m)),
             await Assert.ThrowsAsync<ForbiddenException>(() =>
                 SellAsync(till, session.Id, [till.Momo(1) with { Rate = 190m }], [till.Cash(237)])),
+
+            // Phase 74 -- the vendor's Can Change Rate gates a raised price too, and so does this till (the user,
+            // 2026-10-10); and an amount discount, on a line or on the bill, is a discount like a percentage.
+            await Assert.ThrowsAsync<ForbiddenException>(() =>
+                SellAsync(till, session.Id, [till.Momo(1) with { Rate = 210m }], [till.Cash(261)])),
+            await Assert.ThrowsAsync<ForbiddenException>(() =>
+                SellAsync(till, session.Id, [till.Momo(1) with { DiscountPerUnit = 10m }], [till.Cash(236)])),
+            await Assert.ThrowsAsync<ForbiddenException>(() =>
+                SellAsync(till, session.Id, [till.Coke(1)], [till.Cash(62)], billDiscountAmount: 5m)),
         };
         Assert.All(refusals, x => Assert.Contains(PermissionKeys.InvoiceApprove, x.Message));
         Assert.Equal(0, await till.Db.Invoices.CountAsync(x => x.OrganizationId == till.OrganizationId));
 
-        // The catalogue's price, or more, is any cashier's: 248.60 rounds to 249; 210 + 21 + VAT is 261.03.
+        // The catalogue's price is any cashier's: 248.60 rounds to 249.
         Assert.Equal(249m, (await SellAsync(till, session.Id, [till.Momo(1)], [till.Cash(249)])).GrandTotal);
-        Assert.Equal(261m, (await SellAsync(till, session.Id, [till.Momo(1) with { Rate = 210m }], [till.Cash(261)])).GrandTotal);
 
         var read = await new GetPosTillQueryHandler(till.Db, till.CurrentUser()).Handle(
             new GetPosTillQuery(till.OrganizationId, till.Location.Id), CancellationToken.None);

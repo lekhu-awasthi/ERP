@@ -17,8 +17,9 @@ public enum PosOrderSplit
     Equal = 3,
 }
 
-/// <summary>What is already billed of one order line, over its invoices not voided.</summary>
-public sealed record PosOrderLineBilled(decimal Quantity, PosLineArithmetic.Figures Figures);
+/// <summary>What is already billed of one order line, over its invoices not voided. Phase 74 --
+/// <paramref name="BillDiscountAmount"/> is what those parts carried of the order's Amount discount.</summary>
+public sealed record PosOrderLineBilled(decimal Quantity, PosLineArithmetic.Figures Figures, decimal BillDiscountAmount = 0m);
 
 /// <summary>The order's invoices not voided, as one sum: before rounding, and as billed.</summary>
 public sealed record PosOrderBilledTotals(decimal Unrounded, decimal GrandTotal)
@@ -27,7 +28,10 @@ public sealed record PosOrderBilledTotals(decimal Unrounded, decimal GrandTotal)
 }
 
 /// <param name="RemainingAfter">What of the line is still to be billed once this part is paid.</param>
-public sealed record PosOrderBillLine(PosOrderLine Line, decimal Quantity, PosLineArithmetic.Figures Figures, decimal RemainingAfter)
+/// <param name="BillDiscountShare">Phase 74 -- what this part carries of the order's Amount discount, already taken
+/// off <paramref name="Figures"/>.</param>
+public sealed record PosOrderBillLine(
+    PosOrderLine Line, decimal Quantity, PosLineArithmetic.Figures Figures, decimal RemainingAfter, decimal BillDiscountShare)
 {
     public decimal Total => Figures.Total;
 }
@@ -114,10 +118,17 @@ public static class PosOrderBill
             .Select(x =>
             {
                 var left = remaining[x.Line.Id];
-                var figures = x.Quantity == left
-                    ? WhatIsLeft(order, x.Line, billed.GetValueOrDefault(x.Line.Id))
-                    : order.FiguresOf(x.Line, x.Quantity);
-                return new PosOrderBillLine(x.Line, x.Quantity, figures, left - x.Quantity);
+                var already = billed.GetValueOrDefault(x.Line.Id);
+
+                // Phase 74 -- the share of the order's amount discount goes the same way as the money: the last part
+                // takes what is left of the line's share, any other its quantity's.
+                return x.Quantity == left
+                    ? new PosOrderBillLine(
+                        x.Line, x.Quantity, WhatIsLeft(order, x.Line, already), 0m,
+                        order.DiscountShareOf(x.Line) - (already?.BillDiscountAmount ?? 0m))
+                    : new PosOrderBillLine(
+                        x.Line, x.Quantity, order.FiguresOf(x.Line, x.Quantity), left - x.Quantity,
+                        order.DiscountShareOf(x.Line, x.Quantity));
             })
             .ToList();
 

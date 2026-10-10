@@ -20,7 +20,8 @@ public sealed record PosReceiptLineDto(
     decimal PackagingFeeAmount,
     VatRate VatRate,
     decimal VatAmount,
-    decimal LineTotal);
+    decimal LineTotal,
+    decimal DiscountPerUnit = 0m);
 
 public sealed record PosReceiptTenderDto(string PaymentModeName, PaymentModeKind Kind, decimal Amount);
 

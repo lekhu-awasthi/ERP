@@ -123,7 +123,8 @@ public sealed class PrintPosRefundReceiptCommandHandler(IAppDbContext db, ICurre
                     x.PackagingFeeAmount,
                     x.VatRate,
                     x.VatAmount,
-                    x.LineTotal);
+                    x.LineTotal,
+                    x.DiscountPerUnit);
             })
             .ToList();
 

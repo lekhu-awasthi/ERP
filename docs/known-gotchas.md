@@ -4374,3 +4374,31 @@ The layout editor renders above the list, so pressing a row's *Layout* button op
 on the button below. Nothing visibly happened to a keyboard or screen-reader user. Focus moves to the editor's
 heading (`tabindex="-1"`, focused in `ngAfterViewInit`), and closing returns it to that row's button by id. It is the
 mirror of phase 72's control that removes itself: there focus fell out of the page, here it never followed.
+
+## A refund priced afresh leaves a paisa of VAT behind (phase 74)
+
+A part's figures are each rounded to the paisa, so the parts of a line priced one at a time need not add up to the
+line: three thirds of a 25.61 share are 8.54 each, 25.62. The order bill planner has given the last part what was left
+since phase 65, but `PosRefundPlanner` priced every refund line afresh, so a till sale returned in parts could leave a
+paisa (or, with a bill Amount, more) in the VAT account while the round-off made the cash right. The vendor does worse:
+its refund of the rest takes the bill's whole discount again. A refund returning the last of a sale key now takes the
+sale's figures less every earlier refund's, each figure separately. Prove such a rule by pricing the parts so that fresh
+rounding *does* drift: the first test returned one of three and then the other two, tied out either way, and would
+never have failed.
+
+## A figure printed under the total it is already inside reads as a subtraction (phase 74)
+
+An Amount bill discount is folded into its lines like a percentage, so the Sub Total is already net of it. Printed as
+"Discount Applied 50.00" under that Sub Total, it reads as 956.50 less 50 more. A percentage under the Sub Total (phase
+16b's "5%") does not mislead, because a rate is not a figure to subtract; rupees are. It now prints above: Before
+Discount, Discount Applied (50.00), Sub Total. `PdfText` read both versions as correct text; only the rendered page
+showed the problem. With poppler absent, Windows' own `Windows.Data.Pdf` renders a page to PNG from PowerShell (load it
+with `[Windows.Data.Pdf.PdfDocument, Windows.Data.Pdf, ContentType = WindowsRuntime]` and await through
+`WindowsRuntimeSystemExtensions.AsTask`).
+
+## A select's kind cannot be read back from a value of zero (phase 74)
+
+A line whose discount is "0, as an amount" and one whose discount is "0, as a percent" store the same thing, so a
+discount-kind select derived from the line falls back to Percent the moment the cashier picks Amount, before any figure
+is typed. The till keeps the chosen kind in a signal of its own per line (and one for the bill), falling back to what
+the line has only when nothing was chosen; a change of kind sets the figure to nothing, because 10% is not Rs 10.

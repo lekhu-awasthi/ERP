@@ -32,6 +32,8 @@ export interface CartLine {
   /** Per unit, exclusive of VAT; the unit's catalogue rate until the cashier changes it. */
   rate: number;
   discountPct: number;
+  /** Phase 74 -- rupees off each unit, never beside `discountPct`. A cart stored before the phase lacks it: none. */
+  discountPerUnit: number;
 }
 
 /** The customer a bill is for. Null on the cart means the walk-in. */
@@ -48,6 +50,8 @@ export interface HeldCart {
   label: string;
   lines: CartLine[];
   discountPct: number;
+  /** Phase 74 -- rupees off the bill; absent on a cart held before the phase. */
+  discountAmount?: number;
   customer: CartCustomer | null;
   orderType: PosTab | null;
 }
@@ -56,6 +60,7 @@ interface StoredCart {
   version: 1;
   lines: CartLine[];
   discountPct: number;
+  discountAmount?: number;
   customer: CartCustomer | null;
   orderType: PosTab | null;
   holds: HeldCart[];
@@ -90,6 +95,8 @@ export class PosCart {
 
   readonly lines = signal<CartLine[]>([]);
   readonly discountPct = signal(0);
+  /** Phase 74 -- the bill's Amount discount, rupees, spread over its lines; never beside `discountPct`. */
+  readonly discountAmount = signal(0);
   readonly customer = signal<CartCustomer | null>(null);
   readonly orderType = signal<PosTab | null>(null);
   readonly holds = signal<HeldCart[]>([]);
@@ -100,6 +107,7 @@ export class PosCart {
       this.lines().map((line) => this.toBillLine(line)),
       this.discountPct(),
       this.till.roundOffEnabled,
+      this.discountAmount(),
     ),
   );
 
@@ -151,7 +159,12 @@ export class PosCart {
     const kept = toCartProduct(product);
     const primary = kept.units[0];
     const existing = this.lines().find(
-      (x) => x.product.id === kept.id && x.unitId === primary.unitId && x.rate === primary.rate && x.discountPct === 0,
+      (x) =>
+        x.product.id === kept.id &&
+        x.unitId === primary.unitId &&
+        x.rate === primary.rate &&
+        x.discountPct === 0 &&
+        !x.discountPerUnit,
     );
 
     if (existing) {
@@ -161,7 +174,15 @@ export class PosCart {
 
     this.lines.set([
       ...this.lines(),
-      { key: this.nextKey++, product: kept, unitId: primary.unitId, quantity: 1, rate: primary.rate, discountPct: 0 },
+      {
+        key: this.nextKey++,
+        product: kept,
+        unitId: primary.unitId,
+        quantity: 1,
+        rate: primary.rate,
+        discountPct: 0,
+        discountPerUnit: 0,
+      },
     ]);
     this.persist();
   }
@@ -198,7 +219,17 @@ export class PosCart {
       return;
     }
 
-    this.update(key, { discountPct });
+    this.update(key, { discountPct, discountPerUnit: 0 });
+  }
+
+  /** Phase 74 -- rupees off each unit of the line, replacing a percentage; never more than its rate. */
+  setLineDiscountPerUnit(key: number, discountPerUnit: number): void {
+    const line = this.lines().find((x) => x.key === key);
+    if (!line || !isPaisa(discountPerUnit) || discountPerUnit > line.rate) {
+      return;
+    }
+
+    this.update(key, { discountPerUnit, discountPct: 0 });
   }
 
   setBillDiscount(discountPct: number): void {
@@ -207,6 +238,19 @@ export class PosCart {
     }
 
     this.discountPct.set(discountPct);
+    this.discountAmount.set(0);
+    this.persist();
+  }
+
+  /** Phase 74 -- rupees off the whole bill, replacing a percentage. More than the bill is the server's 400, and the
+   * till says so before it is sent. */
+  setBillDiscountAmount(discountAmount: number): void {
+    if (!isPaisa(discountAmount)) {
+      return;
+    }
+
+    this.discountAmount.set(discountAmount);
+    this.discountPct.set(0);
     this.persist();
   }
 
@@ -229,6 +273,7 @@ export class PosCart {
   clear(): void {
     this.lines.set([]);
     this.discountPct.set(0);
+    this.discountAmount.set(0);
     this.customer.set(null);
     this.orderType.set(this.till.defaultTab);
     this.persist();
@@ -247,6 +292,7 @@ export class PosCart {
       label: customer ? customer.name : `${this.lines().length} line(s), ${this.bill().grandTotal.toFixed(2)}`,
       lines: this.lines(),
       discountPct: this.discountPct(),
+      discountAmount: this.discountAmount(),
       customer,
       orderType: this.orderType(),
     };
@@ -269,8 +315,9 @@ export class PosCart {
     this.holds.set(this.holds().filter((x) => x.id !== id));
     this.hold(now);
 
-    this.lines.set(held.lines.map((line) => ({ ...line, key: this.nextKey++ })));
+    this.lines.set(held.lines.map((line) => ({ ...line, discountPerUnit: line.discountPerUnit ?? 0, key: this.nextKey++ })));
     this.discountPct.set(held.discountPct);
+    this.discountAmount.set(held.discountAmount ?? 0);
     this.customer.set(held.customer);
     this.orderType.set(held.orderType ?? this.till.defaultTab);
     this.persist();
@@ -282,7 +329,15 @@ export class PosCart {
   }
 
   /** What the sale command is sent as its lines. Rates are already exclusive of VAT. */
-  toSaleLines(): { productId: string; quantity: number; rate: number; vatRate: null; discountPct: number; unitId: string | null }[] {
+  toSaleLines(): {
+    productId: string;
+    quantity: number;
+    rate: number;
+    vatRate: null;
+    discountPct: number;
+    discountPerUnit: number;
+    unitId: string | null;
+  }[] {
     return this.lines().map((line) => ({
       productId: line.product.id,
       quantity: line.quantity,
@@ -290,6 +345,7 @@ export class PosCart {
       // The product's own rate, which the server reads itself (phase 61): the till never overrides it.
       vatRate: null,
       discountPct: line.discountPct,
+      discountPerUnit: line.discountPerUnit,
       // The primary unit is sent as null, which is what every ERP form sends for it.
       unitId: line.unitId === line.product.units[0]?.unitId ? null : line.unitId,
     }));
@@ -312,6 +368,7 @@ export class PosCart {
       rate: line.rate,
       vatRate: line.product.vatRate,
       discountPct: line.discountPct,
+      discountPerUnit: line.discountPerUnit,
       serviceChargeRate: this.serviceChargeRateOf(line.product),
       packagingFeeBasis: this.packagingFeeOf(line.product).basis,
       packagingFeeValue: this.packagingFeeOf(line.product).value,
@@ -328,6 +385,7 @@ export class PosCart {
       version: 1,
       lines: this.lines(),
       discountPct: this.discountPct(),
+      discountAmount: this.discountAmount(),
       customer: this.customer(),
       orderType: this.orderType(),
       holds: this.holds(),
@@ -358,8 +416,9 @@ export class PosCart {
         return;
       }
 
-      this.lines.set(stored.lines.map((line) => ({ ...line, key: this.nextKey++ })));
+      this.lines.set(stored.lines.map((line) => ({ ...line, discountPerUnit: line.discountPerUnit ?? 0, key: this.nextKey++ })));
       this.discountPct.set(stored.discountPct ?? 0);
+      this.discountAmount.set(stored.discountAmount ?? 0);
       this.customer.set(stored.customer ?? null);
       this.orderType.set(stored.orderType ?? this.till.defaultTab);
       this.holds.set(stored.holds ?? []);
@@ -431,6 +490,11 @@ function toCartProduct(product: PosProduct | CartProduct): CartProduct {
     packagingFeeApplicable: product.packagingFeeApplicable !== false,
     units: product.units,
   };
+}
+
+/** Phase 74 -- an amount a till takes: zero or more, in whole paisa (the server's `PosCashAmount`). */
+function isPaisa(value: number): boolean {
+  return Number.isFinite(value) && value >= 0 && Number(value.toFixed(2)) === value;
 }
 
 function safeLocalStorage(): Storage | null {

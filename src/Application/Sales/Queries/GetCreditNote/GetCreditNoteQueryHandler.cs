@@ -63,6 +63,8 @@ public sealed class GetCreditNoteQueryHandler(IAppDbContext db) : IRequestHandle
             {
                 ServiceChargeAmount = x.ServiceChargeAmount,
                 PackagingFeeAmount = x.PackagingFeeAmount,
+                DiscountPerUnit = x.DiscountPerUnit,
+                BillDiscountAmount = x.BillDiscountAmount,
             }).ToList(),
             glLines,
             creditNote.CurrencyCode,

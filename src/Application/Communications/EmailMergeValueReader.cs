@@ -165,7 +165,7 @@ public static class EmailMergeValueReader
 
         var facts = FromLines(
             d.ContactId, d.Code, d.Date, d.Reference, d.CurrencyCode, d.ExchangeRate, d.DiscountPct,
-            d.Lines.Select(l => (l.Amount, l.VatAmount)), d.DueDate);
+            d.Lines.Select(l => (l.Amount, l.VatAmount)), d.DueDate, d.DiscountAmount);
 
         // Phase 61 -- a till sale's service charge sits in the VAT base beside its line (taxable or not,
         // as the line is), and its round-off is part of what is owed; phase 70's packaging fee sits there
@@ -214,7 +214,7 @@ public static class EmailMergeValueReader
 
         var facts = FromLines(
             d.ContactId, d.Code, d.Date, d.Reference, d.CurrencyCode, d.ExchangeRate, d.DiscountPct,
-            d.Lines.Select(l => (l.Amount, l.VatAmount)));
+            d.Lines.Select(l => (l.Amount, l.VatAmount)), documentDiscountAmount: d.DiscountAmount);
 
         // Phase 63 -- a till refund gives back its service charge (in the VAT base beside its line) and
         // its round-off, as ReadInvoiceAsync counts the sale's, and phase 70 its packaging fee. All are zero
@@ -300,7 +300,8 @@ public static class EmailMergeValueReader
     /// The shared line fold. <c>Amount</c> is already net of both the line discount and the
     /// document-level <c>DiscountPct</c> on every one of these aggregates, so the discount shown is
     /// reconstructed from the pre-discount gross rather than re-derived — the same figure the print
-    /// pipeline puts in its summary block.
+    /// pipeline puts in its summary block. Phase 74 -- a till bill's Amount discount
+    /// (<paramref name="documentDiscountAmount"/>) is already rupees, so it is added back as it is.
     /// </summary>
     private static EmailDocumentFacts FromLines(
         Guid contactId,
@@ -311,14 +312,15 @@ public static class EmailMergeValueReader
         decimal exchangeRate,
         decimal documentDiscountPct,
         IEnumerable<(decimal Amount, decimal VatAmount)> lines,
-        DateOnly? dueDate = null)
+        DateOnly? dueDate = null,
+        decimal documentDiscountAmount = 0m)
     {
         var materialised = lines.ToList();
         var netTotal = materialised.Sum(x => x.Amount);
         var vatTotal = materialised.Sum(x => x.VatAmount);
 
         var grossTotal = documentDiscountPct == 0m
-            ? netTotal
+            ? netTotal + documentDiscountAmount
             : decimal.Round(netTotal / (1m - (documentDiscountPct / 100m)), 2, MidpointRounding.AwayFromZero);
 
         var taxable = materialised.Where(x => x.VatAmount != 0m).Sum(x => x.Amount);

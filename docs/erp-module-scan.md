@@ -2700,3 +2700,40 @@ and not changed; the payment screen needs a session, so it was read from the cli
   changing the order's customer between splits.
 - **Credit** is a tender with no payment mode, `{type: "Credit", amount}`, for the amount still due; the client does not
   refuse it on the walk-in.
+
+## Till Amount discounts, refunds and Can Change Rate, read and written (phase 74, 2026-10-10)
+
+*Abc Agro Trading* (**abcagro1**), a trial the user created for this phase (15 days left on 2026-10-10), entered through
+*Open Pos* with **writes allowed**. The page's `XMLHttpRequest` was wrapped to **log** every request (not to refuse
+any). The tenant had HeadOffice, POS Restaurant (1002, *Bar*) and POS Retail (1003), no products and no floor plan.
+Decisions are in `phase-74-status.md`, and every write is listed at its end.
+
+- **Product create** (`POST /products`): `{type, name, code, product_category_id, tax: "13 VAT", primary_unit_id,
+  selling_price, service_charge_applicable, available_for_sale, batch_tracking_enabled, serial_no_tracking_enabled,
+  locations, track_inventory}`.
+- **A line's Amount is rupees off each unit.** *Edit Item*: Quantity, Unit, Price, *Type of discount* `Percent (%) |
+  Amount` (Percent preselected), *Discount (Item Line)*, Note. 10 off a 333 momo at quantity 3: 364.99 a unit
+  (VAT-inclusive), 1,094.97 the line; stored `discount 10, discount_type "Amount", discount_amount 30, sub_total 969`.
+- **A bill's Amount is spread by net, residue on the first line.** *Options > Discount* (`Percent | Amount`), 50 off:
+  `POST /pos/invoices {..., discount: 50, discount_type: "Amount"}`; the lines stored `taxable_amount` 920.86 and
+  35.64 (shares 48.14 and 1.86), VAT 119.71 and 4.63, header `discount_amount 50, taxable_total 956.50, vat 124.34`,
+  1,080.84. Its paisa are **rounded**, not truncated as phase 72 inferred from the bundle: 82.355 was stored 82.36, and
+  124.345 → 124.34 is a binary float's 124.34499... The server, not the client, stores them.
+- **The receipt** printed on completing a sale was headed **ESTIMATE BILL**; it prints each line gross and one Discount
+  for both kinds (80.00 = 30 + 50). The till's invoice view prints the discounted line at 999.00 under a Sub Total of
+  1,006.50.
+- **Refunds.** `POST /pos/credit-notes {referrer_id, items: [{..., discount, discount_type, invoice_item_id}],
+  discount, discount_type, payments}`. A partial refund's header `discount` is the share **computed in the browser**
+  (16.05 for one of three momo). The refund of the rest sent the bill's whole **50** again (no `invoice_item_id` on its
+  lines) and was accepted: 715.86 where 733.99 was left. A fully returned sale gave back 1,062.71 of 1,080.84 and left
+  **2.08 of VAT** unreversed.
+- **A restaurant split.** The order's Amount is client state until a bill (the order's save sends `discount: 0`).
+  `POST /pos/invoices/{order}/split-bill {discount: 50, discount_type: "Amount"}` put the **whole 50 on the first
+  bill** and returned the order with `discount: 0`; the remainder screen still showed the 50 (362.17) while its
+  `POST /pos/invoices` sent 0, and the server answered **400 "paid amount 362.17 is not equal to invoice amount
+  418.67"**. After a reload, 418.67. The bills total 780.84 against 780.83 for the whole.
+- **Can Change Rate** (bundle `_app`, chunk `1295`): the role editor's location section stores `discount_limit`,
+  `remove_service_charge` and `change_rate` per location; `XM(key)` is always true for an Admin. *Edit Item*'s Price is
+  `isDisabled: !change_rate` on both tills, and a batch's rate change is offered only with it.
+- **The auto-mode classifier** refused an in-page helper replaying the app's captured request headers after two calls;
+  the vendor's own screens, driven by clicks, were allowed throughout.

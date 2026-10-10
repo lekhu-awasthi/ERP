@@ -91,6 +91,13 @@
   width: 5rem;
 }
 
+// Phase 74 -- the discount's Percent | Amount choice beside its input; narrow, so the input keeps its room (phase 52:
+// a control added to a cell has to fit in it).
+.pos-discount-kind {
+  flex: 0 0 auto;
+  width: 5.5rem;
+}
+
 .pos-totals {
   display: grid;
   grid-template-columns: 1fr auto;

@@ -17,6 +17,10 @@ export const PACKAGING_FEE_BASIS_LABELS: Readonly<Record<PackagingFeeBasis, stri
 /** Which tab a till opens on. Mirrors Domain.Pos.PosTab. */
 export type PosTab = 'Retail' | 'DineIn' | 'TakeAway' | 'Delivery';
 
+/** Phase 74 -- how a till discount is given, the vendor's Percent | Amount toggle. On a line an amount is rupees
+ * off each unit; on a bill or an order, rupees off the whole. */
+export type PosDiscountKind = 'Percent' | 'Amount';
+
 export const POS_TAB_LABELS: Readonly<Record<PosTab, string>> = {
   Retail: 'Retail',
   DineIn: 'Dine In',
@@ -326,6 +330,8 @@ export interface PosSaleLineInput {
   rate: number;
   vatRate: VatRate | null;
   discountPct: number;
+  /** Phase 74 -- rupees off each unit, never beside `discountPct`. */
+  discountPerUnit: number;
   unitId: string | null;
 }
 
@@ -345,6 +351,8 @@ export interface CreatePosSaleRequest {
   warehouseId: string | null;
   orderType: PosTab | null;
   discountPct: number;
+  /** Phase 74 -- rupees off the bill, spread over its lines; never beside `discountPct`. */
+  discountAmount: number;
   overrideStockWarning: boolean;
   overrideCreditLimitWarning: boolean;
 }
@@ -411,6 +419,8 @@ export interface PosRefundableLine {
   packagingFeeAmount: number;
   vatRate: VatRate;
   lineTotal: number;
+  /** Phase 74 -- the sale line's Amount discount, rupees off each unit. */
+  discountPerUnit: number;
 }
 
 export interface PosPriorRefund {
@@ -543,6 +553,8 @@ export interface PosReceiptLine {
   vatRate: VatRate;
   vatAmount: number;
   lineTotal: number;
+  /** Phase 74 -- rupees off each unit; zero unless the line had an Amount discount. */
+  discountPerUnit: number;
 }
 
 export interface PosReceiptTender {

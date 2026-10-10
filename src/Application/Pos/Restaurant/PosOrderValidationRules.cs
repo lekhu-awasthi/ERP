@@ -82,9 +82,13 @@ public static class PosOrderValidationRules
     /// <summary>Phase 72 -- an order's or a line's discount: the Domain's own rule (<c>PosOrder.SetDiscount</c>),
     /// stated here so a bad figure is a 400 naming the field. Required, because 0 is a value (it removes the
     /// discount): an absent or misspelt field must not read as one.</summary>
+    /// <summary>Phase 74 -- a discount comes as <c>discountPct</c> or <c>discountAmount</c>, exactly one: the vendor's
+    /// <i>Percent | Amount</i> toggle. Neither, or both, is a 400 naming the field rather than a silent zero (phase 72:
+    /// a required field must not default).</summary>
+    public const string OneKindOfDiscount = "Give the discount as discountPct or as discountAmount, not both; 0 removes it.";
+
     public static IRuleBuilderOptions<T, decimal?> PosOrderDiscountPct<T>(this IRuleBuilder<T, decimal?> rule) =>
-        rule.NotNull()
-            .WithMessage("Give the discount as a percentage; 0 removes it.")
+        rule
             .InclusiveBetween(0m, 100m)
             .WithMessage("A discount is between 0% and 100%.")
             .Must(x => x is null || decimal.Round(x.Value, PosOrder.MaxDiscountScale) == x.Value)

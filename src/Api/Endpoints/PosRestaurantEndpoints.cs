@@ -147,13 +147,14 @@ public static class PosRestaurantEndpoints
         group.MapPut("/orders/{orderId:guid}/discount", async (
             Guid organizationId, Guid orderId, UpdatePosOrderDiscountRequest request, ISender sender, CancellationToken ct) =>
             Results.Ok(await sender.Send(
-                new UpdatePosOrderDiscountCommand(organizationId, orderId, request.DiscountPct), ct)));
+                new UpdatePosOrderDiscountCommand(organizationId, orderId, request.DiscountPct, request.DiscountAmount), ct)));
 
         group.MapPut("/orders/{orderId:guid}/lines/{lineId:guid}/discount", async (
             Guid organizationId, Guid orderId, Guid lineId, UpdatePosOrderDiscountRequest request, ISender sender,
             CancellationToken ct) =>
             Results.Ok(await sender.Send(
-                new UpdatePosOrderLineDiscountCommand(organizationId, orderId, lineId, request.DiscountPct), ct)));
+                new UpdatePosOrderLineDiscountCommand(
+                    organizationId, orderId, lineId, request.DiscountPct, request.DiscountAmount), ct)));
 
         group.MapPut("/orders/{orderId:guid}/service-charge", async (
             Guid organizationId, Guid orderId, UpdatePosOrderServiceChargeRequest request, ISender sender,
@@ -277,7 +278,8 @@ public static class PosRestaurantEndpoints
 
     private sealed record UpdatePosOrderTakeAwayRequest(Guid? LineId, decimal? Quantity);
 
-    private sealed record UpdatePosOrderDiscountRequest(decimal? DiscountPct);
+    // Phase 74 -- a percentage or an amount (per unit on a line), exactly one; the validators say so.
+    private sealed record UpdatePosOrderDiscountRequest(decimal? DiscountPct, decimal? DiscountAmount);
 
     private sealed record UpdatePosOrderServiceChargeRequest(bool? Waived);
 

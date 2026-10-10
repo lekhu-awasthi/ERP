@@ -35,6 +35,12 @@ public sealed record CreditNoteLineDto(
 
     /// <summary>Phase 70 -- the packaging fee a till refund line gives back; zero on an ERP line.</summary>
     public decimal PackagingFeeAmount { get; init; }
+
+    /// <summary>Phase 74 -- the sale line's Amount discount per unit; zero on an ERP line.</summary>
+    public decimal DiscountPerUnit { get; init; }
+
+    /// <summary>Phase 74 -- what this line gives back of the sale's Amount discount; zero on an ERP line.</summary>
+    public decimal BillDiscountAmount { get; init; }
 }
 
 /// <summary>Phase 63 -- one way a till refund was paid back.</summary>

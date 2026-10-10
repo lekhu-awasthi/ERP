@@ -132,8 +132,20 @@ public sealed class VoidInvoiceCommandHandler(IAppDbContext db, ICurrentUserServ
             return;
         }
 
-        var order = await db.PosOrders.SingleAsync(
-            x => x.Id == orderId && x.OrganizationId == invoice.OrganizationId, cancellationToken);
+        var order = await db.PosOrders
+            .Include(x => x.Lines)
+            .SingleAsync(x => x.Id == orderId && x.OrganizationId == invoice.OrganizationId, cancellationToken);
+
+        // Phase 74 -- the last bill voided unfixes the order's terms (phase 72), and with them how its amount
+        // discount is spread: until the next first bill, the spread follows the dishes again.
+        var anotherBill = await db.Invoices.AnyAsync(
+            x => x.OrganizationId == invoice.OrganizationId && x.PosOrderId == orderId && x.Id != invoice.Id
+                && x.Status == InvoiceStatus.Approved,
+            cancellationToken);
+        if (!anotherBill)
+        {
+            order.ReleaseDiscountShares(new Dictionary<Guid, decimal>());
+        }
 
         if (order.Status != PosOrderStatus.Settled)
         {

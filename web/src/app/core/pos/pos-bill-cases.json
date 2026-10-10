@@ -1,5 +1,5 @@
 {
-  "about": "Phase 62 -- the till's bill arithmetic, shared by the server (InvoiceLine.CreatePos, Invoice.ApplyRoundOff; PosBillSharedCasesTests) and the till screen (pos-bill.ts; pos-bill.spec.ts). The till shows a total before the server has seen the sale, and the cashier takes money against it, so the two must agree to the paisa. Every line figure is rounded to the paisa half away from zero; the bill is rounded to the nearest rupee half away from zero when the location rounds.",
+  "about": "Phase 62 -- the till's bill arithmetic, shared by the server (InvoiceLine.CreatePos, Invoice.ApplyRoundOff; PosBillSharedCasesTests) and the till screen (pos-bill.ts; pos-bill.spec.ts). The till shows a total before the server has seen the sale, and the cashier takes money against it, so the two must agree to the paisa. Every line figure is rounded to the paisa half away from zero; the bill is rounded to the nearest rupee half away from zero when the location rounds. Phase 74 -- a line may carry discountPerUnit (rupees off each unit) and a case discountAmount (rupees off the bill, spread over its lines by what each comes to, the residue on the largest); absent means none.",
   "cases": [
     {
       "why": "Phase 59's vendor table: 2 momo with 10% service charge and 2 coke without. 632.80 rounds to 633.",
@@ -684,6 +684,155 @@
         "vat": 80.47,
         "roundOff": -0.47,
         "grandTotal": 699
+      }
+    },
+    {
+      "why": "Phase 74: the vendor's own sale, read live on 2026-10-10. 10 off each of 3 momo at 333, and 50 off the bill spread 48.14 and 1.86, as the vendor spreads it: 1,080.84 on both tills.",
+      "roundOff": false,
+      "discountPct": 0,
+      "discountAmount": 50,
+      "lines": [
+        {
+          "quantity": 3,
+          "rate": 333,
+          "vatRate": "ThirteenPercentVat",
+          "discountPct": 0,
+          "serviceChargeRate": 0,
+          "discountPerUnit": 10
+        },
+        {
+          "quantity": 1,
+          "rate": 37.5,
+          "vatRate": "ThirteenPercentVat",
+          "discountPct": 0,
+          "serviceChargeRate": 0,
+          "discountPerUnit": 0
+        }
+      ],
+      "expected": {
+        "lines": [
+          {
+            "amount": 920.86,
+            "serviceCharge": 0,
+            "vat": 119.71,
+            "total": 1040.57
+          },
+          {
+            "amount": 35.64,
+            "serviceCharge": 0,
+            "vat": 4.63,
+            "total": 40.27
+          }
+        ],
+        "subTotal": 956.5,
+        "serviceCharge": 0,
+        "vat": 124.34,
+        "roundOff": 0,
+        "grandTotal": 1080.84
+      }
+    },
+    {
+      "why": "Phase 74: a bill amount is taken before the service charge, like a percentage: 25 over 370 and 60 is 21.51 and 3.49, the service charge on what is left.",
+      "roundOff": true,
+      "discountPct": 0,
+      "discountAmount": 25,
+      "lines": [
+        {
+          "quantity": 2,
+          "rate": 200,
+          "vatRate": "ThirteenPercentVat",
+          "discountPct": 0,
+          "serviceChargeRate": 10,
+          "discountPerUnit": 15
+        },
+        {
+          "quantity": 1,
+          "rate": 60,
+          "vatRate": "ThirteenPercentVat",
+          "discountPct": 0,
+          "serviceChargeRate": 0,
+          "discountPerUnit": 0
+        }
+      ],
+      "expected": {
+        "lines": [
+          {
+            "amount": 348.49,
+            "serviceCharge": 34.85,
+            "vat": 49.83,
+            "total": 433.17
+          },
+          {
+            "amount": 56.51,
+            "serviceCharge": 0,
+            "vat": 7.35,
+            "total": 63.86
+          }
+        ],
+        "subTotal": 405,
+        "serviceCharge": 34.85,
+        "vat": 57.18,
+        "roundOff": -0.03,
+        "grandTotal": 497
+      }
+    },
+    {
+      "why": "Phase 74: what rounding leaves over goes to the largest line, the first of equals: 0.10 over three lines is 0.04, 0.03, 0.03.",
+      "roundOff": false,
+      "discountPct": 0,
+      "discountAmount": 0.1,
+      "lines": [
+        {
+          "quantity": 1,
+          "rate": 1,
+          "vatRate": "NoVat",
+          "discountPct": 0,
+          "serviceChargeRate": 0,
+          "discountPerUnit": 0
+        },
+        {
+          "quantity": 1,
+          "rate": 1,
+          "vatRate": "NoVat",
+          "discountPct": 0,
+          "serviceChargeRate": 0,
+          "discountPerUnit": 0
+        },
+        {
+          "quantity": 1,
+          "rate": 1,
+          "vatRate": "NoVat",
+          "discountPct": 0,
+          "serviceChargeRate": 0,
+          "discountPerUnit": 0
+        }
+      ],
+      "expected": {
+        "lines": [
+          {
+            "amount": 0.96,
+            "serviceCharge": 0,
+            "vat": 0,
+            "total": 0.96
+          },
+          {
+            "amount": 0.97,
+            "serviceCharge": 0,
+            "vat": 0,
+            "total": 0.97
+          },
+          {
+            "amount": 0.97,
+            "serviceCharge": 0,
+            "vat": 0,
+            "total": 0.97
+          }
+        ],
+        "subTotal": 2.9,
+        "serviceCharge": 0,
+        "vat": 0,
+        "roundOff": 0,
+        "grandTotal": 2.9
       }
     }
   ]

@@ -194,6 +194,10 @@ export interface PosOrderLine {
    * order's discounts took. `serviceChargeRate` stays the line's own; the money is what it is billed at.
    */
   gross: number;
+  /** Phase 74 -- rupees off each unit, never beside `discountPct`. */
+  discountPerUnit: number;
+  /** Phase 74 -- this dish's share of the order's amount discount: live until the first bill, frozen from it. */
+  orderDiscountShare: number;
 }
 
 /** Phase 68 -- what a kitchen ticket is: food to cook, a cancellation, a parcel, or a transfer. */
@@ -273,6 +277,8 @@ export interface PosOrder {
   /** Phase 72 -- gross less discount is amount. */
   gross: number;
   discount: number;
+  /** Phase 74 -- the order's discount as rupees off the whole tab, never beside `discountPct`. */
+  discountAmount: number;
 }
 
 /** Phase 65 -- one bill an order has had; voided ones stay listed. */
@@ -359,6 +365,9 @@ export interface PosOrderBillLine {
   /** Phase 72 -- the line's own discount; its service charge rate above is the one it is billed at. */
   discountPct: number;
   gross: number;
+  /** Phase 74 -- rupees off each unit, and what this part carries of the order's amount discount. */
+  discountPerUnit: number;
+  billDiscountShare: number;
 }
 
 /** A part priced by the server: what the screen shows before payment and what the estimate prints. */
@@ -386,6 +395,8 @@ export interface PosOrderBillPreview {
   discount: number;
   discountPct: number;
   serviceChargeWaived: boolean;
+  /** Phase 74 -- what this part carries of the order's amount discount. */
+  discountAmount: number;
 }
 
 export interface CreatePosOrderInvoiceRequest extends PosOrderBillRequest {

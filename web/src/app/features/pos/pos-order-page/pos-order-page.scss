@@ -87,6 +87,12 @@
   border-bottom: 1px solid #e9ecef;
 }
 
+// Phase 74 -- the discount's Percent | Amount choice beside its input.
+.pos-discount-kind {
+  flex: 0 0 auto;
+  width: 5.5rem;
+}
+
 .pos-qty {
   width: 6rem;
 }

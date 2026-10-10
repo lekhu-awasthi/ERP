@@ -140,7 +140,8 @@ public static class PosEndpoints
                     request.OrderType,
                     request.DiscountPct,
                     request.OverrideStockWarning,
-                    request.OverrideCreditLimitWarning),
+                    request.OverrideCreditLimitWarning,
+                    request.DiscountAmount),
                 ct)));
 
         // Phase 66 -- phase 61's /day-summary became the Day Report over a period (PosReportEndpoints).
@@ -266,7 +267,8 @@ public static class PosEndpoints
         PosTab? OrderType,
         decimal DiscountPct,
         bool OverrideStockWarning,
-        bool OverrideCreditLimitWarning);
+        bool OverrideCreditLimitWarning,
+        decimal DiscountAmount);
 
     // Phase 63 -- every field each request takes (phase 27b). No date: the refund stamps the Nepal date.
     private sealed record PreviewPosRefundRequest(
