@@ -4,9 +4,10 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { ConfigurationService } from '../../../core/configuration/configuration.service';
-import { PrintingTemplate } from '../../../core/configuration/configuration.models';
+import { CustomFieldDefinition, PrintElementsForType, PrintingTemplate } from '../../../core/configuration/configuration.models';
 import { DocumentType } from '../../../core/sales/sales.models';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
+import { PrintingTemplateLayoutEditor } from './printing-template-layout-editor';
 
 /** The subset of DocumentType this screen offers -- excludes the numbering-pool-only types
  * (Account/Contact/Product) and the day-zero types (OpeningBalance/OpeningStock), neither of
@@ -28,7 +29,7 @@ const PRINTABLE_DOCUMENT_TYPES: DocumentType[] = [
  */
 @Component({
   selector: 'app-printing-template-list-page',
-  imports: [ReactiveFormsModule, RouterLink, StatusBanner],
+  imports: [ReactiveFormsModule, RouterLink, StatusBanner, PrintingTemplateLayoutEditor],
   templateUrl: './printing-template-list-page.html',
 })
 export class PrintingTemplateListPage {
@@ -45,6 +46,17 @@ export class PrintingTemplateListPage {
   protected readonly items = signal<PrintingTemplate[]>([]);
   protected readonly editingId = signal<string | null>(null);
 
+  /** Phase 73 -- the template whose layout is open, as a one-item list so the editor is created afresh (and starts
+   * from what is saved) each time another template is opened. */
+  protected readonly layoutTemplateId = signal<string | null>(null);
+  protected readonly layoutTemplate = computed(() => {
+    const id = this.layoutTemplateId();
+    const template = this.items().find((item) => item.id === id);
+    return template ? [template] : [];
+  });
+  protected readonly elementTable = signal<PrintElementsForType[]>([]);
+  protected readonly customFields = signal<CustomFieldDefinition[]>([]);
+
   /** Sorted by DocumentType then Name so same-type rows sit together without a separate section
    * per type. */
   protected readonly sortedItems = computed(() =>
@@ -58,6 +70,31 @@ export class PrintingTemplateListPage {
   });
 
   constructor() {
+    this.load();
+    this.configurationService.listPrintElements(this.organizationId).subscribe({
+      next: (table) => this.elementTable.set(table),
+      error: (err: unknown) => this.errorMessage.set(extractErrorMessage(err) ?? 'Could not load the printable elements.'),
+    });
+    this.configurationService.listCustomFieldDefinitions(this.organizationId).subscribe({
+      next: (fields) => this.customFields.set(fields),
+      error: (err: unknown) => this.errorMessage.set(extractErrorMessage(err) ?? 'Could not load custom fields.'),
+    });
+  }
+
+  protected openLayout(item: PrintingTemplate): void {
+    this.layoutTemplateId.set(item.id);
+  }
+
+  /** Focus returns to the row's Layout button, so a keyboard user is not dropped onto the page (phase 72). */
+  protected closeLayout(): void {
+    const id = this.layoutTemplateId();
+    this.layoutTemplateId.set(null);
+    if (id) {
+      setTimeout(() => document.getElementById(`printing-template-layout-${id}`)?.focus());
+    }
+  }
+
+  protected reload(): void {
     this.load();
   }
 

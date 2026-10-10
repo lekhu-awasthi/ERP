@@ -2039,3 +2039,24 @@ discount with a 200; the commands' fields are nullable and `NotNull`, so the 400
 
 **A control that removes itself drops a keyboard user onto the page.** The customer search now hands focus back to the
 button that opened it (`returnFocusTo`); the Retail till and the order screen had lost it since phases 62 and 64.
+
+## Phase 73 — Printing templates: three fixed layouts, show/hide toggles, the custom fields a bill prints
+
+**Read `phase-73-status.md` before building another layout, letting a setting change what a bill shows, adding a
+column to a printed table, or giving a screen a table of what a rule allows.**
+
+**A template stores what it hides, never what it shows.** The empty set is "everything", so every new column's default
+was true of every existing row and an organization with no template prints through `PrintingTemplateSettings.Default`,
+the same values. The consequence is deliberate: the unit, the HS code (where a line has one) and the amount in words
+now print for every tenant until someone hides them.
+
+**One pure function applies a template, for a print and for its preview.** `PrintTemplateApplier` runs on the finished
+DTO, drops hidden columns by the `PrintElement` each column names (cells and total row with it), and re-checks
+`PrintElements.CanHide` so a tax document's statutory content survives a row written by any other door. A layout is
+drawing code (`DocumentPdfRenderer`'s `Style`), never data: the vendor's five A4 layouts share one settings shape.
+
+**The browser draws what the rule allows from the server's table** (`GET /printing-templates/elements`), never from a
+TypeScript copy; a locked element is checked and disabled with its reason beside it.
+
+**Look at the PDF.** Two new columns made money wrap in ruled cells and a quantity run into its unit; extracted text
+read both as ordinary lines and no test failed.

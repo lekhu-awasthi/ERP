@@ -297,3 +297,17 @@ beside a 200 from the same user, and create a fresh Organization per phase.
   `/products`, `/contacts`, `/configuration/payment-modes`, `/billing-locations` and `/roles` are **201**;
   `PUT /accounting-defaults`, `PUT /pos/locations/{id}/mode|payment-modes|settings`, `PUT /pos/areas/{id}/layout` and
   `PUT /roles/{id}/permissions` are **200**.
+
+- Phase 73's printing-template routes are under **`/configuration/`**: `POST /configuration/printing-templates`
+  `{name, documentType}` (201; the first for a type is the default), `PUT .../{id}/layout` `{layout, hiddenElements,
+  printedCustomFieldIds, footerText, compactMargins}` (200; every member required, enums by name), `POST .../preview`
+  (the same plus `documentType`, returns a PDF) and `GET .../elements`. Custom fields are `POST
+  /configuration/custom-field-definitions` `{name, type, applicableDocumentTypes, choiceOptions}` (201) and
+  `PUT /configuration/custom-field-values/{documentType}/{id}` `{values: [{fieldDefinitionId, value}]}` (**204**). In
+  SQL, `configuration.PrintingTemplates.HiddenElements` and `.PrintedCustomFieldIds` are comma-joined, so read them
+  with `-s'|'`, not `-s','` (phase-73).
+- `POST /invoices` takes a **required** `warehouseId` even when every line is a Service product; null is a 400 that
+  names no field ("Failed to read parameter"). Create a warehouse in the seed (phase-73).
+- The auth cookie's JWT lives **one hour**. A browser pass that runs past it lands on Sign In with three 401s in the
+  console; log in again from the script and re-transplant the cookie (on `https://localhost:7104`, since a `Secure`
+  cookie cannot be set from the `http://localhost:4200` page and cookies are shared across ports) (phase-73).

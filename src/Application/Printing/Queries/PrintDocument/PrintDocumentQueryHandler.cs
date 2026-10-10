@@ -2,6 +2,7 @@ using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Formatting;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Domain.Common;
+using ErpApp.Domain.Configuration;
 using ErpApp.Domain.Contacts;
 using ErpApp.Domain.Sales;
 using ErpApp.Domain.Tenancy;
@@ -48,46 +49,56 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
 
         var organization = await db.Organizations.SingleAsync(x => x.Id == request.OrganizationId, cancellationToken);
 
-        var templateName = await db.PrintingTemplates
-            .Where(x => x.OrganizationId == request.OrganizationId && x.DocumentType == request.DocumentType && x.IsDefault)
-            .Select(x => x.Name)
-            .SingleOrDefaultAsync(cancellationToken) ?? "Default";
+        // Phase 73 -- the type's default template, or the settings every document printed with before there were
+        // any. Read into a field because the builders consult it below the frame (a product's label drops its code,
+        // the logo's blob is not read when hidden); everything else it does is PrintTemplateApplier's, once, below.
+        var defaultTemplate = await db.PrintingTemplates.SingleOrDefaultAsync(
+            x => x.OrganizationId == request.OrganizationId && x.DocumentType == request.DocumentType && x.IsDefault,
+            cancellationToken);
+        template = defaultTemplate?.Settings ?? PrintingTemplateSettings.Default;
 
-        return request.DocumentType switch
+        var dto = request.DocumentType switch
         {
-            DocumentType.Quotation => await BuildQuotationAsync(request, organization, templateName, cancellationToken),
-            DocumentType.SalesOrder => await BuildSalesOrderAsync(request, organization, templateName, cancellationToken),
-            DocumentType.Invoice => await BuildInvoiceAsync(request, organization, templateName, cancellationToken),
-            DocumentType.CreditNote => await BuildCreditNoteAsync(request, organization, templateName, cancellationToken),
-            DocumentType.Payment => await BuildPaymentAsync(request, organization, templateName, cancellationToken),
-            DocumentType.PurchaseOrder => await BuildPurchaseOrderAsync(request, organization, templateName, cancellationToken),
-            DocumentType.PurchaseBill => await BuildPurchaseBillAsync(request, organization, templateName, cancellationToken),
-            DocumentType.Expense => await BuildExpenseAsync(request, organization, templateName, cancellationToken),
-            DocumentType.DebitNote => await BuildDebitNoteAsync(request, organization, templateName, cancellationToken),
-            DocumentType.JournalVoucher => await BuildJournalVoucherAsync(request, organization, templateName, cancellationToken),
-            DocumentType.CashTransfer => await BuildCashTransferAsync(request, organization, templateName, cancellationToken),
-            DocumentType.WarehouseTransfer => await BuildWarehouseTransferAsync(request, organization, templateName, cancellationToken),
-            DocumentType.InventoryAdjustment => await BuildInventoryAdjustmentAsync(request, organization, templateName, cancellationToken),
-            DocumentType.ProductionOrder => await BuildProductionOrderAsync(request, organization, templateName, cancellationToken),
-            DocumentType.ProductionJournal => await BuildProductionJournalAsync(request, organization, templateName, cancellationToken),
-            DocumentType.DeliveryNote => await BuildDeliveryNoteAsync(request, organization, templateName, cancellationToken),
-            DocumentType.GoodsReceivedNote => await BuildGoodsReceivedNoteAsync(request, organization, templateName, cancellationToken),
+            DocumentType.Quotation => await BuildQuotationAsync(request, organization, cancellationToken),
+            DocumentType.SalesOrder => await BuildSalesOrderAsync(request, organization, cancellationToken),
+            DocumentType.Invoice => await BuildInvoiceAsync(request, organization, cancellationToken),
+            DocumentType.CreditNote => await BuildCreditNoteAsync(request, organization, cancellationToken),
+            DocumentType.Payment => await BuildPaymentAsync(request, organization, cancellationToken),
+            DocumentType.PurchaseOrder => await BuildPurchaseOrderAsync(request, organization, cancellationToken),
+            DocumentType.PurchaseBill => await BuildPurchaseBillAsync(request, organization, cancellationToken),
+            DocumentType.Expense => await BuildExpenseAsync(request, organization, cancellationToken),
+            DocumentType.DebitNote => await BuildDebitNoteAsync(request, organization, cancellationToken),
+            DocumentType.JournalVoucher => await BuildJournalVoucherAsync(request, organization, cancellationToken),
+            DocumentType.CashTransfer => await BuildCashTransferAsync(request, organization, cancellationToken),
+            DocumentType.WarehouseTransfer => await BuildWarehouseTransferAsync(request, organization, cancellationToken),
+            DocumentType.InventoryAdjustment => await BuildInventoryAdjustmentAsync(request, organization, cancellationToken),
+            DocumentType.ProductionOrder => await BuildProductionOrderAsync(request, organization, cancellationToken),
+            DocumentType.ProductionJournal => await BuildProductionJournalAsync(request, organization, cancellationToken),
+            DocumentType.DeliveryNote => await BuildDeliveryNoteAsync(request, organization, cancellationToken),
+            DocumentType.GoodsReceivedNote => await BuildGoodsReceivedNoteAsync(request, organization, cancellationToken),
             _ => throw new ArgumentOutOfRangeException(
                 nameof(request.DocumentType), request.DocumentType, "This document type has no printable record."),
         };
+
+        dto = dto with { CustomFields = await CustomFieldsAsync(request, cancellationToken) };
+
+        return PrintTemplateApplier.Apply(dto, template);
     }
+
+    /// <summary>Phase 73 -- the request's default template's settings; set first thing in <see cref="Handle"/>.</summary>
+    private PrintingTemplateSettings template = PrintingTemplateSettings.Default;
 
     // ---- Sales -------------------------------------------------------------------------------
 
     private async Task<PrintableDocumentDto> BuildQuotationAsync(
-        PrintDocumentQuery request, Organization organization, string templateName, CancellationToken ct)
+        PrintDocumentQuery request, Organization organization, CancellationToken ct)
     {
         var document = await db.Quotations.Include(x => x.Lines).SingleOrDefaultAsync(
             x => x.Id == request.DocumentId && x.OrganizationId == request.OrganizationId, ct)
             ?? throw new NotFoundException("Quotation not found.");
 
         var lines = document.Lines
-            .Select(l => new ProductLine(l.ProductId, l.Quantity, l.Rate, l.DiscountPct, l.Amount, l.VatAmount))
+            .Select(l => new ProductLine(l.ProductId, l.Quantity, l.Rate, l.DiscountPct, l.Amount, l.VatAmount, l.UnitId))
             .ToList();
 
         var header = new List<PrintableFieldDto>();
@@ -97,37 +108,37 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
         }
 
         return await BuildProductDocumentAsync(
-            request, organization, templateName, "Quotation", document.Code, document.Date, document.Reference,
+            request, organization, "Quotation", document.Code, document.Date, document.Reference,
             document.ContactId, "Quotation For", header, lines, document.DiscountPct, document.Terms, ct,
             currencyCode: document.CurrencyCode, exchangeRate: document.ExchangeRate);
     }
 
     private async Task<PrintableDocumentDto> BuildSalesOrderAsync(
-        PrintDocumentQuery request, Organization organization, string templateName, CancellationToken ct)
+        PrintDocumentQuery request, Organization organization, CancellationToken ct)
     {
         var document = await db.SalesOrders.Include(x => x.Lines).SingleOrDefaultAsync(
             x => x.Id == request.DocumentId && x.OrganizationId == request.OrganizationId, ct)
             ?? throw new NotFoundException("Sales order not found.");
 
         var lines = document.Lines
-            .Select(l => new ProductLine(l.ProductId, l.Quantity, l.Rate, l.DiscountPct, l.Amount, l.VatAmount))
+            .Select(l => new ProductLine(l.ProductId, l.Quantity, l.Rate, l.DiscountPct, l.Amount, l.VatAmount, l.UnitId))
             .ToList();
 
         return await BuildProductDocumentAsync(
-            request, organization, templateName, "Sales Order", document.Code, document.Date, document.Reference,
+            request, organization, "Sales Order", document.Code, document.Date, document.Reference,
             document.ContactId, "Order For", [], lines, document.DiscountPct, document.Terms, ct,
             currencyCode: document.CurrencyCode, exchangeRate: document.ExchangeRate);
     }
 
     private async Task<PrintableDocumentDto> BuildInvoiceAsync(
-        PrintDocumentQuery request, Organization organization, string templateName, CancellationToken ct)
+        PrintDocumentQuery request, Organization organization, CancellationToken ct)
     {
         var document = await db.Invoices.Include(x => x.Lines).SingleOrDefaultAsync(
             x => x.Id == request.DocumentId && x.OrganizationId == request.OrganizationId, ct)
             ?? throw new NotFoundException("Invoice not found.");
 
         var lines = document.Lines
-            .Select(l => new ProductLine(l.ProductId, l.Quantity, l.Rate, l.DiscountPct, l.Amount, l.VatAmount)
+            .Select(l => new ProductLine(l.ProductId, l.Quantity, l.Rate, l.DiscountPct, l.Amount, l.VatAmount, l.UnitId)
             {
                 ServiceChargeAmount = l.ServiceChargeAmount,
                 PackagingFeeAmount = l.PackagingFeeAmount,
@@ -148,7 +159,7 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
         var heading = InvoiceHeadings.For(organization.IsVatRegistered, document.IsAbbreviatedTaxInvoice);
 
         var dto = await BuildProductDocumentAsync(
-            request, organization, templateName, InvoiceHeadings.English(heading), document.Code, document.Date, document.Reference,
+            request, organization, InvoiceHeadings.English(heading), document.Code, document.Date, document.Reference,
             document.ContactId, "Bill To", header, lines, document.DiscountPct, document.Terms, ct,
             currencyCode: document.CurrencyCode, exchangeRate: document.ExchangeRate, roundOff: document.RoundOff);
 
@@ -161,7 +172,7 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
     }
 
     private async Task<PrintableDocumentDto> BuildCreditNoteAsync(
-        PrintDocumentQuery request, Organization organization, string templateName, CancellationToken ct)
+        PrintDocumentQuery request, Organization organization, CancellationToken ct)
     {
         var document = await db.CreditNotes.Include(x => x.Lines).SingleOrDefaultAsync(
             x => x.Id == request.DocumentId && x.OrganizationId == request.OrganizationId, ct)
@@ -170,7 +181,7 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
         // Phase 63 -- a till refund's service charge and round-off print as the sale's do (both zero on
         // an ERP note).
         var lines = document.Lines
-            .Select(l => new ProductLine(l.ProductId, l.Quantity, l.Rate, l.DiscountPct, l.Amount, l.VatAmount)
+            .Select(l => new ProductLine(l.ProductId, l.Quantity, l.Rate, l.DiscountPct, l.Amount, l.VatAmount, l.UnitId)
             {
                 ServiceChargeAmount = l.ServiceChargeAmount,
                 PackagingFeeAmount = l.PackagingFeeAmount,
@@ -210,7 +221,7 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
         }
 
         var dto = await BuildProductDocumentAsync(
-            request, organization, templateName, "Credit Note", document.Code, document.Date, document.Reference,
+            request, organization, "Credit Note", document.Code, document.Date, document.Reference,
             document.ContactId, "Credit To", header, lines, document.DiscountPct, document.Terms, ct,
             currencyCode: document.CurrencyCode, exchangeRate: document.ExchangeRate, roundOff: document.RoundOff);
 
@@ -273,7 +284,7 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
     /// allocated against). An unallocated payment prints the second section empty rather than
     /// omitting it -- a receipt that silently drops the section reads as if nothing is outstanding.</summary>
     private async Task<PrintableDocumentDto> BuildPaymentAsync(
-        PrintDocumentQuery request, Organization organization, string templateName, CancellationToken ct)
+        PrintDocumentQuery request, Organization organization, CancellationToken ct)
     {
         var document = await db.Payments.SingleOrDefaultAsync(
             x => x.Id == request.DocumentId && x.OrganizationId == request.OrganizationId, ct)
@@ -339,46 +350,46 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
         };
 
         return await BuildDocumentAsync(
-            request, organization, templateName,
+            request, organization,
             received ? "Customer Receipt" : "Supplier Payment",
             document.Code, document.Date, document.Reference,
             document.ContactId, received ? "Received From" : "Paid To",
             header, sections, summary, notes: null, terms: null, ct,
-            document.CurrencyCode, document.ExchangeRate);
+            document.CurrencyCode, document.ExchangeRate, amountInWordsTotal: document.Amount);
     }
 
     // ---- Purchasing --------------------------------------------------------------------------
 
     private async Task<PrintableDocumentDto> BuildPurchaseOrderAsync(
-        PrintDocumentQuery request, Organization organization, string templateName, CancellationToken ct)
+        PrintDocumentQuery request, Organization organization, CancellationToken ct)
     {
         var document = await db.PurchaseOrders.Include(x => x.Lines).SingleOrDefaultAsync(
             x => x.Id == request.DocumentId && x.OrganizationId == request.OrganizationId, ct)
             ?? throw new NotFoundException("Purchase order not found.");
 
         var lines = document.Lines
-            .Select(l => new ProductLine(l.ProductId, l.Quantity, l.Rate, l.DiscountPct, l.Amount, l.VatAmount))
+            .Select(l => new ProductLine(l.ProductId, l.Quantity, l.Rate, l.DiscountPct, l.Amount, l.VatAmount, l.UnitId))
             .ToList();
 
         return await BuildProductDocumentAsync(
-            request, organization, templateName, "Purchase Order", document.Code, document.Date, document.Reference,
+            request, organization, "Purchase Order", document.Code, document.Date, document.Reference,
             document.ContactId, "Supplier", [], lines, document.DiscountPct, document.Terms, ct,
             currencyCode: document.CurrencyCode, exchangeRate: document.ExchangeRate);
     }
 
     private async Task<PrintableDocumentDto> BuildPurchaseBillAsync(
-        PrintDocumentQuery request, Organization organization, string templateName, CancellationToken ct)
+        PrintDocumentQuery request, Organization organization, CancellationToken ct)
     {
         var document = await db.PurchaseBills.Include(x => x.Lines).SingleOrDefaultAsync(
             x => x.Id == request.DocumentId && x.OrganizationId == request.OrganizationId, ct)
             ?? throw new NotFoundException("Purchase bill not found.");
 
         var lines = document.Lines
-            .Select(l => new ProductLine(l.ProductId, l.Quantity, l.Rate, l.DiscountPct, l.Amount, l.VatAmount))
+            .Select(l => new ProductLine(l.ProductId, l.Quantity, l.Rate, l.DiscountPct, l.Amount, l.VatAmount, l.UnitId))
             .ToList();
 
         return await BuildProductDocumentAsync(
-            request, organization, templateName, "Purchase Bill", document.Code, document.Date, document.Reference,
+            request, organization, "Purchase Bill", document.Code, document.Date, document.Reference,
             document.ContactId, "Supplier", [], lines, document.DiscountPct, terms: null, tdsAmount: document.TdsAmount, ct: ct,
             currencyCode: document.CurrencyCode, exchangeRate: document.ExchangeRate);
     }
@@ -386,7 +397,7 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
     /// <summary>Expense lines carry an <b>account</b>, not a product -- the one line-item document
     /// whose table is not a product table.</summary>
     private async Task<PrintableDocumentDto> BuildExpenseAsync(
-        PrintDocumentQuery request, Organization organization, string templateName, CancellationToken ct)
+        PrintDocumentQuery request, Organization organization, CancellationToken ct)
     {
         var document = await db.Expenses.Include(x => x.Lines).SingleOrDefaultAsync(
             x => x.Id == request.DocumentId && x.OrganizationId == request.OrganizationId, ct)
@@ -439,25 +450,25 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
         }
 
         return await BuildDocumentAsync(
-            request, organization, templateName, "Expense", document.Code, document.Date,
+            request, organization, "Expense", document.Code, document.Date,
             reference: null, document.ContactId, "Supplier",
             header, sections, summary, document.Notes, terms: null, ct,
-            document.CurrencyCode, document.ExchangeRate);
+            document.CurrencyCode, document.ExchangeRate, amountInWordsTotal: subTotal + vat - document.TdsAmount);
     }
 
     private async Task<PrintableDocumentDto> BuildDebitNoteAsync(
-        PrintDocumentQuery request, Organization organization, string templateName, CancellationToken ct)
+        PrintDocumentQuery request, Organization organization, CancellationToken ct)
     {
         var document = await db.DebitNotes.Include(x => x.Lines).SingleOrDefaultAsync(
             x => x.Id == request.DocumentId && x.OrganizationId == request.OrganizationId, ct)
             ?? throw new NotFoundException("Debit note not found.");
 
         var lines = document.Lines
-            .Select(l => new ProductLine(l.ProductId, l.Quantity, l.Rate, l.DiscountPct, l.Amount, l.VatAmount))
+            .Select(l => new ProductLine(l.ProductId, l.Quantity, l.Rate, l.DiscountPct, l.Amount, l.VatAmount, l.UnitId))
             .ToList();
 
         var dto = await BuildProductDocumentAsync(
-            request, organization, templateName, "Debit Note", document.Code, document.Date, document.Reference,
+            request, organization, "Debit Note", document.Code, document.Date, document.Reference,
             document.ContactId, "Debit To", [], lines, document.DiscountPct, terms: null, tdsAmount: document.TdsAmount, ct: ct,
             currencyCode: document.CurrencyCode, exchangeRate: document.ExchangeRate);
 
@@ -467,7 +478,7 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
     // ---- Accounting --------------------------------------------------------------------------
 
     private async Task<PrintableDocumentDto> BuildJournalVoucherAsync(
-        PrintDocumentQuery request, Organization organization, string templateName, CancellationToken ct)
+        PrintDocumentQuery request, Organization organization, CancellationToken ct)
     {
         var document = await db.JournalVouchers.Include(x => x.Lines).SingleOrDefaultAsync(
             x => x.Id == request.DocumentId && x.OrganizationId == request.OrganizationId, ct)
@@ -500,7 +511,7 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
         };
 
         return await BuildDocumentAsync(
-            request, organization, templateName, "Journal Voucher", document.Code, document.Date, document.Reference,
+            request, organization, "Journal Voucher", document.Code, document.Date, document.Reference,
             contactId: null, partyHeading: null, [], sections,
             [new PrintableFieldDto("Total", Money(totalDebit), Emphasise: true)], notes: null, terms: null, ct,
             document.CurrencyCode, document.ExchangeRate);
@@ -509,7 +520,7 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
     /// <summary>Two sections named exactly as the reference product prints them -- "Transferred
     /// From" carries the single source account, "Transferred To" the destination lines.</summary>
     private async Task<PrintableDocumentDto> BuildCashTransferAsync(
-        PrintDocumentQuery request, Organization organization, string templateName, CancellationToken ct)
+        PrintDocumentQuery request, Organization organization, CancellationToken ct)
     {
         var document = await db.CashTransfers.Include(x => x.Lines).SingleOrDefaultAsync(
             x => x.Id == request.DocumentId && x.OrganizationId == request.OrganizationId, ct)
@@ -541,7 +552,7 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
         };
 
         return await BuildDocumentAsync(
-            request, organization, templateName, "Transfer", document.Code, document.Date, document.Reference,
+            request, organization, "Transfer", document.Code, document.Date, document.Reference,
             contactId: null, partyHeading: null, [], sections,
             [new PrintableFieldDto("Total Transfer", Money(total), Emphasise: true)], notes: null, terms: null, ct,
             document.CurrencyCode, document.ExchangeRate);
@@ -553,7 +564,7 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
     /// Templates page lists a Delivery Note section, and its money prints as its own form shows it:
     /// the lines, discount, VAT and total the document carries, none of which is posted.</summary>
     private async Task<PrintableDocumentDto> BuildDeliveryNoteAsync(
-        PrintDocumentQuery request, Organization organization, string templateName, CancellationToken ct)
+        PrintDocumentQuery request, Organization organization, CancellationToken ct)
     {
         var document = await db.DeliveryNotes.Include(x => x.Lines).SingleOrDefaultAsync(
             x => x.Id == request.DocumentId && x.OrganizationId == request.OrganizationId, ct)
@@ -578,18 +589,18 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
         }
 
         var lines = document.Lines
-            .Select(l => new ProductLine(l.ProductId, l.Quantity, l.Rate, l.DiscountPct, l.Amount, l.VatAmount))
+            .Select(l => new ProductLine(l.ProductId, l.Quantity, l.Rate, l.DiscountPct, l.Amount, l.VatAmount, l.UnitId))
             .ToList();
 
         return await BuildProductDocumentAsync(
-            request, organization, templateName, "Delivery Note", document.Code, document.Date, document.Reference,
+            request, organization, "Delivery Note", document.Code, document.Date, document.Reference,
             document.ContactId, "Customer", header, lines, document.DiscountPct, document.Terms, ct,
             currencyCode: document.CurrencyCode, exchangeRate: document.ExchangeRate);
     }
 
     /// <summary>The Purchase Order print plus the warehouse and tracking number.</summary>
     private async Task<PrintableDocumentDto> BuildGoodsReceivedNoteAsync(
-        PrintDocumentQuery request, Organization organization, string templateName, CancellationToken ct)
+        PrintDocumentQuery request, Organization organization, CancellationToken ct)
     {
         var document = await db.GoodsReceivedNotes.Include(x => x.Lines).SingleOrDefaultAsync(
             x => x.Id == request.DocumentId && x.OrganizationId == request.OrganizationId, ct)
@@ -605,11 +616,11 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
         }
 
         var lines = document.Lines
-            .Select(l => new ProductLine(l.ProductId, l.Quantity, l.Rate, l.DiscountPct, l.Amount, l.VatAmount))
+            .Select(l => new ProductLine(l.ProductId, l.Quantity, l.Rate, l.DiscountPct, l.Amount, l.VatAmount, l.UnitId))
             .ToList();
 
         return await BuildProductDocumentAsync(
-            request, organization, templateName, "Goods Received Note", document.Code, document.Date, document.Reference,
+            request, organization, "Goods Received Note", document.Code, document.Date, document.Reference,
             document.ContactId, "Supplier", header, lines, document.DiscountPct, terms: null, ct,
             currencyCode: document.CurrencyCode, exchangeRate: document.ExchangeRate);
     }
@@ -617,7 +628,7 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
     // ---- Inventory ---------------------------------------------------------------------------
 
     private async Task<PrintableDocumentDto> BuildWarehouseTransferAsync(
-        PrintDocumentQuery request, Organization organization, string templateName, CancellationToken ct)
+        PrintDocumentQuery request, Organization organization, CancellationToken ct)
     {
         var document = await db.WarehouseTransfers.Include(x => x.Lines).SingleOrDefaultAsync(
             x => x.Id == request.DocumentId && x.OrganizationId == request.OrganizationId, ct)
@@ -644,14 +655,14 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
         };
 
         return await BuildDocumentAsync(
-            request, organization, templateName, "Warehouse Transfer", document.Code, document.Date, document.Reference,
+            request, organization, "Warehouse Transfer", document.Code, document.Date, document.Reference,
             contactId: null, partyHeading: null, header, sections,
             [new PrintableFieldDto("Total Quantity", Quantity(document.Lines.Sum(l => l.Quantity)), Emphasise: true)],
             notes: null, terms: null, ct);
     }
 
     private async Task<PrintableDocumentDto> BuildInventoryAdjustmentAsync(
-        PrintDocumentQuery request, Organization organization, string templateName, CancellationToken ct)
+        PrintDocumentQuery request, Organization organization, CancellationToken ct)
     {
         var document = await db.InventoryAdjustments.Include(x => x.Lines).SingleOrDefaultAsync(
             x => x.Id == request.DocumentId && x.OrganizationId == request.OrganizationId, ct)
@@ -686,7 +697,7 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
         };
 
         return await BuildDocumentAsync(
-            request, organization, templateName, "Inventory Adjustment", document.Code, document.Date, document.Reference,
+            request, organization, "Inventory Adjustment", document.Code, document.Date, document.Reference,
             contactId: null, partyHeading: null,
             [new PrintableFieldDto("Warehouse", warehouseName ?? "-")], sections,
             [new PrintableFieldDto("Total Value", Money(document.Lines.Sum(l => l.Quantity * l.UnitCost)), Emphasise: true)],
@@ -696,7 +707,7 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
     // ---- Manufacturing -----------------------------------------------------------------------
 
     private async Task<PrintableDocumentDto> BuildProductionOrderAsync(
-        PrintDocumentQuery request, Organization organization, string templateName, CancellationToken ct)
+        PrintDocumentQuery request, Organization organization, CancellationToken ct)
     {
         var document = await db.ProductionOrders
             .Include(x => x.RawMaterials).Include(x => x.ByProducts).Include(x => x.Expenses)
@@ -741,7 +752,7 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
         };
 
         return await BuildDocumentAsync(
-            request, organization, templateName, "Production Order", document.Code, document.Date, document.Reference,
+            request, organization, "Production Order", document.Code, document.Date, document.Reference,
             contactId: null, partyHeading: null, header, sections,
             [new PrintableFieldDto("Planned Expenses", Money(document.Expenses.Sum(l => l.Amount)), Emphasise: true)],
             document.Notes, terms: null, ct);
@@ -754,7 +765,7 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
     /// journal is approved, so a Draft prints the tables with a summary that says so rather than
     /// printing zeroes as if they were computed.</summary>
     private async Task<PrintableDocumentDto> BuildProductionJournalAsync(
-        PrintDocumentQuery request, Organization organization, string templateName, CancellationToken ct)
+        PrintDocumentQuery request, Organization organization, CancellationToken ct)
     {
         var document = await db.ProductionJournals
             .Include(x => x.RawMaterials).Include(x => x.ByProducts).Include(x => x.Expenses)
@@ -832,7 +843,7 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
         };
 
         return await BuildDocumentAsync(
-            request, organization, templateName, "Production Journal", document.Code, document.Date, document.Reference,
+            request, organization, "Production Journal", document.Code, document.Date, document.Reference,
             contactId: null, partyHeading: null, header, sections, summary, document.Notes, terms: null, ct);
     }
 
@@ -843,7 +854,7 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
     /// document, which is why they are init properties rather than positional ones every one of the seven
     /// builders would have to pass.</summary>
     private readonly record struct ProductLine(
-        Guid ProductId, decimal Quantity, decimal Rate, decimal DiscountPct, decimal Amount, decimal VatAmount)
+        Guid ProductId, decimal Quantity, decimal Rate, decimal DiscountPct, decimal Amount, decimal VatAmount, Guid? UnitId)
     {
         public decimal ServiceChargeAmount { get; init; }
 
@@ -857,7 +868,6 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
     private async Task<PrintableDocumentDto> BuildProductDocumentAsync(
         PrintDocumentQuery request,
         Organization organization,
-        string templateName,
         string title,
         string code,
         DateOnly date,
@@ -874,32 +884,67 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
         decimal? exchangeRate = null,
         decimal roundOff = 0)
     {
-        var products = await ProductLabelsAsync(lines.Select(l => l.ProductId), ct);
+        var products = await ProductDetailsAsync(lines.Select(l => l.ProductId), ct);
+
+        // Phase 73 -- the unit a line was entered in (phase 52: the line stores it, or the product's primary unit when
+        // it names none), and the product's HS code. Each is a template element; an HS code column with nothing in it
+        // is left out rather than printed empty, since most products carry none.
+        Guid? UnitOf(ProductLine line) => line.UnitId ?? products.GetValueOrDefault(line.ProductId)?.PrimaryUnitId;
+        var units = await UnitNamesAsync(lines.Select(UnitOf), ct);
+        string UnitName(ProductLine line) => UnitOf(line) is { } unitId ? units.GetValueOrDefault(unitId, string.Empty) : string.Empty;
+        var anyHsCode = lines.Any(l => !string.IsNullOrWhiteSpace(products.GetValueOrDefault(l.ProductId)?.HsCode));
+
+        List<string> Cells(string product, string hsCode, string quantity, string unit, string rate, string discount, string vatAmount, string amount)
+        {
+            var cells = new List<string> { product };
+            if (anyHsCode)
+            {
+                cells.Add(hsCode);
+            }
+
+            cells.AddRange([quantity, unit, rate, discount, vatAmount, amount]);
+            return cells;
+        }
+
+        // Phase 73 -- widths sized so a six-figure amount ("1,24,300.00" is no longer than "124,300.00") fits a ruled
+        // cell on one line: money gets more room than the short columns (quantity, unit, percent) beside it.
+        var columns = new List<PrintableColumnDto> { new("Product", 3.4f) };
+        if (anyHsCode)
+        {
+            columns.Add(new PrintableColumnDto("HS Code", 1, Element: PrintElement.HsCode));
+        }
+
+        columns.AddRange([
+            new PrintableColumnDto("Qty", 0.8f, AlignRight: true),
+            new PrintableColumnDto("Unit", 0.8f, Element: PrintElement.Unit),
+            new PrintableColumnDto("Rate", 1.4f, AlignRight: true),
+            new PrintableColumnDto("Disc %", 0.8f, AlignRight: true, Element: PrintElement.DiscountColumn),
+            new PrintableColumnDto("VAT", 1.2f, AlignRight: true, Element: PrintElement.VatColumn),
+            new PrintableColumnDto("Amount", 1.5f, AlignRight: true),
+        ]);
+
+        // A quantity total means something only in one unit; across a box and a piece it adds unlike things, so the
+        // total row leaves it blank (now that the unit is printed beside every quantity, the sum would be visibly wrong).
+        var oneUnit = lines.Select(UnitOf).Distinct().Count() <= 1;
 
         var sections = new List<PrintableSectionDto>
         {
             new(
                 "Items",
-                [
-                    new PrintableColumnDto("Product", 4),
-                    new PrintableColumnDto("Qty", 1, AlignRight: true),
-                    new PrintableColumnDto("Rate", 1, AlignRight: true),
-                    new PrintableColumnDto("Disc %", 1, AlignRight: true),
-                    new PrintableColumnDto("VAT", 1, AlignRight: true),
-                    new PrintableColumnDto("Amount", 1, AlignRight: true),
-                ],
-                lines.Select(l => new PrintableRowDto([
-                    ProductLabel(products, l.ProductId),
+                columns,
+                lines.Select(l => new PrintableRowDto(Cells(
+                    products.GetValueOrDefault(l.ProductId)?.Label ?? "(unknown product)",
+                    products.GetValueOrDefault(l.ProductId)?.HsCode ?? string.Empty,
                     Quantity(l.Quantity),
+                    UnitName(l),
                     Money(l.Rate),
                     Percent(l.DiscountPct),
                     Money(l.VatAmount),
-                    Money(l.LineTotal),
-                ])).ToList(),
-                new PrintableRowDto([
-                    "Total", Quantity(lines.Sum(l => l.Quantity)), string.Empty, string.Empty,
-                    Money(lines.Sum(l => l.VatAmount)), Money(lines.Sum(l => l.LineTotal)),
-                ])),
+                    Money(l.LineTotal)))).ToList(),
+                new PrintableRowDto(Cells(
+                    "Total", string.Empty, oneUnit ? Quantity(lines.Sum(l => l.Quantity)) : string.Empty,
+                    oneUnit && lines.Count > 0 ? UnitName(lines[0]) : string.Empty, string.Empty, string.Empty,
+                    Money(lines.Sum(l => l.VatAmount)), Money(lines.Sum(l => l.LineTotal))))),
         };
 
         var subTotal = lines.Sum(l => l.Amount);
@@ -939,12 +984,12 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
             summary.Add(new PrintableFieldDto("Round Off", Money(roundOff)));
         }
 
-        summary.Add(new PrintableFieldDto(
-            "Grand Total", Money(subTotal + serviceCharge + packagingFee + vat - tdsAmount + roundOff), Emphasise: true));
+        var grandTotal = subTotal + serviceCharge + packagingFee + vat - tdsAmount + roundOff;
+        summary.Add(new PrintableFieldDto("Grand Total", Money(grandTotal), Emphasise: true));
 
         return await BuildDocumentAsync(
-            request, organization, templateName, title, code, date, reference, contactId, partyHeading,
-            headerFields, sections, summary, notes: null, terms, ct, currencyCode, exchangeRate);
+            request, organization, title, code, date, reference, contactId, partyHeading,
+            headerFields, sections, summary, notes: null, terms, ct, currencyCode, exchangeRate, amountInWordsTotal: grandTotal);
     }
 
     /// <summary>The frame every one of the fifteen shares: organization block, optional party block,
@@ -952,7 +997,6 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
     private async Task<PrintableDocumentDto> BuildDocumentAsync(
         PrintDocumentQuery request,
         Organization organization,
-        string templateName,
         string title,
         string code,
         DateOnly date,
@@ -966,7 +1010,8 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
         string? terms,
         CancellationToken ct,
         string? currencyCode = null,
-        decimal? exchangeRate = null)
+        decimal? exchangeRate = null,
+        decimal? amountInWordsTotal = null)
     {
         Contact? contact = null;
         if (contactId is { } id)
@@ -992,7 +1037,7 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
                 .ToList();
         }
 
-        var logo = await ReadLogoAsync(organization, ct);
+        var logo = template.Shows(PrintElement.OrganizationLogo) ? await ReadLogoAsync(storage, organization, ct) : null;
 
         return new PrintableDocumentDto(
             request.DocumentType,
@@ -1010,7 +1055,7 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
             contact is null ? null : partyHeading,
             contact is null ? null : $"{contact.Code} — {contact.Name}",
             contact?.Address,
-            templateName,
+            template.Name,
             headerFields,
             sections,
             summary,
@@ -1019,7 +1064,13 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
             // A tax document labels each of its dates "BS" and "AD" inline, so the footer's disclosure would only
             // repeat it, and in AD it says nothing anyway.
             TaxDocuments.Applies(request.DocumentType) ? null : RequestCalendar.DisclosureLine,
-            code_);
+            code_)
+        {
+            // Phase 73 -- in rupees only: the words name the currency, and AmountInWords knows one.
+            AmountInWords = amountInWordsTotal is { } total && total >= 0 && CurrencyCatalog.IsBase(code_)
+                ? Domain.Common.AmountInWords.Rupees(total)
+                : null,
+        };
     }
 
     /// <summary>A payment allocation points at a document by type + id; the receipt prints that
@@ -1043,9 +1094,78 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
     private async Task<Dictionary<Guid, string>> ProductLabelsAsync(IEnumerable<Guid> productIds, CancellationToken ct)
     {
         var ids = productIds.Distinct().ToList();
-        return await db.Products
+        var showCode = template.Shows(PrintElement.ItemCode);
+        var rows = await db.Products
             .Where(x => ids.Contains(x.Id))
-            .ToDictionaryAsync(x => x.Id, x => $"{x.Code} — {x.Name}", ct);
+            .Select(x => new { x.Id, x.Code, x.Name })
+            .ToListAsync(ct);
+
+        return rows.ToDictionary(x => x.Id, x => showCode ? $"{x.Code} — {x.Name}" : x.Name);
+    }
+
+    /// <summary>Phase 73 -- a product-table line's label (with its code unless the template hides it), HS code and
+    /// primary unit.</summary>
+    private sealed record ProductDetails(string Label, string? HsCode, Guid PrimaryUnitId);
+
+    private async Task<Dictionary<Guid, ProductDetails>> ProductDetailsAsync(IEnumerable<Guid> productIds, CancellationToken ct)
+    {
+        var ids = productIds.Distinct().ToList();
+        var showCode = template.Shows(PrintElement.ItemCode);
+        var rows = await db.Products
+            .Where(x => ids.Contains(x.Id))
+            .Select(x => new { x.Id, x.Code, x.Name, x.HsCode, x.PrimaryUnitId })
+            .ToListAsync(ct);
+
+        return rows.ToDictionary(
+            x => x.Id,
+            x => new ProductDetails(showCode ? $"{x.Code} — {x.Name}" : x.Name, x.HsCode, x.PrimaryUnitId));
+    }
+
+    /// <summary>Phase 73 -- each unit's short name ("Pcs", "Box"), as the till's receipt prints it.</summary>
+    private async Task<Dictionary<Guid, string>> UnitNamesAsync(IEnumerable<Guid?> unitIds, CancellationToken ct)
+    {
+        var ids = unitIds.OfType<Guid>().Distinct().ToList();
+        return await db.UnitsOfMeasurement
+            .Where(x => ids.Contains(x.Id))
+            .ToDictionaryAsync(x => x.Id, x => x.ShortName, ct);
+    }
+
+    /// <summary>
+    /// Phase 73 -- the custom fields the template prints, in its order, each with this document's value. A field
+    /// switched off or no longer applying to the type since the template was saved prints nothing, and so does one
+    /// left blank on this document: an empty label is noise on a bill.
+    /// </summary>
+    private async Task<IReadOnlyList<PrintableFieldDto>> CustomFieldsAsync(PrintDocumentQuery request, CancellationToken ct)
+    {
+        var ids = template.PrintedCustomFieldIds.ToList();
+        if (ids.Count == 0)
+        {
+            return [];
+        }
+
+        var fields = await db.CustomFieldDefinitions
+            .Where(x => x.OrganizationId == request.OrganizationId && x.IsActive && ids.Contains(x.Id))
+            .ToListAsync(ct);
+        var values = await db.CustomFieldValues
+            .Where(x => x.OrganizationId == request.OrganizationId
+                        && x.DocumentType == request.DocumentType
+                        && x.DocumentId == request.DocumentId
+                        && ids.Contains(x.FieldDefinitionId))
+            .ToListAsync(ct);
+
+        var printed = new List<PrintableFieldDto>();
+        foreach (var id in ids)
+        {
+            var field = fields.SingleOrDefault(x => x.Id == id);
+            var value = values.FirstOrDefault(x => x.FieldDefinitionId == id)?.Value;
+            if (field is not null && field.ApplicableDocumentTypes.Contains(request.DocumentType)
+                && !string.IsNullOrWhiteSpace(value))
+            {
+                printed.Add(new PrintableFieldDto(field.Name, value));
+            }
+        }
+
+        return printed;
     }
 
     private async Task<Dictionary<Guid, string>> CostTermNamesAsync(IEnumerable<Guid> costTermIds, CancellationToken ct)
@@ -1085,8 +1205,10 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
     /// gone means somebody's logo went missing; it does not mean their invoice should fail to print.
     /// The header simply renders as it did before this phase, which is a shape the layout already
     /// supports because it is the shape every tenant without a logo gets.</para>
+    ///
+    /// <para>Phase 73 -- static and internal so the template preview prints the same header.</para>
     /// </summary>
-    private async Task<byte[]?> ReadLogoAsync(Organization organization, CancellationToken ct)
+    internal static async Task<byte[]?> ReadLogoAsync(IFileStorage storage, Organization organization, CancellationToken ct)
     {
         if (organization.LogoStorageKey is null)
         {

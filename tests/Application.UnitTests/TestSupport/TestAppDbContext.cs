@@ -345,6 +345,22 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
                     ? new List<DocumentType>()
                     : v.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(Enum.Parse<DocumentType>).ToList());
 
+        // Phase 73 -- the same delimited-string restatement for a printing template's two lists.
+        modelBuilder.Entity<PrintingTemplate>()
+            .Property(t => t.HiddenElements)
+            .HasConversion(
+                v => string.Join(',', v),
+                v => v.Length == 0
+                    ? new List<PrintElement>()
+                    : v.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(Enum.Parse<PrintElement>).ToList());
+        modelBuilder.Entity<PrintingTemplate>()
+            .Property(t => t.PrintedCustomFieldIds)
+            .HasConversion(
+                v => string.Join(',', v),
+                v => v.Length == 0
+                    ? new List<Guid>()
+                    : v.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(Guid.Parse).ToList());
+
         // Product.SecondaryUnits is an encapsulated (private-backing-field) collection -- the
         // real ProductConfiguration's HasMany/SetPropertyAccessMode(Field) call isn't applied
         // here (no ApplyConfigurationsFromAssembly, by design), so it's restated.

@@ -104,6 +104,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 70: the packaging fee (per item on every parcel: a percent of the line or flat per unit, inside the VAT base at the line's rate, its own account, frozen on the line; a product opt-out, on by default). Before adding a part to a line's money, or a flag that defaults to on — `docs/phase-70-status.md`
 - Phase 71: every bill's date in BS with AD beside it, whatever the toggle (invoice, credit/debit note on paper and by email, till receipts), both statutory dates (transaction + issue = approval's Nepal day), a BS column on the register exports. The statute names no calendar. Before rendering a date on a bill, or building printing templates — `docs/phase-71-status.md`
 - Phase 72: the restaurant bill finished: a line's and the order's discount (percent) and a waived service charge are terms of the order, fixed at its first bill; a bill names its own customer, with credit; lowering a bill anywhere (discount, waiver, a Retail line below the catalogue price) needs `Sales.Invoice.Approve` at the location. Before a term that prices an order's parts, gating a till price, or a control that hides itself — `docs/phase-72-status.md`
+- Phase 73: printing templates (three fixed layouts per type; a template stores what it **hides**; a tax document's seller address/PAN and buyer address locked; custom fields by choice; one applier for print and preview). Before a print layout, a setting that changes what a bill shows, or a column on a printed table — `docs/phase-73-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -169,6 +170,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - `migrations add` bundles the entire pending diff into one migration; plan one migration per invocation and hand-review it (phase-2 bug #6).
 - Two column renames on one table in one diff are paired by **ordinal position**, not by meaning, so `dotnet ef` silently swaps them; verify with a predicate true only of the right pairing (phase-43 bug #1).
 - Rebuilding only `Infrastructure` between `dotnet ef` calls leaves `Api`'s output stale and re-scaffolds an applied diff; let `dotnet ef` rebuild (omit `--no-build`) or rebuild the solution (phase-16a).
+- A scaffolded NOT NULL column for an enum stored by name defaults to `''`, which `Enum.Parse` refuses on read: hand-edit it to the member existing rows mean, and read a row back in SQL (phase-73).
 - An enum property with `.HasDefaultValue(x)` where `x != default(TEnum)` needs `.ValueGeneratedNever()`, or EF substitutes the SQL default whenever the in-memory value equals `default` (phase-2 bug #2).
 - …and a **bool** defaulting to `true` is the same trap, sharper: without `ValueGeneratedNever` every exemption (`false`) saves as `true`. InMemory cannot show it; read the row in SQL (phase-70).
 - `Database.SqlQuery<T>` accepts only composable SQL (a plain `SELECT`); do atomic read-and-increment as `SELECT ... WITH (UPDLOCK, ROWLOCK)` + a separate `UPDATE`, and alias a scalar result `AS Value` (phase-2 bugs #3–4).
@@ -333,6 +335,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - Sync-only writers (ClosedXML `SaveAs`) cannot target the live response stream; write to a `MemoryStream`, then `CopyToAsync` (`ReportSpreadsheetExporter.WriteWorkbookAsync`, phase-16c bug #3).
 - A Minimal API endpoint binding `IFormFile` gets antiforgery metadata automatically and 500s unless it calls `.DisableAntiforgery()` (phase-18 bug #1).
 - Read an uploaded image's format and size from its bytes (`Domain/Common/ImageHeader`), never its content type; QuestPDF throws for an undecodable image after composition (phase-39).
+- A new column on a printed table narrows the others: money wrapped in ruled cells and a quantity ran into its unit, and extracted text read both as fine. Look at the rendered PDF (phase-73).
 - QuestPDF's default font has no Devanagari: Nepali needs the embedded Noto (`PdfFonts`), and tests set `CheckIfAllTextGlyphsAreAvailable` so a missing glyph throws (phase-67).
 - A PDF's text is deflated glyph ids, not bytes you can search; assert through `TestSupport/PdfText` (CMap sections parsed separately), and look at Devanagari with the Read tool (phase-67).
 - Executing `Results.Stream` against a bare `DefaultHttpContext` needs a `ServiceProvider` with `AddLogging()` (`MigratedRegisterTemplateRoundTripTests`).
@@ -414,6 +417,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A load helper that sets focus steals it after every action that reloads through it; take a `focusSearch` flag and pass `false` after an action (phase-68).
 - A no-break space does not stop a browser breaking after a hyphen: a 72 mm receipt printed `(09-10-` / `2026 AD)`. Break between the halves yourself (`pre-line`) and look at the paper (phase-71).
 - `ng serve` serves `public/` as it was at start-up: a file written later is a 404 whose HTML body a script reads as content. Restart, then check status and body (phase-71).
+- An editor that opens away from the button that opened it must take focus (its heading) and give it back on close, or a keyboard user sees nothing happen (phase-73).
 - A control that removes itself (a chosen search result, *Use Walk-in*) drops keyboard focus onto `<body>`; hand it back to the opener (`PosCustomerSearch.returnFocusTo`) (phase-72).
 - `Math.round(p * 100) !== p * 100` refuses 10.1 (it is 1009.999…); check two decimal places with `Number(p.toFixed(2)) !== p` (phase-72).
 
@@ -517,27 +521,26 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 
 ## Current status
 
-**Phases 0-72 are complete. Next: not yet scheduled** (the user picks; candidates in `docs/roadmap.md`).
+**Phases 0-73 are complete. Next: not yet scheduled** (the user picks; candidates in `docs/roadmap.md`).
 Each phase's story is in its `docs/phase-N-status.md`, and finished planning entries are archived in
 `docs/roadmap-history.md`.
 
-**Phase 72 finished the restaurant bill.**
+**Phase 73 made printing templates real.**
 
-- A line's discount and the order's (percent) and a service charge the guest declined are **terms of the order**,
-  priced by `PosOrder.FiguresOf` and fixed once billing starts, so the bills still add up to the order.
-- A bill names **its own customer** (the order keeps its own) and may leave the rest on that customer's account,
-  under the Retail till's credit rules.
-- **Lowering a bill needs `Sales.Invoice.Approve` at the location**: a discount or a waiver on an order, and a discount
-  or a price below the catalogue's at the Retail till. No new keys.
+- A template picks one of **three fixed layouts** (Standard, Traditional, Minimal) and stores what it **hides**; empty
+  means everything, so no row and an old row print the same. One applier serves the print and the preview.
+- A tax document's seller address and PAN and buyer address cannot be hidden; there is no date-system option and no
+  label rename. Custom fields print by choice; every bill gained a Unit column, the HS code and the amount in words.
+- The editor reads which elements a type offers from `GET /printing-templates/elements`. No new keys.
 
-The vendor (read live, read-only, on its trial's last day) gates the same through per-location role switches and keeps
-the customer on the order; ours chooses it per bill.
+The vendor (read live, read-only, its trial's last day) draws five A4 layouts over one settings shape and selects a
+template per type, channel and location; ours is one per type.
 
-**Next:** not yet scheduled. Candidates: real printing templates (no date-system switch on a tax document), phase 72 § 5
-(a refunded last part leaves a paisa of VAT; Amount discounts; *Can Change Rate*), and phase 71 § 5.
+**Next:** not yet scheduled. Candidates: phase 72 § 5 (a refunded last part leaves a paisa of VAT; Amount discounts;
+*Can Change Rate*), phase 73 § 5 (per-location templates, ordering of header blocks), and phase 71 § 5.
 
-Tests: Domain **959**, Application.UnitTests **1665**, Infrastructure.UnitTests 13,
-Api.IntegrationTests **46**, Angular **811**. Everything was green at phase 72's close with Docker up.
+Tests: Domain **978**, Application.UnitTests **1682**, Infrastructure.UnitTests 13,
+Api.IntegrationTests **52**, Angular **818**. Everything was green at phase 73's close with Docker up.
 The bundle sits at **652.58 kB** against `build-budget.spec.ts`'s 680 kB; every POS screen is lazy.
 
 - `Api.IntegrationTests` needs Docker Desktop running. Without it the Testcontainers-backed tests

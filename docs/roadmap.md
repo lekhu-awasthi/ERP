@@ -6,7 +6,7 @@ Guiding rule for phase sizing: each phase ends with something *runnable and demo
 
 ---
 
-## Completed phases (0–72)
+## Completed phases (0–73)
 
 One line each; phase *N*'s full story is `docs/phase-N-status.md`. The verbose index as it stood on
 2026-09-28 is archived verbatim in `roadmap-history.md` ("Completed-phases index, verbose form").
@@ -58,6 +58,7 @@ One line each; phase *N*'s full story is `docs/phase-N-status.md`. The verbose i
 | 70 | The packaging fee: per item on every parcel (percent of the line or flat per unit), inside the VAT base, its own account, frozen on the line; a product may opt out (on by default) |
 | 71 | Every bill's date in BS: invoices, credit and debit notes (PDF and email) and till receipts print BS with AD beside it whatever the toggle, with both statutory dates (transaction and issue); the statutory register exports carry a BS column |
 | 72 | The restaurant bill finished: a line's and the order's discount (percent) and a waived service charge are terms of the order, fixed at its first bill; a bill names its own customer and may leave the rest on their account; lowering a bill (a discount, a waiver, a Retail line below the catalogue price) needs `Sales.Invoice.Approve` at the location; one shared customer search that returns focus |
+| 73 | Printing templates: three fixed layouts (Standard, Traditional, Minimal) chosen per type, show/hide toggles (a tax document's seller address and PAN and buyer address locked), the custom fields a bill prints, a footer line, compact margins, a preview of unsaved settings; every bill gained a Unit column, the HS code where a line has one, and the amount in words |
 
 ---
 
@@ -133,8 +134,10 @@ both statutory dates (transaction and issue); the statutory register exports gai
 restaurant bill (`phase-72-status.md`): a line's and the order's discount and a waived service charge are terms of the
 order, fixed at its first bill so the bills still add up to it; a bill names its own customer and may leave the rest on
 their account; and lowering a bill anywhere (a discount, a waiver, a Retail line below the catalogue price) needs
-`Sales.Invoice.Approve` at the location. **Next: not yet scheduled**; the candidate is real printing templates (which
-must not bring back a date-system switch on a tax document), and phase 72 § 5's items.
+`Sales.Invoice.Approve` at the location. Phase 73 made printing templates real (`phase-73-status.md`): three fixed
+layouts chosen per type, show/hide toggles with a tax document's statutory content locked, the custom fields a bill
+prints, a footer line and compact margins, previewed over sample data; no date-system option anywhere. **Next: not yet
+scheduled**; the candidates are phase 72 § 5's items and phase 73 § 5's.
 
 Open question for the tax advisor, not to be guessed (carried from the PAN fix): whether IRD expects a buyer PAN
 on a high-value sale to an unregistered buyer. If it does, it would be a warning on approve, never a block.
@@ -149,11 +152,13 @@ printing-templates item below: no per-type "date system" toggle may switch BS of
 the on-screen register grids follow the toggle; the email body's `$[DATE]$` stays AD; a tax advisor's word on the
 calendar is still open.
 
-**Also raised 2026-10-03, not yet scheduled: real printing templates.** Phase 20d kept `PrintingTemplate` as a
-name and a default flag, by the user's decision; every type prints one shared layout, where the vendor offers
-about 20 per type plus a toggle editor. A middle ground is a handful of fixed layouts (Standard, Compact/Retail,
-Classic) with per-type toggles for organization fields, custom fields and the date system. The law fixes the
-content and the audit trail, not the look, so this is a product choice, not a statutory one.
+**Raised 2026-10-03, done in phase 73: real printing templates.** Three fixed layouts with show/hide toggles and
+the custom fields to print; no date-system toggle (phase 71), no renamed labels, one template per type.
+
+**Carried from phase 73** (§ 5 there): per-location templates (the vendor selects per type, channel and location);
+the Modern and Classic layouts and label renames (never on a statutory label); an 80 mm ERP invoice; the vendor's
+custom HTML templates for Delivery Note, GRN and Warehouse Transfer (unread in depth); ordering and placement of the
+header blocks; amount in words for a foreign currency; the location's name and address on the print.
 
 **Carried from phase 67** (§ 5 there): the print race on both print tables is still unraced on SQL Server. The
 standalone credit note was settled by phase 69, and the count note beside Print was looked at in phase 69 (it

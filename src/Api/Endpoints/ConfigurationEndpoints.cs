@@ -1,3 +1,4 @@
+using ErpApp.Api.Printing;
 using ErpApp.Application.Configuration.Commands.CreateAlertDefinition;
 using ErpApp.Application.Configuration.Commands.CreateBank;
 using ErpApp.Application.Configuration.Commands.CreateCostTerm;
@@ -32,6 +33,7 @@ using ErpApp.Application.Configuration.Commands.UpdateDealStage;
 using ErpApp.Application.Configuration.Commands.UpdateLeadSource;
 using ErpApp.Application.Configuration.Commands.UpdatePaymentMode;
 using ErpApp.Application.Configuration.Commands.UpdatePrintingTemplate;
+using ErpApp.Application.Configuration.Commands.UpdatePrintingTemplateLayout;
 using ErpApp.Application.Configuration.Commands.UpdateReportingTagCategory;
 using ErpApp.Application.Configuration.Commands.UpdateReportingTagOption;
 using ErpApp.Application.Configuration.Commands.UpdateTaskType;
@@ -42,6 +44,8 @@ using ErpApp.Application.Configuration.Queries.GetTransactionReportingTags;
 using ErpApp.Application.Configuration.Queries.ListAlertSendLogs;
 using ErpApp.Application.Configuration.Queries.ListCustomFieldDefinitions;
 using ErpApp.Application.Configuration.Queries.ListLookups;
+using ErpApp.Application.Printing.Queries.ListPrintElements;
+using ErpApp.Application.Printing.Queries.PreviewPrintingTemplate;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Configuration;
 using MediatR;
@@ -525,6 +529,33 @@ public static class ConfigurationEndpoints
             return Results.NoContent();
         });
 
+        // Phase 73 -- the layout editor's save, and its preview: the unsaved settings over a sample document, as a
+        // PDF. A POST because the settings are a body; it writes nothing.
+        group.MapPut("/printing-templates/{id:guid}/layout", async (
+            Guid organizationId, Guid id, PrintingTemplateLayoutRequest request, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new UpdatePrintingTemplateLayoutCommand(
+                    organizationId, id, request.Layout, request.HiddenElements, request.PrintedCustomFieldIds,
+                    request.FooterText, request.CompactMargins),
+                ct);
+            return Results.Ok(result);
+        });
+
+        group.MapGet("/printing-templates/elements", async (Guid organizationId, ISender sender, CancellationToken ct) =>
+            Results.Ok(await sender.Send(new ListPrintElementsQuery(organizationId), ct)));
+
+        group.MapPost("/printing-templates/preview", async (
+            Guid organizationId, PrintingTemplatePreviewRequest request, ISender sender, CancellationToken ct) =>
+        {
+            var dto = await sender.Send(
+                new PreviewPrintingTemplateQuery(
+                    organizationId, request.DocumentType, request.Layout, request.HiddenElements,
+                    request.PrintedCustomFieldIds, request.FooterText, request.CompactMargins),
+                ct);
+            return Results.File(DocumentPdfRenderer.Render(dto), "application/pdf", $"{request.DocumentType}_preview.pdf");
+        });
+
         group.MapDelete("/printing-templates/{id:guid}", async (
             Guid organizationId, Guid id, ISender sender, CancellationToken ct) =>
         {
@@ -648,6 +679,23 @@ public static class ConfigurationEndpoints
     private sealed record CreatePrintingTemplateRequest(string Name, DocumentType DocumentType);
 
     private sealed record UpdatePrintingTemplateRequest(string Name, DocumentType DocumentType, bool IsActive);
+
+    /// <summary>Phase 73 -- every member nullable, so a missing or misspelt one is the validator's 400 naming it, never
+    /// a default ("hide nothing", "Standard") answered with a 200.</summary>
+    private sealed record PrintingTemplateLayoutRequest(
+        PrintLayout? Layout,
+        IReadOnlyList<PrintElement>? HiddenElements,
+        IReadOnlyList<Guid>? PrintedCustomFieldIds,
+        string? FooterText,
+        bool? CompactMargins);
+
+    private sealed record PrintingTemplatePreviewRequest(
+        DocumentType? DocumentType,
+        PrintLayout? Layout,
+        IReadOnlyList<PrintElement>? HiddenElements,
+        IReadOnlyList<Guid>? PrintedCustomFieldIds,
+        string? FooterText,
+        bool? CompactMargins);
 
     private sealed record CreateCustomTemplateRequest(string Name, CustomTemplateType Type, string Body);
 

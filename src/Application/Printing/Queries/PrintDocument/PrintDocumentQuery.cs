@@ -1,6 +1,7 @@
 using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Common;
+using ErpApp.Domain.Configuration;
 using MediatR;
 
 namespace ErpApp.Application.Printing.Queries.PrintDocument;
@@ -58,11 +59,12 @@ public static class CountedPrints
 
 /// <summary>Phase 71 -- the tax documents (VAT Rules 17, 18 and 20): the bills whose every date prints through
 /// <c>BillDate</c>, in BS with AD beside it, whatever the request's calendar, and which print both statutory dates
-/// (the transaction date and the issue date). Every other printable type keeps following the toggle.</summary>
+/// (the transaction date and the issue date). Every other printable type keeps following the toggle.
+/// Phase 73 -- the list itself lives in the Domain (<see cref="PrintElements.TaxDocumentTypes"/>), because a printing
+/// template must refuse to hide a tax document's statutory content and the Domain cannot read this class.</summary>
 public static class TaxDocuments
 {
-    public static bool Applies(DocumentType documentType) =>
-        documentType is DocumentType.Invoice or DocumentType.CreditNote or DocumentType.DebitNote;
+    public static bool Applies(DocumentType documentType) => PrintElements.IsTaxDocument(documentType);
 }
 
 /// <summary>Each document type's own View key -- printing never widens what a role may see. The
@@ -166,7 +168,21 @@ public sealed record PrintableDocumentDto(
     /// <summary>Phase 71 -- a tax document's second statutory date (विजक जारी भएको मिति, Schedule 5): the Nepal day it
     /// was approved, which is when it got its number. Null on a draft, which has not been issued, and on every
     /// other type.</summary>
-    string? IssueDateText = null);
+    string? IssueDateText = null,
+    /// <summary>Phase 73 -- the template's fixed layout. The renderer draws it; nothing else reads it.</summary>
+    PrintLayout Layout = PrintLayout.Standard,
+    /// <summary>Phase 73 -- narrower margins and spacing.</summary>
+    bool CompactMargins = false,
+    /// <summary>Phase 73 -- the Prepared By / Approved By line, unless the template hides it.</summary>
+    bool ShowSignatureLine = true,
+    /// <summary>Phase 73 -- the template's free footer line, or null.</summary>
+    string? FooterText = null,
+    /// <summary>Phase 73 -- the grand total in words ("Rupees ... Only"), printed under the summary. Null on a
+    /// foreign-currency document, whose total is not in rupees, and wherever the template hides it.</summary>
+    string? AmountInWords = null,
+    /// <summary>Phase 73 -- the custom fields the template prints, label and value, in the template's order. Null or
+    /// empty prints none, as before this phase.</summary>
+    IReadOnlyList<PrintableFieldDto>? CustomFields = null);
 
 /// <summary>Phase 67 -- what the paper says about this copy. <paramref name="PrintedAtText"/> is the Nepal
 /// wall-clock date (in the request's calendar) and time.</summary>
@@ -188,8 +204,9 @@ public sealed record PrintableSectionDto(
     IReadOnlyList<PrintableRowDto> Rows,
     PrintableRowDto? TotalRow = null);
 
-/// <summary><paramref name="Width"/> is a QuestPDF relative width, not points.</summary>
-public sealed record PrintableColumnDto(string Header, float Width, bool AlignRight = false);
+/// <summary><paramref name="Width"/> is a QuestPDF relative width, not points. <paramref name="Element"/> (phase 73)
+/// names the template element that hides the column; null for a column no template may hide.</summary>
+public sealed record PrintableColumnDto(string Header, float Width, bool AlignRight = false, PrintElement? Element = null);
 
 /// <summary>Cells are positional and must match the section's column count.</summary>
 public sealed record PrintableRowDto(IReadOnlyList<string> Cells);

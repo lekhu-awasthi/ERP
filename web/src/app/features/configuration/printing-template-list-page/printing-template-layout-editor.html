@@ -1,0 +1,130 @@
+<section class="card border-0 shadow-sm mb-4" aria-labelledby="layout-editor-heading">
+  <div class="card-body p-4">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+      <h2 #heading id="layout-editor-heading" class="h6 fw-bold text-dark mb-0" tabindex="-1">
+        Layout: {{ template().name }} <span class="text-muted fw-normal">({{ template().documentType }})</span>
+      </h2>
+      <button type="button" class="btn btn-outline-secondary btn-sm" (click)="close()">Close</button>
+    </div>
+
+    <app-status-banner [message]="errorMessage()" />
+    <app-status-banner [message]="message()" tone="success" />
+
+    <fieldset class="mb-4">
+      <legend class="form-label small fw-semibold">Layout</legend>
+      @for (option of layouts; track option.value) {
+        <div class="form-check mb-2">
+          <input
+            class="form-check-input"
+            type="radio"
+            name="print-layout"
+            [id]="'print-layout-' + option.value"
+            [checked]="layout() === option.value"
+            [attr.aria-describedby]="'print-layout-' + option.value + '-note'"
+            (change)="onLayout(option.value)"
+          />
+          <label class="form-check-label fw-semibold" [for]="'print-layout-' + option.value">{{ option.label }}</label>
+          <div class="small text-muted" [id]="'print-layout-' + option.value + '-note'">{{ option.description }}</div>
+        </div>
+      }
+    </fieldset>
+
+    <p class="small text-muted mb-3" id="layout-editor-shown-note">
+      Ticked items print. Items a tax document must carry (VAT Rules, Schedule 5) cannot be unticked. The title, number,
+      both dates and the buyer's PAN always print.
+    </p>
+
+    <div class="row g-3 mb-3">
+      @for (group of groups(); track group.legend) {
+        <div class="col-12 col-md-6">
+          <fieldset aria-describedby="layout-editor-shown-note">
+            <legend class="form-label small fw-semibold">{{ group.legend }}</legend>
+            @for (item of group.elements; track item.element) {
+              <div class="form-check">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  [id]="'print-element-' + item.element"
+                  [checked]="item.locked || shows(item.element)"
+                  [disabled]="item.locked"
+                  [attr.aria-describedby]="item.locked ? 'print-element-' + item.element + '-locked' : null"
+                  (change)="toggleElement(item.element, $event)"
+                />
+                <label class="form-check-label small" [for]="'print-element-' + item.element">{{ item.label }}</label>
+                @if (item.locked) {
+                  <span class="small text-muted ms-1" [id]="'print-element-' + item.element + '-locked'">(required on a tax document)</span>
+                }
+              </div>
+            }
+          </fieldset>
+        </div>
+      }
+    </div>
+
+    <fieldset class="mb-3">
+      <legend class="form-label small fw-semibold">Custom fields to print</legend>
+      @if (applicableCustomFields().length === 0) {
+        <p class="small text-muted mb-0">No active custom field applies to {{ template().documentType }}.</p>
+      } @else {
+        @for (field of applicableCustomFields(); track field.id) {
+          <div class="form-check">
+            <input
+              class="form-check-input"
+              type="checkbox"
+              [id]="'print-custom-field-' + field.id"
+              [checked]="prints(field.id)"
+              (change)="toggleCustomField(field.id, $event)"
+            />
+            <label class="form-check-label small" [for]="'print-custom-field-' + field.id">{{ field.name }}</label>
+          </div>
+        }
+        <p class="small text-muted mb-0">A field left blank on a document prints nothing.</p>
+      }
+    </fieldset>
+
+    <div class="mb-3">
+      <label class="form-label small fw-semibold" for="layout-editor-footer">Footer line</label>
+      <textarea
+        id="layout-editor-footer"
+        class="form-control"
+        rows="2"
+        [value]="footerText()"
+        [attr.aria-invalid]="footerTooLong() ? 'true' : null"
+        aria-describedby="layout-editor-footer-help"
+        (input)="onFooter($event)"
+      ></textarea>
+      <div id="layout-editor-footer-help" class="small" [class.text-danger]="footerTooLong()" [class.text-muted]="!footerTooLong()">
+        Printed at the foot of every page, e.g. bank details. {{ footerText().length }} of {{ footerMaxLength }} characters.
+      </div>
+    </div>
+
+    <div class="form-check mb-4">
+      <input class="form-check-input" type="checkbox" id="layout-editor-compact" [checked]="compactMargins()" (change)="onCompact($event)" />
+      <label class="form-check-label small" for="layout-editor-compact">Compact margins (fits a short document on half a page)</label>
+    </div>
+
+    <div class="d-flex gap-2 flex-wrap">
+      <button type="button" class="btn btn-primary fw-bold" [disabled]="saving() || footerTooLong()" (click)="save()">
+        @if (saving()) {
+          <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+        }
+        Save Layout
+      </button>
+      <button type="button" class="btn btn-outline-primary" [disabled]="previewing() || footerTooLong()" (click)="preview()">
+        @if (previewing()) {
+          <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+        }
+        Preview
+      </button>
+    </div>
+
+    @if (previewUrl(); as url) {
+      <iframe
+        class="w-100 border rounded mt-3"
+        style="height: 70vh;"
+        [src]="url"
+        [title]="'Preview of the ' + template().name + ' layout with sample data'"
+      ></iframe>
+    }
+  </div>
+</section>

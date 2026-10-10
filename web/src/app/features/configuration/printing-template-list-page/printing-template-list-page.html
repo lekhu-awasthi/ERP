@@ -7,7 +7,7 @@
         </div>
         <div>
           <h1 class="h3 fw-bold mb-0 text-dark">Printing Templates</h1>
-          <p class="text-muted small mb-0">Named print layouts per document type, with one default each</p>
+          <p class="text-muted small mb-0">Print layouts per document type, with one default each</p>
         </div>
       </div>
       <a class="btn btn-outline-secondary btn-sm fw-bold" [routerLink]="['/organizations', organizationId, 'configuration']">
@@ -17,6 +17,17 @@
   </div>
 
   <app-status-banner [message]="errorMessage()" />
+
+  @for (template of layoutTemplate(); track template.id) {
+    <app-printing-template-layout-editor
+      [organizationId]="organizationId"
+      [template]="template"
+      [elementTable]="elementTable()"
+      [customFields]="customFields()"
+      (saved)="reload()"
+      (closed)="closeLayout()"
+    />
+  }
 
   <div class="card border-0 shadow-sm mb-4">
     <div class="card-body p-4">
@@ -83,7 +94,7 @@
                       <span class="badge bg-secondary-subtle text-secondary-emphasis ms-2">Inactive</span>
                     }
                   </h6>
-                  <span class="text-muted small">{{ item.documentType }}</span>
+                  <span class="text-muted small">{{ item.documentType }} · {{ item.layout }} layout</span>
                 </div>
               </div>
               <div class="d-flex gap-2">
@@ -92,6 +103,15 @@
                     <i aria-hidden="true" class="bi bi-check2-circle"></i> Set Default
                   </button>
                 }
+                <button
+                  type="button"
+                  class="btn btn-outline-primary btn-sm"
+                  [id]="'printing-template-layout-' + item.id"
+                  [attr.aria-label]="'Layout of ' + item.name"
+                  (click)="openLayout(item)"
+                >
+                  <i aria-hidden="true" class="bi bi-layout-text-window"></i> Layout
+                </button>
                 <button type="button" class="btn btn-outline-secondary btn-sm" (click)="startEdit(item)">
                   <i aria-hidden="true" class="bi bi-pencil"></i> Edit
                 </button>

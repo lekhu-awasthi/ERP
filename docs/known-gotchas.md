@@ -4349,3 +4349,28 @@ handler does the same. A component spec can pin it by appending an opener to `do
 "At most two decimal places" written as `Math.round(p * 100) !== p * 100` refuses 10.1, because `10.1 * 100` is
 `1009.9999999999999`. Compare `Number(p.toFixed(2))` with `p` instead. The server's own check is on `decimal` and has
 no such problem, which is why only a hand reading of the browser rule caught it.
+
+## A scaffolded default for an enum stored by name is the empty string (phase 73)
+
+`migrations add` gives a new NOT NULL `nvarchar` column `defaultValue: ""`. For a property with
+`HasConversion<string>()` (`PrintingTemplate.Layout`, stored by name like `DocumentType` beside it) that is not a
+value at all: `Enum.Parse("")` throws on read, so every existing row, and every print of a type with a template, would
+fail. InMemory never round-trips the converted column through SQL, so no handler test can see it. Hand-edit the default
+to the member every existing row means (`'Standard'`), and read one back in `sqlcmd`. Phase 46's "a scaffolded default
+can be plausible and still mean the opposite" is the same trap from another side.
+
+## Adding a column to a printed table narrows every other column (phase 73)
+
+QuestPDF's relative widths share the page, so the Unit and HS Code columns made `11,000.00` wrap to two lines in the
+ruled layout's padded cells. A right-aligned quantity beside a left-aligned unit also ran together ("2Pcs") in the
+unruled layouts. Then the padding added to fix that broke the total row's rule into segments, because the border went
+on after the padding. `PdfText` reads all three as plausible text and no assertion fails; only looking at the rendered
+page (the Read tool on the PDF) showed any of them. Money now has wider columns than the short ones, unruled cells have
+3 pt each side, and a border goes on the cell before its padding.
+
+## An editor that opens away from its button strands a keyboard user (phase 73)
+
+The layout editor renders above the list, so pressing a row's *Layout* button opened it out of sight with focus still
+on the button below. Nothing visibly happened to a keyboard or screen-reader user. Focus moves to the editor's
+heading (`tabindex="-1"`, focused in `ngAfterViewInit`), and closing returns it to that row's button by id. It is the
+mirror of phase 72's control that removes itself: there focus fell out of the page, here it never followed.

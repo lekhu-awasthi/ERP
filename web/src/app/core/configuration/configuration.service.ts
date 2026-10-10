@@ -1,8 +1,9 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, map } from 'rxjs';
+import { Observable, catchError, from, map, switchMap, throwError } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
+import { withParsedBlobError } from '../printing/printing.service';
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, PagedResult } from '../common/paged-result';
 import { CustomFieldValueDto, CustomFieldValueInput, DocumentType, TransactionReportingTagDto } from '../sales/sales.models';
 import {
@@ -33,6 +34,9 @@ import {
   LeadSource,
   PaymentMode,
   PrintingTemplate,
+  PrintingTemplatePreviewRequest,
+  PrintingTemplateLayoutRequest,
+  PrintElementsForType,
   ReportingTagCategory,
   ReportingTagOption,
   TaskType,
@@ -396,6 +400,33 @@ export class ConfigurationService {
     return this.http.delete<void>(`${this.baseUrl(organizationId)}/printing-templates/${id}`, {
       withCredentials: true,
     });
+  }
+
+  // --- Printing template layouts (Phase 73) ---
+
+  listPrintElements(organizationId: string): Observable<PrintElementsForType[]> {
+    return this.http.get<PrintElementsForType[]>(`${this.baseUrl(organizationId)}/printing-templates/elements`, {
+      withCredentials: true,
+    });
+  }
+
+  updatePrintingTemplateLayout(
+    organizationId: string, id: string, request: PrintingTemplateLayoutRequest,
+  ): Observable<void> {
+    return this.http.put<void>(`${this.baseUrl(organizationId)}/printing-templates/${id}/layout`, request, {
+      withCredentials: true,
+    });
+  }
+
+  /** The unsaved settings over a sample document, as a PDF. A refusal's body arrives as a Blob, so it is parsed
+   * back into the error shape every other request has (phase 67's `withParsedBlobError`). */
+  previewPrintingTemplate(organizationId: string, request: PrintingTemplatePreviewRequest): Observable<Blob> {
+    return this.http
+      .post(`${this.baseUrl(organizationId)}/printing-templates/preview`, request, {
+        withCredentials: true,
+        responseType: 'blob',
+      })
+      .pipe(catchError((err: unknown) => from(withParsedBlobError(err)).pipe(switchMap((e) => throwError(() => e)))));
   }
 
   // --- Custom Templates (Phase 20d) ---

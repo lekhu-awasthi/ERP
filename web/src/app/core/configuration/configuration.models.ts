@@ -265,11 +265,16 @@ export interface CustomFieldDefinition {
   isActive: boolean;
 }
 
-// Phase 20d -- Printing Templates (config) -- metadata-only rows (see PrintingTemplate's backend
-// doc comment): a Name + one IsDefault flag per (OrganizationId, DocumentType). No layout-
-// definition field -- the real product's visual template designer was judged out of scope for
-// this sub-phase; the Print action renders one shared layout per document "family" regardless of
-// which row here is marked default.
+// Phase 20d -- Printing Templates (config): a Name + one IsDefault flag per (OrganizationId, DocumentType).
+// Phase 73 -- and a real layout: one of three fixed layouts, the elements it hides, the custom fields it prints,
+// a footer line and compact margins (see PrintingTemplate's backend doc comment).
+export type PrintLayout = 'Standard' | 'Traditional' | 'Minimal';
+
+export type PrintElement =
+  | 'OrganizationLogo' | 'OrganizationAddress' | 'OrganizationPhone' | 'OrganizationEmail' | 'OrganizationPan'
+  | 'OrganizationWebsite' | 'PartyAddress' | 'Reference' | 'ItemCode' | 'HsCode' | 'Unit' | 'DiscountColumn'
+  | 'VatColumn' | 'AmountInWords' | 'Notes' | 'Terms' | 'SignatureLine';
+
 export interface PrintingTemplate {
   id: string;
   organizationId: string;
@@ -278,6 +283,30 @@ export interface PrintingTemplate {
   isDefault: boolean;
   isActive: boolean;
   createdAt: string;
+  layout: PrintLayout;
+  hiddenElements: PrintElement[];
+  printedCustomFieldIds: string[];
+  footerText: string | null;
+  compactMargins: boolean;
+}
+
+/** Phase 73 -- the server's table of which elements a type prints and which it may not hide. */
+export interface PrintElementsForType {
+  documentType: DocumentType;
+  elements: PrintElement[];
+  locked: PrintElement[];
+}
+
+export interface PrintingTemplateLayoutRequest {
+  layout: PrintLayout;
+  hiddenElements: PrintElement[];
+  printedCustomFieldIds: string[];
+  footerText: string | null;
+  compactMargins: boolean;
+}
+
+export interface PrintingTemplatePreviewRequest extends PrintingTemplateLayoutRequest {
+  documentType: DocumentType;
 }
 
 export interface CreatePrintingTemplateRequest {

@@ -43,7 +43,7 @@ export class PrintingService {
  * draft, a void, "printed somewhere else at the same moment, print it again"), so the body is parsed
  * back into the shape every other error has.
  */
-async function withParsedBlobError(err: unknown): Promise<unknown> {
+export async function withParsedBlobError(err: unknown): Promise<unknown> {
   if (!(err instanceof HttpErrorResponse) || !(err.error instanceof Blob)) {
     return err;
   }

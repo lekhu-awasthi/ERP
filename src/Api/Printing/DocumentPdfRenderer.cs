@@ -1,4 +1,5 @@
 using ErpApp.Domain.Common;
+using ErpApp.Domain.Configuration;
 using ErpApp.Application.Printing.Queries.PrintDocument;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
@@ -22,26 +23,46 @@ namespace ErpApp.Api.Printing;
 /// <c>DocumentType</c>,</b> which is the property that makes one layout serve all fifteen types and
 /// will serve Phase 28's without a change.</para>
 ///
-/// <para>The tenant's default PrintingTemplate is still metadata only (that entity has no
-/// layout-definition field at all -- see its doc comment); its Name is surfaced in the footer to
-/// prove the wiring is real rather than vestigial.</para>
+/// <para><b>Phase 73 draws that frame three ways</b> (<see cref="PrintLayout"/>), still without a
+/// <c>DocumentType</c> in sight, so each layout serves all seventeen types. <i>Standard</i> is the frame as it was;
+/// <i>Traditional</i> rules every block; <i>Minimal</i> drops the logo and the rules and sets the header flush left.
+/// What the template hides has already gone from the DTO (<c>PrintTemplateApplier</c>); this file only draws.</para>
 /// </summary>
 public static class DocumentPdfRenderer
 {
+    /// <summary>The few measures the three layouts differ by.</summary>
+    private sealed record Style(bool Ruled, bool FlushLeft, float BaseFontSize, float MarginCm, float Spacing)
+    {
+        public static Style For(PrintableDocumentDto dto)
+        {
+            var style = dto.Layout switch
+            {
+                PrintLayout.Traditional => new Style(Ruled: true, FlushLeft: false, BaseFontSize: 10, MarginCm: 1.5f, Spacing: 10),
+                PrintLayout.Minimal => new Style(Ruled: false, FlushLeft: true, BaseFontSize: 9, MarginCm: 1.5f, Spacing: 10),
+                _ => new Style(Ruled: false, FlushLeft: false, BaseFontSize: 10, MarginCm: 2, Spacing: 12),
+            };
+
+            return dto.CompactMargins ? style with { MarginCm = 1, Spacing = style.Spacing / 2 } : style;
+        }
+    }
+
+    private static readonly Color RuleColour = Colors.Grey.Darken2;
+
     public static byte[] Render(PrintableDocumentDto dto)
     {
         PdfFonts.EnsureRegistered();
+        var style = Style.For(dto);
 
         return Document.Create(container =>
         {
             container.Page(page =>
             {
                 page.Size(PageSizes.A4);
-                page.Margin(2, Unit.Centimetre);
-                page.DefaultTextStyle(x => x.FontSize(10));
+                page.Margin(style.MarginCm, Unit.Centimetre);
+                page.DefaultTextStyle(x => x.FontSize(style.BaseFontSize));
 
-                page.Header().Element(header => RenderHeader(header, dto));
-                page.Content().Element(content => RenderContent(content, dto));
+                page.Header().Element(header => RenderHeader(header, dto, style));
+                page.Content().Element(content => RenderContent(content, dto, style));
                 page.Footer().Element(footer => RenderFooter(footer, dto));
             });
         }).GeneratePdf();
@@ -57,37 +78,40 @@ public static class DocumentPdfRenderer
         container.AlignCenter().Border(1).PaddingVertical(2).PaddingHorizontal(8)
             .Text($"COPY OF ORIGINAL · printed {copy.PrintNumber} times").Bold().FontSize(10);
 
-    /// <summary>Organization block on the left, document title and number on the right -- the
-    /// arrangement the reference product prints for every document type.</summary>
     /// <summary>
     /// Phase 44 (39 carried item #3) -- the header's wider arrangement, brought into line with the
     /// reference product: the organization block is <b>centred beside the logo</b> and the document
     /// title is <b>centred below</b>, rather than organization-left / title-right.
     ///
-    /// <para>Phase 39 recorded this divergence and deliberately did not chase it, because re-laying
-    /// out the one shared layout changes all fifteen document types for a cosmetic reason. It is done
-    /// here as its own item, which is what makes "all fifteen" a reason to be careful rather than a
-    /// reason to decline -- and the existing PDF tests cover exactly that blast radius.</para>
-    ///
     /// <para><b>The logo is balanced, not just placed.</b> A constant spacer of the same width sits
     /// on the right of the row, so the organization block is centred on the <i>page</i> rather than
     /// on the space left over beside the mark. Without it a logo would shift the block right by half
     /// its own width, which reads as a misalignment rather than as a design.</para>
+    ///
+    /// <para>Phase 73 -- Traditional draws the same header inside a box; Minimal sets it flush left and never draws
+    /// a logo (the vendor's Minimal has no logo section at all).</para>
     /// </summary>
-    private static void RenderHeader(IContainer container, PrintableDocumentDto dto)
+    private static void RenderHeader(IContainer container, PrintableDocumentDto dto, Style style)
     {
         // Re-checked with the same ImageHeader the upload used, and skipped if the bytes are not one
         // of the three formats. QuestPDF throws at GeneratePdf time for an image it cannot decode --
         // after composition, so not catchable around the draw call -- and an organization whose
         // stored logo has somehow gone bad still needs its invoices to print.
-        var logo = dto.OrganizationLogo is { Length: > 0 } bytes
+        var logo = !style.FlushLeft
+                   && dto.OrganizationLogo is { Length: > 0 } bytes
                    && ImageHeader.TryRead(new MemoryStream(bytes)) is not null
             ? bytes
             : null;
 
-        container.PaddingBottom(10).Column(header =>
+        container.PaddingBottom(style.Spacing - 2).Column(header =>
         {
-            header.Item().Row(row =>
+            var organizationBox = header.Item();
+            if (style.Ruled)
+            {
+                organizationBox = organizationBox.Border(1).BorderColor(RuleColour).Padding(6);
+            }
+
+            organizationBox.Row(row =>
             {
                 if (logo is not null)
                 {
@@ -99,11 +123,11 @@ public static class DocumentPdfRenderer
 
                 row.RelativeItem().AlignMiddle().Column(column =>
                 {
-                    column.Item().AlignCenter().Text(dto.OrganizationName).Bold().FontSize(16);
+                    Aligned(column.Item(), style).Text(dto.OrganizationName).Bold().FontSize(style.FlushLeft ? 13 : 16);
 
                     if (!string.IsNullOrWhiteSpace(dto.OrganizationAddress))
                     {
-                        column.Item().AlignCenter().Text(dto.OrganizationAddress).FontSize(9);
+                        Aligned(column.Item(), style).Text(dto.OrganizationAddress).FontSize(9);
                     }
 
                     var contactLine = string.Join(
@@ -118,7 +142,7 @@ public static class DocumentPdfRenderer
 
                     if (!string.IsNullOrWhiteSpace(contactLine))
                     {
-                        column.Item().AlignCenter().Text(contactLine).FontSize(9);
+                        Aligned(column.Item(), style).Text(contactLine).FontSize(9);
                     }
                 });
 
@@ -129,51 +153,72 @@ public static class DocumentPdfRenderer
                 }
             });
 
-            header.Item().PaddingTop(8).Column(column =>
+            var titleBlock = header.Item().PaddingTop(style.Ruled ? 0 : 8);
+            if (style.Ruled)
+            {
+                titleBlock = titleBlock.BorderLeft(1).BorderRight(1).BorderBottom(1).BorderColor(RuleColour)
+                    .Background(Colors.Grey.Lighten3).Padding(4);
+            }
+
+            titleBlock.Column(column =>
             {
                 if (dto.PrintedCopy is { IsCopy: true } copy)
                 {
                     column.Item().PaddingBottom(4).Element(item => RenderCopyMark(item, copy));
                 }
 
-                column.Item().AlignCenter().Text(dto.Title.ToUpperInvariant()).Bold().FontSize(16);
+                Aligned(column.Item(), style).Text(dto.Title.ToUpperInvariant()).Bold().FontSize(style.FlushLeft ? 13 : 16);
 
                 // Phase 67 -- the heading in Nepali, as the till receipt prints it. Only this line
                 // names the Devanagari family; the rest of the page keeps the default font.
                 if (dto.TitleNepali is { } nepali)
                 {
-                    column.Item().AlignCenter().Text(nepali).FontFamily(PdfFonts.Devanagari).Bold().FontSize(13);
+                    Aligned(column.Item(), style).Text(nepali).FontFamily(PdfFonts.Devanagari).Bold().FontSize(13);
                 }
 
-                column.Item().AlignCenter().Text(dto.Code).FontSize(11);
-                column.Item().AlignCenter().Text($"{dto.DateLabel}: {dto.DateText}").FontSize(9);
+                Aligned(column.Item(), style).Text(dto.Code).FontSize(11);
+                Aligned(column.Item(), style).Text($"{dto.DateLabel}: {dto.DateText}").FontSize(9);
 
                 // Phase 71 -- a tax document's second statutory date, under the first (Schedule 5 sets them
                 // side by side; a centred header has the room for one per line).
                 if (dto.IssueDateText is { } issued)
                 {
-                    column.Item().AlignCenter().Text($"Issue Date: {issued}").FontSize(9);
+                    Aligned(column.Item(), style).Text($"Issue Date: {issued}").FontSize(9);
                 }
 
                 if (!string.IsNullOrWhiteSpace(dto.Reference))
                 {
-                    column.Item().AlignCenter().Text($"Ref: {dto.Reference}").FontSize(9);
+                    Aligned(column.Item(), style).Text($"Ref: {dto.Reference}").FontSize(9);
                 }
             });
         });
     }
 
-    private static void RenderContent(IContainer container, PrintableDocumentDto dto)
+    private static IContainer Aligned(IContainer item, Style style) => style.FlushLeft ? item.AlignLeft() : item.AlignCenter();
+
+    private static void RenderContent(IContainer container, PrintableDocumentDto dto, Style style)
     {
-        container.PaddingVertical(10).Column(column =>
+        container.PaddingVertical(style.Spacing - 2).Column(column =>
         {
-            column.Spacing(12);
+            column.Spacing(style.Spacing);
 
             if (dto.PartyLabel is not null || dto.HeaderFields.Count > 0)
             {
-                column.Item().Row(row =>
+                var block = column.Item();
+                if (style.Ruled)
                 {
-                    row.RelativeItem().Column(party =>
+                    block = block.Border(1).BorderColor(RuleColour);
+                }
+
+                block.Row(row =>
+                {
+                    var partyCell = row.RelativeItem();
+                    if (style.Ruled)
+                    {
+                        partyCell = partyCell.BorderRight(1).BorderColor(RuleColour).Padding(6);
+                    }
+
+                    partyCell.Column(party =>
                     {
                         if (dto.PartyLabel is null)
                         {
@@ -194,7 +239,13 @@ public static class DocumentPdfRenderer
                         }
                     });
 
-                    row.RelativeItem().Column(fields =>
+                    var fieldsCell = row.RelativeItem();
+                    if (style.Ruled)
+                    {
+                        fieldsCell = fieldsCell.Padding(6);
+                    }
+
+                    fieldsCell.Column(fields =>
                     {
                         foreach (var field in dto.HeaderFields)
                         {
@@ -204,14 +255,45 @@ public static class DocumentPdfRenderer
                 });
             }
 
+            // Phase 73 -- the custom fields the template prints, as one wrapped line of label/value pairs between the
+            // header and the tables, where the vendor's Classic layout prints them.
+            if (dto.CustomFields is { Count: > 0 } customFields)
+            {
+                var block = column.Item();
+                if (style.Ruled)
+                {
+                    block = block.Border(1).BorderColor(RuleColour).Padding(6);
+                }
+
+                block.Text(text =>
+                {
+                    for (var index = 0; index < customFields.Count; index++)
+                    {
+                        if (index > 0)
+                        {
+                            text.Span("     ");
+                        }
+
+                        text.Span($"{customFields[index].Label}: ").Bold().FontSize(9);
+                        text.Span(customFields[index].Value).FontSize(9);
+                    }
+                });
+            }
+
             foreach (var section in dto.Sections)
             {
-                column.Item().Element(item => RenderSection(item, section));
+                column.Item().Element(item => RenderSection(item, section, style));
             }
 
             if (dto.Summary.Count > 0)
             {
-                column.Item().AlignRight().Width(220).Column(summary =>
+                var summaryBox = column.Item().AlignRight().Width(220);
+                if (style.Ruled)
+                {
+                    summaryBox = summaryBox.Border(1).BorderColor(RuleColour).Padding(4);
+                }
+
+                summaryBox.Column(summary =>
                 {
                     foreach (var field in dto.Summary)
                     {
@@ -233,6 +315,16 @@ public static class DocumentPdfRenderer
                             }
                         });
                     }
+                });
+            }
+
+            // Phase 73 -- the total in words, under the summary, where a reader checks it against the figure.
+            if (!string.IsNullOrWhiteSpace(dto.AmountInWords))
+            {
+                column.Item().Text(text =>
+                {
+                    text.Span("Amount in Words: ").Bold().FontSize(9);
+                    text.Span(dto.AmountInWords).Italic().FontSize(9);
                 });
             }
 
@@ -258,22 +350,26 @@ public static class DocumentPdfRenderer
                 });
             }
 
-            column.Item().PaddingTop(25).Row(row =>
+            if (dto.ShowSignatureLine)
             {
-                row.RelativeItem().Text("Prepared By").FontSize(8).Light();
-                row.RelativeItem().AlignRight().Text("Approved By").FontSize(8).Light();
-            });
+                column.Item().PaddingTop(style.Spacing * 2).Row(row =>
+                {
+                    row.RelativeItem().Text("Prepared By").FontSize(8).Light();
+                    row.RelativeItem().AlignRight().Text("Approved By").FontSize(8).Light();
+                });
+            }
         });
     }
 
     /// <summary>One titled table. An empty section still prints its title and header row -- a
     /// receipt whose "Payment For" table vanishes reads as if nothing were outstanding, where an
-    /// empty table plainly says nothing is allocated.</summary>
-    private static void RenderSection(IContainer container, PrintableSectionDto section)
+    /// empty table plainly says nothing is allocated. Phase 73 -- Traditional rules every cell and shades the
+    /// header row; Minimal keeps only the rule under the header.</summary>
+    private static void RenderSection(IContainer container, PrintableSectionDto section, Style style)
     {
         container.Column(column =>
         {
-            column.Item().PaddingBottom(3).Text(section.Title).Bold().FontSize(11);
+            column.Item().PaddingBottom(3).Text(section.Title).Bold().FontSize(style.FlushLeft ? 10 : 11);
 
             column.Item().Table(table =>
             {
@@ -289,19 +385,21 @@ public static class DocumentPdfRenderer
                 {
                     foreach (var definition in section.Columns)
                     {
-                        var cell = header.Cell().BorderBottom(1).PaddingBottom(2);
+                        var cell = style.Ruled
+                            ? header.Cell().Border(1).BorderColor(RuleColour).Background(Colors.Grey.Lighten3).Padding(3)
+                            : header.Cell().BorderBottom(1).PaddingBottom(2).PaddingHorizontal(3);
                         (definition.AlignRight ? cell.AlignRight() : cell).Text(definition.Header).Bold().FontSize(9);
                     }
                 });
 
                 foreach (var row in section.Rows)
                 {
-                    WriteCells(table, section, row, bold: false);
+                    WriteCells(table, section, row, style, bold: false);
                 }
 
                 if (section.TotalRow is { } totalRow)
                 {
-                    WriteCells(table, section, totalRow, bold: true, borderTop: true);
+                    WriteCells(table, section, totalRow, style, bold: true, borderTop: true);
                 }
             });
         });
@@ -311,16 +409,27 @@ public static class DocumentPdfRenderer
     /// than throwing: QuestPDF assigns cells positionally, so a short row would otherwise shift
     /// every following row one column left and produce a plausible-looking, wrong document.</summary>
     private static void WriteCells(
-        TableDescriptor table, PrintableSectionDto section, PrintableRowDto row, bool bold, bool borderTop = false)
+        TableDescriptor table, PrintableSectionDto section, PrintableRowDto row, Style style, bool bold, bool borderTop = false)
     {
         for (var index = 0; index < section.Columns.Count; index++)
         {
             var definition = section.Columns[index];
-            var cell = table.Cell().PaddingVertical(2);
-
-            if (borderTop)
+            IContainer cell;
+            if (style.Ruled)
             {
-                cell = cell.BorderTop(1).PaddingTop(3);
+                cell = table.Cell().Border(1).BorderColor(RuleColour).Padding(3);
+            }
+            else
+            {
+                // The total's rule goes on the cell before any padding, so it runs unbroken across the columns; then a
+                // little room each side (phase 73), or a right-aligned quantity runs into the unit beside it ("2Pcs").
+                cell = table.Cell();
+                if (borderTop)
+                {
+                    cell = cell.BorderTop(1).PaddingTop(1);
+                }
+
+                cell = cell.PaddingVertical(2).PaddingHorizontal(3);
             }
 
             var text = index < row.Cells.Count ? row.Cells[index] : string.Empty;
@@ -333,16 +442,21 @@ public static class DocumentPdfRenderer
         }
     }
 
+    /// <summary>Phase 73 -- the template's footer line first; the "Template: name" line phase 20d printed to prove
+    /// the wiring is gone, now that the template visibly changes the page.</summary>
     private static void RenderFooter(IContainer container, PrintableDocumentDto dto)
     {
         container.AlignCenter().Column(column =>
         {
+            if (!string.IsNullOrWhiteSpace(dto.FooterText))
+            {
+                column.Item().AlignCenter().Text(dto.FooterText).FontSize(8);
+            }
+
             if (dto.CalendarNote is { } calendarNote)
             {
                 column.Item().AlignCenter().Text(calendarNote).FontSize(8);
             }
-
-            column.Item().AlignCenter().Text($"Template: {dto.PrintingTemplateName}").FontSize(8);
 
             // Phase 67 -- who printed this copy and when (the 2072 procedure's print record, which the
             // reference product's footer also carries), and the copy mark again at the foot.
