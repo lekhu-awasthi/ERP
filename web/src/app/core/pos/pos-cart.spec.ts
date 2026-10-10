@@ -68,6 +68,7 @@ function till(locationId = 'loc-1', overrides: Partial<PosTill> = {}): PosTill {
     printCreditNote: true,
     canRefund: true,
     canDiscount: true,
+    canChangeRate: true,
     ...overrides,
   };
 }

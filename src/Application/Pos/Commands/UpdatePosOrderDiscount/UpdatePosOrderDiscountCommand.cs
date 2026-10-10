@@ -16,8 +16,9 @@ namespace ErpApp.Application.Pos.Commands.UpdatePosOrderDiscount;
 /// Phase 74 -- or <paramref name="DiscountAmount"/> rupees off the whole tab, spread over its dishes and frozen at
 /// its first bill (<see cref="Domain.Pos.PosOrder.DiscountAmount"/>).
 ///
-/// <para><b>Pos.Order.Operate</b> in the pipeline, as every order action, and <b>Sales.Invoice.Approve</b> at the
-/// order's location in the handler (<see cref="PosOrderTerms"/>): who may lower a bill is who may approve one.
+/// <para><b>Pos.Order.Operate</b> in the pipeline, as every order action, and <b>Sales.Invoice.TillDiscount</b> at
+/// the order's location in the handler (<see cref="PosOrderTerms"/>; phase 72 used Approve, phase 76 split it out as
+/// the vendor's <i>Can Give Discount</i>).
 /// Named <c>Update</c> so <c>AuditBehavior</c> writes its row.</para>
 /// </summary>
 public sealed record UpdatePosOrderDiscountCommand(
@@ -54,7 +55,8 @@ public sealed class UpdatePosOrderDiscountCommandHandler(IAppDbContext db, ICurr
     public async Task<PosOrderDto> Handle(UpdatePosOrderDiscountCommand request, CancellationToken cancellationToken)
     {
         var (order, invoiced) = await PosOrderTerms.LoadForChangeAsync(
-            db, request.OrganizationId, currentUser.UserId, request.OrderId, cancellationToken);
+            db, request.OrganizationId, currentUser.UserId, request.OrderId, PermissionKeys.InvoiceTillDiscount,
+            cancellationToken);
 
         var (kind, value) = request.DiscountAmount is { } amount
             ? (PosDiscountKind.Amount, amount)

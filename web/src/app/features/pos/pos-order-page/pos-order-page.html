@@ -124,6 +124,8 @@
                     aria-controls="pos-order-discount-panel" (click)="openPanel({ kind: 'discount' })">
                     Discount{{ o.discountPct > 0 ? ' (' + o.discountPct + '%)' : '' }}@if (o.discountAmount > 0) { ({{ o.discountAmount | amount }}) }
                   </button>
+                }
+                @if (r.canRemoveServiceCharge && !orderBilled()) {
                   @if (hasServiceCharge()) {
                     <button type="button" class="btn btn-sm btn-outline-secondary" [attr.aria-expanded]="isPanel('serviceCharge')"
                       aria-controls="pos-order-service-charge-panel" (click)="openPanel({ kind: 'serviceCharge' })">
@@ -398,12 +400,18 @@
             @if (o.status === 'Open') {
               @if (!r.canDiscount) {
                 <p class="small text-body-secondary">
-                  Giving a discount or waiving the service charge needs the Sales.Invoice.Approve permission at this location.
+                  Giving a discount needs the Sales.Invoice.TillDiscount permission at this location.
                 </p>
-              } @else if (orderBilled()) {
+              }
+              @if (!r.canRemoveServiceCharge && hasServiceCharge()) {
                 <p class="small text-body-secondary">
-                  The order's discount and service charge are fixed: part of it is billed. An item not yet billed can still
-                  take a discount of its own.
+                  Waiving the service charge needs the Sales.Invoice.TillRemoveServiceCharge permission at this location.
+                </p>
+              }
+              @if ((r.canDiscount || r.canRemoveServiceCharge) && orderBilled()) {
+                <p class="small text-body-secondary">
+                  The order's discount and service charge are fixed: part of it is billed.@if (r.canDiscount) { An item not
+                  yet billed can still take a discount of its own.}
                 </p>
               }
             }

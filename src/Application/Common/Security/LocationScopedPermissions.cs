@@ -31,6 +31,10 @@ namespace ErpApp.Application.Common.Security;
 /// Location field live, and both opening-balance kinds ride the one OpeningBalance key pair).
 /// <c>LocationScopedPermissionCatalogTests</c> pins the count and the derivation in both
 /// directions.</para>
+///
+/// <para>Phase 76 -- the three till keys (<c>Sales.Invoice.TillDiscount</c>, <c>.TillRemoveServiceCharge</c>,
+/// <c>.TillChangeRate</c>) are scopable by this same rule and no other: the vendor's switches they mirror exist
+/// only per location, and naming them under <c>Sales.Invoice</c> is what puts them here. 90 keys.</para>
 /// </summary>
 public static class LocationScopedPermissions
 {

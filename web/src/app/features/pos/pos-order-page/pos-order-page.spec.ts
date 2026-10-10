@@ -47,6 +47,7 @@ describe('PosOrderPage', () => {
     orders: [], canVoid: true,
     roundOffEnabled: true, printEstimateBill: true, printInvoice: true, mySessionId: null, mySessionCode: null,
     canKitchen: true, serviceChargeOnTakeAway: true, canDiscount: true,
+    canRemoveServiceCharge: true,
     ...overrides,
   });
 
@@ -379,12 +380,32 @@ describe('PosOrderPage', () => {
     expect(p.buttons()).toContain('Restore Service Charge');
   });
 
-  it('offers neither a discount nor a waiver to a user who may not approve invoices, and says why', () => {
-    const p = page({ orderId: 'ord-1', restaurant: restaurant({ canDiscount: false }) });
+  it('offers neither a discount nor a waiver to a user holding neither till key, and says why', () => {
+    const p = page({ orderId: 'ord-1', restaurant: restaurant({ canDiscount: false, canRemoveServiceCharge: false }) });
 
     expect(p.buttons().some((x) => x.startsWith('Discount'))).toBe(false);
     expect(p.buttons()).not.toContain('Waive Service Charge');
-    expect(p.text()).toContain('needs the Sales.Invoice.Approve permission at this location');
+    expect(p.text()).toContain('Giving a discount needs the Sales.Invoice.TillDiscount permission at this location.');
+    expect(p.text()).toContain(
+      'Waiving the service charge needs the Sales.Invoice.TillRemoveServiceCharge permission at this location.');
+    expect(p.text()).not.toContain('Sales.Invoice.Approve');
+  });
+
+  it('offers the waiver without the discount to a user holding only the waiver\'s key (phase 76)', () => {
+    const p = page({ orderId: 'ord-1', restaurant: restaurant({ canDiscount: false }) });
+
+    expect(p.buttons().some((x) => x.startsWith('Discount'))).toBe(false);
+    expect(p.buttons()).toContain('Waive Service Charge');
+    expect(p.text()).toContain('Sales.Invoice.TillDiscount');
+    expect(p.text()).not.toContain('Sales.Invoice.TillRemoveServiceCharge');
+  });
+
+  it('offers the discount without the waiver to a user holding only the discount\'s key (phase 76)', () => {
+    const p = page({ orderId: 'ord-1', restaurant: restaurant({ canRemoveServiceCharge: false }) });
+
+    expect(p.buttons().some((x) => x.startsWith('Discount'))).toBe(true);
+    expect(p.buttons()).not.toContain('Waive Service Charge');
+    expect(p.text()).toContain('Sales.Invoice.TillRemoveServiceCharge');
   });
 
   it('fixes the order\'s terms once part of it is billed, while an unbilled dish can still take a discount', () => {

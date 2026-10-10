@@ -6,7 +6,7 @@ Guiding rule for phase sizing: each phase ends with something *runnable and demo
 
 ---
 
-## Completed phases (0–75)
+## Completed phases (0–76)
 
 One line each; phase *N*'s full story is `docs/phase-N-status.md`. The verbose index as it stood on
 2026-09-28 is archived verbatim in `roadmap-history.md` ("Completed-phases index, verbose form").
@@ -61,6 +61,7 @@ One line each; phase *N*'s full story is `docs/phase-N-status.md`. The verbose i
 | 73 | Printing templates: three fixed layouts (Standard, Traditional, Minimal) chosen per type, show/hide toggles (a tax document's seller address and PAN and buyer address locked), the custom fields a bill prints, a footer line, compact margins, a preview of unsaved settings; every bill gained a Unit column, the HS code where a line has one, and the amount in words |
 | 74 | Till pricing: Amount discounts at both tills (a line's rupees off each unit, a bill's or an order's spread over its lines and stored per line, an order's frozen at its first bill); the refund returning the last of a sale line takes what is left of it, so refunds tie out to the paisa; any Retail price but the catalogue's needs `Sales.Invoice.Approve` |
 | 75 | Printing by location: "Location: name, address" under the registered address on every PDF of a multi-location organization (hideable, never locked); a location may choose its own template per type, falling back to the default; the till receipt prints the registered address and the location's own |
+| 76 | Separate till keys: a discount, a waived service charge and any price but the catalogue's each need their own location-scoped key (`Sales.Invoice.TillDiscount` / `.TillRemoveServiceCharge` / `.TillChangeRate`, the vendor's three POS role switches) instead of `Sales.Invoice.Approve`, which also approved every ERP draft; existing Approve grants backfilled at the same scope; credit stays on Approve |
 
 ---
 
@@ -144,8 +145,10 @@ spread over its lines and stored per line, an order's frozen at its first bill),
 sale charged, and any Retail price but the catalogue's gated on `Sales.Invoice.Approve`. Phase 75 printed the
 issuing location (`phase-75-status.md`): "Location: name, address" under the registered address when an organization
 has more than one location, a template per location falling back to the default (phase 73 Decision C reversed), and
-both addresses on the till receipt. **Next: not yet scheduled**; the candidates are phase 75 § 5's (and the rest of
-phase 73 § 5 it carries), phase 74 § 5's and phase 71 § 5's.
+both addresses on the till receipt. Phase 76 split the till's price powers off Approve (`phase-76-status.md`): a
+discount, a waiver and a changed price each have their own location-scoped key, as the vendor's POS role editor keeps
+three switches, and every existing Approve grant was copied to them. **Next: not yet scheduled**; the candidates are
+phase 75 § 5's (and the rest of phase 73 § 5 it carries), phase 74 § 5's remaining items and phase 71 § 5's.
 
 Open question for the tax advisor, not to be guessed (carried from the PAN fix): whether IRD expects a buyer PAN
 on a high-value sale to an unregistered buyer. If it does, it would be a warning on approve, never a block.
@@ -191,9 +194,12 @@ export lacks the order terms as well. Its refund-of-a-remainder paisa, Amount di
 in phase 74.
 
 **Carried from phase 74** (§ 5 there): an order with an Amount discount cannot transfer items, and a dish carrying a
-share cannot be discarded or parcelled once the order is billed; the vendor's three role switches (*Can Give
-Discount*, *Can Remove Service Charge*, *Can Change Rate*) are one key here; the full-tenant export lacks the per-unit
-discount and the bill's amount.
+share cannot be discarded or parcelled once the order is billed; the full-tenant export lacks the per-unit discount
+and the bill's amount. Its third item, the vendor's three role switches as one key, was done in phase 76.
+
+**Carried from phase 76** (§ 5 there): the ERP invoice form's discount and rate are still reviewed only at Approve; a
+maximum discount per role (the vendor's `discount_limit` is a switch despite its name) has no live evidence; the
+vendor's server-side enforcement of its switches is unread; its POS-channel role sets are not modelled.
 
 **Carried from phase 70** (§ 5 there): the VAT Act §13 wording for packaging is unverified (phase 61's reading
 applied to a second charge); the full-tenant export now lacks the packaging fee as well as service charge and

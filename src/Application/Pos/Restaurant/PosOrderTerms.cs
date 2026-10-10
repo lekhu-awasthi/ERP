@@ -11,7 +11,8 @@ namespace ErpApp.Application.Pos.Restaurant;
 /// <para><b>The order loads for an action at its own till</b>, as every order request does
 /// (<see cref="PosRestaurant.LoadOrderForActionAsync"/>: <c>Sales.Invoice.Create</c> there).</para>
 ///
-/// <para><b>And the caller may approve invoices there: <c>Sales.Invoice.Approve</c>.</b> A discount or a waived
+/// <para><b>And the caller may change the bill's terms there</b> (phase 72: <c>Sales.Invoice.Approve</c>; phase 76:
+/// a till key per term, below). A discount or a waived
 /// charge lowers what the table pays, and a bill is approved the moment it is paid, so the review an ERP invoice
 /// gets at Approve has to happen when its terms are set instead. A drawer count cannot catch a discount: the cash
 /// matches the lowered bill. This is phase 61 Decision F's rule for credit applied to a price, and it is the
@@ -19,16 +20,22 @@ namespace ErpApp.Application.Pos.Restaurant;
 /// own keys (read live on 2026-10-09). Re-checked here, not in the pipeline, because the location is the loaded
 /// order's: a missing order is the handler's 404, a real one outside the caller's grant a 403 naming the key
 /// (phase 31's both-directions proof).</para>
+///
+/// <para><b>Phase 76 -- the caller names the key.</b> Approve was those two switches in one, and also let the
+/// cashier approve every ERP draft at the branch. A discount now needs <c>Sales.Invoice.TillDiscount</c> there and
+/// a waiver (or its undoing) <c>Sales.Invoice.TillRemoveServiceCharge</c>, each grantable per location as the
+/// vendor's switches are.</para>
 /// </summary>
 internal static class PosOrderTerms
 {
     public static async Task<(PosOrder Order, IReadOnlyDictionary<Guid, decimal> Invoiced)> LoadForChangeAsync(
-        IAppDbContext db, Guid organizationId, Guid userId, Guid orderId, CancellationToken cancellationToken)
+        IAppDbContext db, Guid organizationId, Guid userId, Guid orderId, string permissionKey,
+        CancellationToken cancellationToken)
     {
         var (order, _) = await PosRestaurant.LoadOrderForActionAsync(db, organizationId, userId, orderId, cancellationToken);
 
         await GrantedPermissionReader.EnsureGrantedAtLocationAsync(
-            db, organizationId, userId, PermissionKeys.InvoiceApprove, order.BillingLocationId, cancellationToken);
+            db, organizationId, userId, permissionKey, order.BillingLocationId, cancellationToken);
 
         // What is billed fixes the terms: the Domain refuses a change once a part was priced with them.
         var invoiced = (await PosOrderBilling.LoadAsync(db, organizationId, order.Id, cancellationToken)).Invoiced;

@@ -160,11 +160,17 @@ public class LocationScopeSweepGuardTests
     ///
     /// <para>Seventeen transactional types since phase 58 added Delivery Note and Goods Received Note,
     /// each with the five-key document row the live role editor gives them.</para>
+    ///
+    /// <para>Phase 76 -- plus the three till keys, which the vendor's POS role editor holds per location
+    /// and only there (its Can Give Discount / Can Remove Service Charge / Can Change Rate).</para>
     /// </summary>
     [Fact]
     public void The_scopable_key_count_is_the_transaction_matrix()
     {
-        Assert.Equal((17 * 5) + 2, LocationScopedPermissions.ScopableKeys.Count);
+        Assert.Equal((17 * 5) + 2 + 3, LocationScopedPermissions.ScopableKeys.Count);
+        Assert.Contains("Sales.Invoice.TillDiscount", LocationScopedPermissions.ScopableKeys);
+        Assert.Contains("Sales.Invoice.TillRemoveServiceCharge", LocationScopedPermissions.ScopableKeys);
+        Assert.Contains("Sales.Invoice.TillChangeRate", LocationScopedPermissions.ScopableKeys);
     }
 
     /// <summary>

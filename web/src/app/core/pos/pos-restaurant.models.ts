@@ -145,10 +145,12 @@ export interface PosRestaurant {
   /** Phase 68 -- whether food parcelled from a dine-in line keeps its service charge here. */
   serviceChargeOnTakeAway: boolean;
   /**
-   * Phase 72 -- whether this user holds Sales.Invoice.Approve here, which giving a discount or waiving the
-   * service charge needs, so the order screen offers them only to those it would not refuse.
+   * Phase 72 -- whether this user may give a discount here, so the order screen offers one only to those it would
+   * not refuse. Phase 76 -- Sales.Invoice.TillDiscount, no longer Approve.
    */
   canDiscount: boolean;
+  /** Phase 76 -- whether this user holds Sales.Invoice.TillRemoveServiceCharge here, which a waiver needs. */
+  canRemoveServiceCharge: boolean;
 }
 
 export interface PosOrderLine {

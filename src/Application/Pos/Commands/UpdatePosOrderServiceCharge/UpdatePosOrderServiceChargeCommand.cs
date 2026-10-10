@@ -14,8 +14,10 @@ namespace ErpApp.Application.Pos.Commands.UpdatePosOrderServiceCharge;
 /// a guest may refuse it; the vendor offers this as <i>Disable Service Charge</i>. Every line is then billed
 /// without it while keeping its own frozen rate. Fixed once any of the order is billed (a 409).
 ///
-/// <para>Permissions as <see cref="UpdatePosOrderDiscount.UpdatePosOrderDiscountCommand"/>'s: it lowers the bill
-/// the same way (the vendor's <i>Can Remove Service Charge</i> sits beside <i>Can Give Discount</i>).</para>
+/// <para>Permissions as <see cref="UpdatePosOrderDiscount.UpdatePosOrderDiscountCommand"/>'s, with its own key since
+/// phase 76: <c>Sales.Invoice.TillRemoveServiceCharge</c> at the order's location, the vendor's <i>Can Remove Service
+/// Charge</i> beside <i>Can Give Discount</i>. Restoring the charge needs it too: a gate on a bill's terms is about
+/// the terms, not the direction (phase 74).</para>
 /// </summary>
 public sealed record UpdatePosOrderServiceChargeCommand(Guid OrganizationId, Guid OrderId, bool? Waived)
     : IRequest<PosOrderDto>, IRequirePermission, IOrganizationScoped, IRequireFeature, IAuditableRequestWithId
@@ -47,7 +49,8 @@ public sealed class UpdatePosOrderServiceChargeCommandHandler(IAppDbContext db, 
     public async Task<PosOrderDto> Handle(UpdatePosOrderServiceChargeCommand request, CancellationToken cancellationToken)
     {
         var (order, invoiced) = await PosOrderTerms.LoadForChangeAsync(
-            db, request.OrganizationId, currentUser.UserId, request.OrderId, cancellationToken);
+            db, request.OrganizationId, currentUser.UserId, request.OrderId, PermissionKeys.InvoiceTillRemoveServiceCharge,
+            cancellationToken);
 
         PosOrderCommands.Run(() => order.WaiveServiceCharge(request.Waived!.Value, invoiced));
         await db.SaveChangesAsync(cancellationToken);

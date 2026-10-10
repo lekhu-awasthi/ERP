@@ -107,6 +107,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 73: printing templates (three fixed layouts per type; a template stores what it **hides**; a tax document's seller address/PAN and buyer address locked; custom fields by choice; one applier for print and preview). Before a print layout, a setting that changes what a bill shows, or a column on a printed table — `docs/phase-73-status.md`
 - Phase 74: till pricing (a line's Amount is per unit, a bill's or an order's is spread and stored per line, an order's frozen at its first bill; the refund returning the last of a line takes what is left of it; any Retail price but the catalogue's needs Approve). Before a part of a line's money a refund gives back, spreading a figure over lines, or gating a till price — `docs/phase-74-status.md`
 - Phase 75: printing by location ("Location: name, address" when there are two or more locations, hideable; a template per location falling back to the default; the receipt prints both addresses). Before printing anything a location decides — `docs/phase-75-status.md`
+- Phase 76: separate till keys (a discount, a waiver and a changed price each their own location-scoped `Sales.Invoice.Till*` key instead of Approve; existing Approve grants backfilled at the same scope; credit stays on Approve). Before borrowing a key for a new power, or splitting one — `docs/phase-76-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -288,6 +289,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - An order's discount and waiver are fixed at its first bill, a line's at its own first part, or the last part absorbs the change; price order lines only via `PosOrder.FiguresOf` (phase-72).
 - A tab's terms travel with its food: a transfer's empty target takes the source's discount and waiver, and a target on other terms is a 409 naming both (phase-72).
 - Gating a till discount alone is a price edit away from useless: a Retail line below `ProductPrices.CatalogueRate` needs the same `Sales.Invoice.Approve` (phase-72).
+- A key borrowed for a second power grants everything the first one does: till discounts on Approve also approved every ERP draft. Split it and backfill at the old scope (phase-76).
 
 - Rich text is sanitised on write, in the Domain setter, by re-emission from a parsed tree, never by filtering; `Sanitize` must stay idempotent (phase-39).
 - A rich-text grammar is its **renderer's capability list**: decide what `RichTextPdfRenderer` can draw, then build the toolbar, or the field looks one way on screen and another in the PDF the customer receives (phase-39).
@@ -527,32 +529,32 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - The vendor's POS and ERP keep separate sessions; drive both by capturing the organisation list's `window.open` URL, and never record its `hash`/`identity` (phase 59).
 - The auto-mode classifier can refuse writes on the vendor's tenant even after the user says yes; plan a confirm-live read that can finish from screens and the client bundle alone (phase-64).
 - …it refused a page helper replaying the vendor's captured headers, yet allowed writes clicked through the vendor's own screens: drive a write-read through the UI (phase-74).
+- The vendor's POS has its own roles and role editor (its till switches are not in the ERP's), and that editor's header **Edit** button is Save (phase-76).
 - A keyboard pass right after a dev-server rebuild measures the old bundle, and keys batched in one task outrun a zoneless render; check the served chunk, and pace keys as a person would (phase-68).
 
 ## Current status
 
-**Phases 0-75 are complete. Next: not yet scheduled** (the user picks; candidates in `docs/roadmap.md`).
+**Phases 0-76 are complete. Next: not yet scheduled** (the user picks; candidates in `docs/roadmap.md`).
 Each phase's story is in its `docs/phase-N-status.md`, and finished planning entries are archived in
 `docs/roadmap-history.md`.
 
-**Phase 75 printed the issuing location.**
+**Phase 76 split the till's price powers off `Sales.Invoice.Approve`.**
 
-- Every PDF of an organization with two or more locations prints "Location: name, address" under the registered
-  address (`PrintElement.Location`, hideable, never locked); the till receipt prints the registered address as the
-  seller's and the location's own under its name.
-- A location may choose its own template per type (`PrintingTemplateLocationChoice`, `PrintingTemplateResolver`),
-  falling back to the type's default, as the vendor does; a type carrying no location under the scope is a 409.
-  No new keys.
+- A discount, a waived service charge and any Retail price but the catalogue's each need their own key
+  (`Sales.Invoice.TillDiscount` / `.TillRemoveServiceCharge` / `.TillChangeRate`), location-scoped through phase 32b's
+  derivation, Admin-only. Credit still needs Approve.
+- `Phase76TillKeys` copied every existing Approve grant to the three keys at the same scope, so no till started
+  refusing on upgrade.
 
-The vendor (abcagro1, readable until about 2026-10-25) falls back the same way, but its Location Name/Address switches
-print nothing even when saved on, and its print dialog's template list 400s for a location with no selection.
+The vendor (abcagro1, readable until about 2026-10-25) keeps these as three switches per location in its **POS** app's
+own role editor, over POS-channel roles separate from its ERP roles.
 
 **Next:** not yet scheduled. Candidates: phase 75 § 5 (with the rest of phase 73 § 5: ordering of header blocks, the
-Modern/Classic layouts, amount in words for a foreign currency), phase 74 § 5 (transfers with an amount, separate
-discount/rate keys), phase 71 § 5.
+Modern/Classic layouts, amount in words for a foreign currency), phase 74 § 5's remaining items (transfers with an
+amount, the full-tenant export's per-unit discount), phase 71 § 5, phase 76 § 5.
 
-Tests: Domain 991, Application.UnitTests **1705**, Infrastructure.UnitTests 13,
-Api.IntegrationTests **57**, Angular **830**. Everything was green at phase 75's close with Docker up.
+Tests: Domain 991, Application.UnitTests **1708**, Infrastructure.UnitTests 13,
+Api.IntegrationTests 57, Angular **833**. Everything was green at phase 76's close with Docker up.
 The bundle sits at **652.58 kB** against `build-budget.spec.ts`'s 680 kB; every POS screen is lazy.
 
 - `Api.IntegrationTests` needs Docker Desktop running. Without it the Testcontainers-backed tests

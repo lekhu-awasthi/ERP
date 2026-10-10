@@ -279,7 +279,8 @@ beside a 200 from the same user, and create a fresh Organization per phase.
   lines carry `discountPct`, `serviceChargeWaived`, `gross` and `discount`; the bill preview carries `gross`, `discount`,
   `discountPct`, `serviceChargeWaived`, and each line's billed `serviceChargeRate`.
 - Their keys (phase 72): `Pos.Order.Operate` in the pipeline, `Sales.Invoice.Approve` at the order's location in the
-  handler. So a nonexistent order is **404** as Admin and **403 naming `Pos.Order.Operate`** from a role holding
+  handler (**phase 76: `Sales.Invoice.TillDiscount` for both discounts, `Sales.Invoice.TillRemoveServiceCharge` for the
+  waiver**, so the 403 below names those). So a nonexistent order is **404** as Admin and **403 naming `Pos.Order.Operate`** from a role holding
   `Pos.Order.View` + `Tenancy.BillingLocation.View` (beside its 200 on `GET /billing-locations`), and for a role holding
   every waiter key but Approve it is **404** on a nonexistent order and **403 naming `Sales.Invoice.Approve`** on a real
   one. `GET /pos/restaurants/{loc}` and `GET /pos/tills/{loc}` carry `canDiscount`.
@@ -332,3 +333,10 @@ beside a 200 from the same user, and create a fresh Organization per phase.
   &documentType=` (204; no type is a 400 naming `DocumentType`). The 403-not-404 pair: the PUT naming a nonexistent
   template is **404** as Admin and **403 naming `Configuration.PrintingTemplate.Manage`** from a role holding only
   `.View`, beside its 200 on the GET. In SQL: `configuration.PrintingTemplateLocationChoices`.
+- The till keys (phase 76): `Sales.Invoice.TillDiscount` (a discount at either till), `.TillRemoveServiceCharge` (the
+  waiver, both ways) and `.TillChangeRate` (a Retail price off the catalogue) are checked at the location, and a
+  location-only grant is `PUT /roles/{id}/permissions` with `locationGrants: [{locationId, grants: {"<key>": true}}]`;
+  the 403 names `<CODE>.<key>` (a fresh HeadOffice's code is `HO`). Credit still names `Sales.Invoice.Approve`.
+  `GET /pos/tills/{loc}` carries `canDiscount`/`canChangeRate`, `GET /pos/restaurants/{loc}` `canDiscount`/
+  `canRemoveServiceCharge`. A table's `shape` is `Rectangle` or `Circle` (`Square` is a 400 naming no field).
+  The POS role-editor read: `/pos/settings/users-permissions/role-reference/edit?id=…`, its *Edit* button saves (phase-76).

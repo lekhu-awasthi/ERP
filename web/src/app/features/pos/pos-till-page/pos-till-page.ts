@@ -152,21 +152,30 @@ export class PosTillPage {
    *
    * Phase 74 -- any price but the catalogue's, raised as well as lowered (the vendor's Can Change Rate), and an
    * amount discount like a percentage. And a bill discount of more than the bill is refused before it is sent.
+   *
+   * Phase 76 -- a discount needs Sales.Invoice.TillDiscount and any other price Sales.Invoice.TillChangeRate, no
+   * longer Approve, which also approved every ERP draft at the branch.
    */
   protected readonly discountRefusal = computed(() => {
     const cart = this.cart();
+    const till = this.till();
     if (!cart) return null;
     if (cart.discountAmount() > cart.bill().billDiscount) {
       return `A discount of ${cart.discountAmount().toFixed(2)} is more than the bill comes to.`;
     }
-    if (this.till()?.canDiscount) return null;
-    const changed = cart.discountPct() > 0 || cart.discountAmount() > 0 || cart.lines().some((line) => {
+    // Phase 76 -- two keys, the vendor's two switches; the message names whichever is missing, or both.
+    const lines = cart.lines();
+    const discounted = cart.discountPct() > 0 || cart.discountAmount() > 0
+      || lines.some((line) => line.discountPct > 0 || line.discountPerUnit > 0);
+    const repriced = lines.some((line) => {
       const catalogue = line.product.units.find((unit) => unit.unitId === line.unitId)?.rate;
-      return line.discountPct > 0 || line.discountPerUnit > 0 || (catalogue !== undefined && line.rate !== catalogue);
+      return catalogue !== undefined && line.rate !== catalogue;
     });
-    return changed
-      ? 'A discount, or a price other than the catalogue\'s, needs permission to approve invoices at this location (Sales.Invoice.Approve).'
-      : null;
+    const missing = [
+      ...(discounted && !till?.canDiscount ? ['a discount needs Sales.Invoice.TillDiscount'] : []),
+      ...(repriced && !till?.canChangeRate ? ['a price other than the catalogue\'s needs Sales.Invoice.TillChangeRate'] : []),
+    ];
+    return missing.length > 0 ? `At this location, ${missing.join(', and ')}.` : null;
   });
 
   /** Phase 74 -- which kind each line's discount input takes, chosen by the cashier; until then, what the line has. A

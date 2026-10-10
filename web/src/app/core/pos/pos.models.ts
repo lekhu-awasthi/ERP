@@ -177,11 +177,13 @@ export interface PosTill {
   printCreditNote: boolean;
   /** Phase 63 -- whether this cashier holds Sales.CreditNote.Create and .Approve here, which a refund needs. */
   canRefund: boolean;
-  /**
-   * Phase 72 -- whether this cashier may give a discount or ring a line up below its catalogue price here: the
-   * same Sales.Invoice.Approve as credit, named for what the cart does with it.
-   */
+  /** Phase 72 -- whether this cashier may give a discount here. Phase 76 -- Sales.Invoice.TillDiscount, not Approve. */
   canDiscount: boolean;
+  /**
+   * Phase 76 -- whether this cashier holds Sales.Invoice.TillChangeRate here, which ringing a line up at any price
+   * but the catalogue's needs (the vendor's Can Change Rate).
+   */
+  canChangeRate: boolean;
 }
 
 /** One unit a product sells in; `rate` is already exclusive of VAT for that unit. Primary first. */

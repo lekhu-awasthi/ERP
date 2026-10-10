@@ -653,7 +653,7 @@ public sealed class PosOrder
     /// a percentage off every line after its own. <b>Only while nothing on the order is billed.</b> A part
     /// already paid was priced at the old terms, and the planner gives the last of each line exactly what is
     /// left of it, so a change now would land on the last part alone. Who may give one is the caller's check
-    /// (<c>Sales.Invoice.Approve</c> at the order's location). Setting the value it already has changes nothing.
+    /// (<c>Sales.Invoice.TillDiscount</c> at the order's location). Setting the value it already has changes nothing.
     /// </summary>
     public void SetDiscount(decimal discountPct, IReadOnlyDictionary<Guid, decimal> invoiced) =>
         SetDiscount(PosDiscountKind.Percent, discountPct, invoiced);

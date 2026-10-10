@@ -8,6 +8,7 @@ using ErpApp.Application.Pos.Queries.GetPosRestaurant;
 using ErpApp.Application.Pos.Queries.GetPosTill;
 using ErpApp.Application.Pos.Restaurant;
 using ErpApp.Domain.Pos;
+using ErpApp.Domain.Tenancy;
 using Microsoft.EntityFrameworkCore;
 
 namespace ErpApp.Application.UnitTests.Pos;
@@ -20,7 +21,12 @@ namespace ErpApp.Application.UnitTests.Pos;
 /// </summary>
 public class PosOrderDiscountHandlerTests
 {
-    private static string[] WithoutApprove(string[] keys) => [.. keys.Where(x => x != PermissionKeys.InvoiceApprove)];
+    private static string[] Without(string[] keys, params string[] removed) => [.. keys.Where(x => !removed.Contains(x))];
+
+    private static readonly string[] TillKeys =
+    [
+        PermissionKeys.InvoiceTillDiscount, PermissionKeys.InvoiceTillRemoveServiceCharge, PermissionKeys.InvoiceTillChangeRate,
+    ];
 
     private static PosOrderLineQuantityInput Momo(PosOrderDto order, decimal quantity) =>
         PosTestRestaurant.Line(order, "Chicken Momo", quantity);
@@ -148,19 +154,23 @@ public class PosOrderDiscountHandlerTests
         Assert.Equal(50m, after.Lines.Single(x => x.ProductName == "Coke 250ml").DiscountPct);
     }
 
+    /// <summary>Phase 76 -- a discount needs <c>Sales.Invoice.TillDiscount</c> and a waiver
+    /// <c>Sales.Invoice.TillRemoveServiceCharge</c> at the order's location, the vendor's two switches; Approve, which
+    /// this waiter still holds, no longer reaches either.</summary>
     [Fact]
-    public async Task Giving_a_discount_or_waiving_the_charge_needs_approve_at_the_orders_location()
+    public async Task Giving_a_discount_or_waiving_the_charge_needs_its_own_till_key_not_approve()
     {
-        var r = await PosTestRestaurant.CreateAsync(WithoutApprove(PosTestRestaurant.WaiterKeys));
+        var r = await PosTestRestaurant.CreateAsync(Without(PosTestRestaurant.WaiterKeys, TillKeys));
         var order = await r.SeatAsync(r.T1, [r.Momo(2), r.Coke(2)]);
 
-        var refusals = new[]
+        var discounts = new[]
         {
             await Assert.ThrowsAsync<ForbiddenException>(() => DiscountAsync(r, order.Id, 5m)),
             await Assert.ThrowsAsync<ForbiddenException>(() => LineDiscountAsync(r, order.Id, Momo(order, 0).LineId, 5m)),
-            await Assert.ThrowsAsync<ForbiddenException>(() => WaiveAsync(r, order.Id, true)),
         };
-        Assert.All(refusals, x => Assert.Contains(PermissionKeys.InvoiceApprove, x.Message));
+        Assert.All(discounts, x => Assert.Contains(PermissionKeys.InvoiceTillDiscount, x.Message));
+        var waiver = await Assert.ThrowsAsync<ForbiddenException>(() => WaiveAsync(r, order.Id, true));
+        Assert.Contains(PermissionKeys.InvoiceTillRemoveServiceCharge, waiver.Message);
 
         // A missing order is the handler's own 404, before the key is asked about (phase 31's other direction).
         await Assert.ThrowsAsync<NotFoundException>(() => DiscountAsync(r, Guid.NewGuid(), 5m));
@@ -171,12 +181,31 @@ public class PosOrderDiscountHandlerTests
         // The order screen is told before anyone tries.
         var floor = await new GetPosRestaurantQueryHandler(r.Till.Db, r.CurrentUser()).Handle(
             new GetPosRestaurantQuery(r.OrganizationId, r.LocationId), CancellationToken.None);
-        Assert.False(floor.CanDiscount);
+        Assert.Equal((false, false), (floor.CanDiscount, floor.CanRemoveServiceCharge));
 
         var manager = await PosTestRestaurant.CreateAsync();
         var theirs = await new GetPosRestaurantQueryHandler(manager.Till.Db, manager.CurrentUser()).Handle(
             new GetPosRestaurantQuery(manager.OrganizationId, manager.LocationId), CancellationToken.None);
-        Assert.True(theirs.CanDiscount);
+        Assert.Equal((true, true), (theirs.CanDiscount, theirs.CanRemoveServiceCharge));
+    }
+
+    /// <summary>The two switches are separate: a waiter who may take the service charge off (a guest declining it,
+    /// lawful since 2023) need not be one who may discount the food.</summary>
+    [Fact]
+    public async Task A_waiter_may_hold_the_waiver_without_the_discount()
+    {
+        var r = await PosTestRestaurant.CreateAsync(Without(PosTestRestaurant.WaiterKeys, PermissionKeys.InvoiceTillDiscount));
+        var order = await r.SeatAsync(r.T1, [r.Momo(2), r.Coke(2)]);
+
+        Assert.True((await WaiveAsync(r, order.Id, true)).ServiceChargeWaived);
+        Assert.False((await WaiveAsync(r, order.Id, false)).ServiceChargeWaived);
+
+        var refused = await Assert.ThrowsAsync<ForbiddenException>(() => DiscountAsync(r, order.Id, 5m));
+        Assert.Contains(PermissionKeys.InvoiceTillDiscount, refused.Message);
+
+        var floor = await new GetPosRestaurantQueryHandler(r.Till.Db, r.CurrentUser()).Handle(
+            new GetPosRestaurantQuery(r.OrganizationId, r.LocationId), CancellationToken.None);
+        Assert.Equal((false, true), (floor.CanDiscount, floor.CanRemoveServiceCharge));
     }
 
     [Fact]
@@ -241,7 +270,7 @@ public class PosOrderDiscountHandlerTests
         Assert.Equal(0m, await r.Till.BalanceAsync(await r.Till.ReceivableAccountIdAsync()));
     }
 
-    // ---- The retail till: a changed price needs Approve too --------------------------------------------------
+    // ---- The retail till: a discount and a changed price, each its own key (phase 76) ------------------------
 
     private static Task<CreatePosSaleResult> SellAsync(
         PosTestTill till, Guid sessionId, IReadOnlyList<PosSaleLineInput> lines, IReadOnlyList<PosTenderInput> tenders,
@@ -252,31 +281,38 @@ public class PosOrderDiscountHandlerTests
                 DiscountPct: billDiscountPct, DiscountAmount: billDiscountAmount),
             CancellationToken.None);
 
+    /// <summary>Phase 76 -- this cashier still holds Approve, which phases 72 and 74 asked for; it no longer reaches
+    /// the price. Each refusal names the key that would have allowed it.</summary>
     [Fact]
-    public async Task A_retail_discount_or_any_price_but_the_catalogue_needs_approve()
+    public async Task A_retail_discount_needs_the_discount_key_and_any_other_price_the_rate_key_not_approve()
     {
-        var till = await PosTestTill.CreateAsync(WithoutApprove(PosTestTill.CashierKeys));
+        var till = await PosTestTill.CreateAsync(Without(PosTestTill.CashierKeys, TillKeys));
         var session = await till.OpenAsync();
 
-        var refusals = new[]
+        var discounts = new[]
         {
             await Assert.ThrowsAsync<ForbiddenException>(() =>
                 SellAsync(till, session.Id, [till.Momo(1) with { DiscountPct = 10m }], [till.Cash(224)])),
             await Assert.ThrowsAsync<ForbiddenException>(() =>
                 SellAsync(till, session.Id, [till.Coke(1)], [till.Cash(61)], billDiscountPct: 10m)),
-            await Assert.ThrowsAsync<ForbiddenException>(() =>
-                SellAsync(till, session.Id, [till.Momo(1) with { Rate = 190m }], [till.Cash(237)])),
 
-            // Phase 74 -- the vendor's Can Change Rate gates a raised price too, and so does this till (the user,
-            // 2026-10-10); and an amount discount, on a line or on the bill, is a discount like a percentage.
-            await Assert.ThrowsAsync<ForbiddenException>(() =>
-                SellAsync(till, session.Id, [till.Momo(1) with { Rate = 210m }], [till.Cash(261)])),
+            // Phase 74 -- an amount discount, on a line or on the bill, is a discount like a percentage.
             await Assert.ThrowsAsync<ForbiddenException>(() =>
                 SellAsync(till, session.Id, [till.Momo(1) with { DiscountPerUnit = 10m }], [till.Cash(236)])),
             await Assert.ThrowsAsync<ForbiddenException>(() =>
                 SellAsync(till, session.Id, [till.Coke(1)], [till.Cash(62)], billDiscountAmount: 5m)),
         };
-        Assert.All(refusals, x => Assert.Contains(PermissionKeys.InvoiceApprove, x.Message));
+        Assert.All(discounts, x => Assert.Contains(PermissionKeys.InvoiceTillDiscount, x.Message));
+
+        // Phase 74 -- the vendor's Can Change Rate gates a raised price as well as a lowered one.
+        var rates = new[]
+        {
+            await Assert.ThrowsAsync<ForbiddenException>(() =>
+                SellAsync(till, session.Id, [till.Momo(1) with { Rate = 190m }], [till.Cash(236)])),
+            await Assert.ThrowsAsync<ForbiddenException>(() =>
+                SellAsync(till, session.Id, [till.Momo(1) with { Rate = 210m }], [till.Cash(261)])),
+        };
+        Assert.All(rates, x => Assert.Contains(PermissionKeys.InvoiceTillChangeRate, x.Message));
         Assert.Equal(0, await till.Db.Invoices.CountAsync(x => x.OrganizationId == till.OrganizationId));
 
         // The catalogue's price is any cashier's: 248.60 rounds to 249.
@@ -284,21 +320,71 @@ public class PosOrderDiscountHandlerTests
 
         var read = await new GetPosTillQueryHandler(till.Db, till.CurrentUser()).Handle(
             new GetPosTillQuery(till.OrganizationId, till.Location.Id), CancellationToken.None);
-        Assert.False(read.CanDiscount);
+        Assert.Equal((false, false, true), (read.CanDiscount, read.CanChangeRate, read.CanSellOnCredit));
     }
 
+    /// <summary>The discount key alone, without Approve: the cashier discounts, charges the catalogue, and gives no
+    /// credit -- the three answers the vendor's role editor keeps apart.</summary>
     [Fact]
-    public async Task A_cashier_who_may_approve_gives_a_retail_discount()
+    public async Task A_cashier_with_the_discount_key_alone_discounts_but_charges_the_catalogue()
     {
-        var till = await PosTestTill.CreateAsync();
+        var till = await PosTestTill.CreateAsync(Without(
+            PosTestTill.CashierKeys, PermissionKeys.InvoiceApprove, PermissionKeys.InvoiceTillChangeRate));
         var session = await till.OpenAsync();
 
         // 200 less 10% is 180; 18 of service charge; 13% of 198 is 25.74: 223.74, rounded to 224.
         var sale = await SellAsync(till, session.Id, [till.Momo(1) with { DiscountPct = 10m }], [till.Cash(224)]);
         Assert.Equal(224m, sale.GrandTotal);
 
+        // A discount and a changed price in one sale needs both keys.
+        var refused = await Assert.ThrowsAsync<ForbiddenException>(() =>
+            SellAsync(till, session.Id, [till.Momo(1) with { Rate = 190m, DiscountPct = 10m }], [till.Cash(213)]));
+        Assert.Contains(PermissionKeys.InvoiceTillChangeRate, refused.Message);
+
         var read = await new GetPosTillQueryHandler(till.Db, till.CurrentUser()).Handle(
             new GetPosTillQuery(till.OrganizationId, till.Location.Id), CancellationToken.None);
-        Assert.True(read.CanDiscount);
+        Assert.Equal((true, false, false), (read.CanDiscount, read.CanChangeRate, read.CanSellOnCredit));
+    }
+
+    [Fact]
+    public async Task A_cashier_with_the_rate_key_alone_changes_a_price_but_gives_no_discount()
+    {
+        var till = await PosTestTill.CreateAsync(Without(
+            PosTestTill.CashierKeys, PermissionKeys.InvoiceApprove, PermissionKeys.InvoiceTillDiscount));
+        var session = await till.OpenAsync();
+
+        // 190 and 19 of service charge is 209; 13% is 27.17: 236.17, rounded to 236.
+        var sale = await SellAsync(till, session.Id, [till.Momo(1) with { Rate = 190m }], [till.Cash(236)]);
+        Assert.Equal(236m, sale.GrandTotal);
+
+        var refused = await Assert.ThrowsAsync<ForbiddenException>(() =>
+            SellAsync(till, session.Id, [till.Coke(1)], [till.Cash(61)], billDiscountPct: 10m));
+        Assert.Contains(PermissionKeys.InvoiceTillDiscount, refused.Message);
+    }
+
+    /// <summary>The keys are phase 32b's location-scoped grants: held at another branch alone they do not reach this
+    /// till, and the refusal names this location's chip; granted here, they do.</summary>
+    [Fact]
+    public async Task A_till_key_granted_at_one_location_reaches_that_till_and_no_other()
+    {
+        var till = await PosTestTill.CreateAsync(Without(PosTestTill.CashierKeys, TillKeys));
+        var branch = BillingLocation.Create(till.OrganizationId, "1002", "Lakeside", "Pokhara", null);
+        till.Db.BillingLocations.Add(branch);
+        till.Db.RolePermissions.Add(
+            RolePermission.Create(Guid.NewGuid(), Role.AdminId, PermissionKeys.InvoiceTillDiscount, true, branch.Id));
+        await till.Db.SaveChangesAsync();
+        var session = await till.OpenAsync();
+
+        var refused = await Assert.ThrowsAsync<ForbiddenException>(() =>
+            SellAsync(till, session.Id, [till.Coke(1)], [till.Cash(61)], billDiscountPct: 10m));
+        Assert.Contains($"{till.Location.Code}.{PermissionKeys.InvoiceTillDiscount}", refused.Message);
+
+        till.Db.RolePermissions.Add(
+            RolePermission.Create(Guid.NewGuid(), Role.AdminId, PermissionKeys.InvoiceTillDiscount, true, till.Location.Id));
+        await till.Db.SaveChangesAsync();
+
+        // 60 less 10% is 54; 13% is 7.02: 61.02, rounded to 61.
+        var sale = await SellAsync(till, session.Id, [till.Coke(1)], [till.Cash(61)], billDiscountPct: 10m);
+        Assert.Equal(61m, sale.GrandTotal);
     }
 }

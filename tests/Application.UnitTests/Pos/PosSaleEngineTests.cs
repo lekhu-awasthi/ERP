@@ -214,11 +214,14 @@ public sealed class PosSaleEngineTests
         Assert.Equal(2, statement.Rows.Count(x => x.DocumentType == DocumentType.Invoice));
     }
 
+    /// <summary>Phase 76 -- and the three till keys do not reach credit: a cashier holding all of them and no
+    /// Approve is still refused on credit (phase 61 Decision F; the vendor has no switch for it).</summary>
     [Fact]
     public async Task Credit_needs_the_approve_key_at_the_till_while_a_paid_sale_does_not()
     {
         var till = await PosTestTill.CreateAsync(
-            [PermissionKeys.InvoiceCreate, PermissionKeys.PosSessionOperate]);
+            [PermissionKeys.InvoiceCreate, PermissionKeys.PosSessionOperate, PermissionKeys.InvoiceTillDiscount,
+             PermissionKeys.InvoiceTillRemoveServiceCharge, PermissionKeys.InvoiceTillChangeRate]);
         var session = await till.OpenAsync();
 
         await till.SellAsync(session.Id, [till.Momo(1)], [till.Cash(249m)]);

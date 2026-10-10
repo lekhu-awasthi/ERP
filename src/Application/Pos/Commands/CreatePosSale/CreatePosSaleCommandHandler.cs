@@ -156,16 +156,27 @@ public sealed class CreatePosSaleCommandHandler(
     /// vendor's <i>Can Change Rate</i> disables the price field outright for a role without it (read in its bundle:
     /// <c>isDisabled: !change_rate</c>), so it gates both directions; here the one review key does, and on their own a
     /// cashier charges the catalogue. An amount discount is a discount like a percentage.</para>
+    ///
+    /// <para><b>Phase 76 -- two keys, not Approve.</b> The vendor's role editor holds <i>Can Give Discount</i> and
+    /// <i>Can Change Rate</i> as separate per-location switches, and Approve also let the cashier approve every ERP
+    /// draft at the branch. A discount needs <c>Sales.Invoice.TillDiscount</c> here, a price other than the
+    /// catalogue's <c>Sales.Invoice.TillChangeRate</c>; a sale doing both needs both, discount first.</para>
     /// </summary>
     private async Task EnsureMayChangeThePriceAsync(
         CreatePosSaleCommand request, PosTillContext till, CancellationToken cancellationToken)
     {
         if (request.DiscountPct > 0m || request.DiscountAmount > 0m
-            || request.Lines.Any(x => x.DiscountPct > 0m || x.DiscountPerUnit > 0m)
-            || await AnyLineOffTheCatalogueAsync(request, cancellationToken))
+            || request.Lines.Any(x => x.DiscountPct > 0m || x.DiscountPerUnit > 0m))
         {
             await GrantedPermissionReader.EnsureGrantedAtLocationAsync(
-                db, request.OrganizationId, currentUser.UserId, PermissionKeys.InvoiceApprove, till.Location.Id,
+                db, request.OrganizationId, currentUser.UserId, PermissionKeys.InvoiceTillDiscount, till.Location.Id,
+                cancellationToken);
+        }
+
+        if (await AnyLineOffTheCatalogueAsync(request, cancellationToken))
+        {
+            await GrantedPermissionReader.EnsureGrantedAtLocationAsync(
+                db, request.OrganizationId, currentUser.UserId, PermissionKeys.InvoiceTillChangeRate, till.Location.Id,
                 cancellationToken);
         }
     }

@@ -142,8 +142,8 @@ public static class PosRestaurantEndpoints
             Results.Ok(await sender.Send(
                 new UpdatePosOrderTakeAwayCommand(organizationId, orderId, request.LineId ?? Guid.Empty, request.Quantity ?? 0m), ct)));
 
-        // Phase 72 -- the order's terms: its discount, a line's discount, a waived service charge. Each needs
-        // Sales.Invoice.Approve at the order's location (the handler), and is fixed once the order is billed.
+        // Phase 72 -- the order's terms: its discount, a line's discount, a waived service charge. Each needs its
+        // phase 76 till key at the order's location (the handler), and is fixed once the order is billed.
         group.MapPut("/orders/{orderId:guid}/discount", async (
             Guid organizationId, Guid orderId, UpdatePosOrderDiscountRequest request, ISender sender, CancellationToken ct) =>
             Results.Ok(await sender.Send(

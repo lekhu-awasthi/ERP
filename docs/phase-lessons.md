@@ -2100,3 +2100,20 @@ row nobody reads. Retyping or deactivating a template removes its choices and de
 re-checks type and activity anyway.
 
 **Write the vendor's setting and read the bill.** Its location switches save a key its renderer does not read.
+
+## Phase 76 — Separate till keys: a discount, a waiver and a changed price, each its own key
+
+**Read `phase-76-status.md` before gating a till action, borrowing an existing key for a new power, or splitting a key.**
+
+**Three keys, scoped per location for free.** `Sales.Invoice.TillDiscount`, `.TillRemoveServiceCharge` and
+`.TillChangeRate` replace `Sales.Invoice.Approve` at both tills (the Retail sale's discount and price checks,
+`PosOrderTerms` for an order's discount and waiver). Naming them under `Sales.Invoice` is what puts them in phase 32b's
+derived scopable set (90 keys), as the vendor's switches exist only per location. Credit still needs Approve. The till
+reads carry `canDiscount`, `canChangeRate` and `canRemoveServiceCharge`, and each refusal names the key it lacks.
+
+**A borrowed key opens everything else it opens.** Approve was chosen in phase 72 because "who may lower a bill is who
+may approve one"; it also approved every ERP draft at the branch. Splitting it owed a backfill at the old key's scope
+(`Phase76TillKeys`'s hand-written `INSERT … SELECT … NOT EXISTS` after the seed), or working tills would have refused.
+
+**The vendor's POS has its own roles.** Its switches are in the POS app's role editor, not the ERP's; read a screen in
+the app that owns it.

@@ -35,6 +35,7 @@ describe('PosFloorPage', () => {
     orders: [seated, parcel], canVoid: true,
     roundOffEnabled: true, printEstimateBill: true, printInvoice: true, mySessionId: null, mySessionCode: null,
     canKitchen: true, serviceChargeOnTakeAway: true, canDiscount: true,
+    canRemoveServiceCharge: true,
   };
 
   function page() {

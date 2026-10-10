@@ -1149,4 +1149,25 @@ public static class PermissionKeys
     // (phase-8b-status.md's discriminator). A key of its own rather than Pos.Session.ViewAll so an Admin
     // can hand an accountant the payments without the drawers.
     public const string PosPaymentSummaryView = "Reports.PosPaymentSummary.View";
+
+    // Phase 76 (separate till keys) -- the vendor's three per-location role switches, read live on
+    // 2026-10-11 in its POS role editor (docs/phase-76-status.md): Can Give Discount, Can Remove Service
+    // Charge, Can Change Rate. Phases 72 and 74 gated all three on Sales.Invoice.Approve at the location,
+    // which also let a discounting cashier approve every ERP invoice draft there. Each is now its own key.
+    //
+    // - Sales.Invoice.TillDiscount: a bill's or a line's discount at either till (percent or amount), and
+    //   a restaurant order's or line's.
+    // - Sales.Invoice.TillRemoveServiceCharge: waiving an order's service charge, or restoring it.
+    // - Sales.Invoice.TillChangeRate: ringing a Retail line up at any price but the catalogue's, raised or
+    //   lowered (phase 74 Decision C).
+    //
+    // Admin-only, as Sales.Invoice.Approve is: each lowers (or changes) what a customer pays past the
+    // drawer count, which matches the changed bill. Under Sales.Invoice so phase 32b's derivation makes
+    // them grantable per location, as the vendor's are; named "Till" because they gate the till alone --
+    // an ERP draft's discount and rate are still reviewed at Approve. Credit at the till stays on
+    // Sales.Invoice.Approve (phase 61 Decision F; the vendor has no switch for it). The phase 76 migration
+    // granted all three wherever a custom role held Approve, at the same scope.
+    public const string InvoiceTillDiscount = "Sales.Invoice.TillDiscount";
+    public const string InvoiceTillRemoveServiceCharge = "Sales.Invoice.TillRemoveServiceCharge";
+    public const string InvoiceTillChangeRate = "Sales.Invoice.TillChangeRate";
 }

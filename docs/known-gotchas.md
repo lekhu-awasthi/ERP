@@ -4412,6 +4412,25 @@ have recorded "the vendor prints the location, off by default" and modelled a to
 the bill showed the switch reaches nothing. Phase 54 asked what *writes* a field seen in a payload; this is the mirror:
 ask what *reads* a setting the editor writes. Our line is decided by a rule (more than one location) and hideable.
 
+## A key borrowed for a second power grants everything the first one does (phase 76)
+
+Phase 72 gated a till discount on `Sales.Invoice.Approve` at the location, reasoning that whoever may lower a bill is
+whoever may approve one; phase 74 added any changed price, and a waived service charge rode it too. Each step was sound
+about the till and silent about the rest of the key: Approve is also the ERP's review of every invoice draft at that
+branch, so a cashier given a discount was given the approval of drafts they never saw. The vendor keeps three separate
+POS switches for exactly these three powers. Before reusing a key, list what else it opens; when splitting one later,
+backfill the new keys wherever the old one was held, **at the same scope** (`LocationId` included), or every working
+till refuses on upgrade with nothing but a 403 to say why.
+
+## The vendor's POS keeps its own roles, and its role editor's "Edit" is Save (phase 76)
+
+Phases 72 and 74 recorded the three till switches in "the role editor's location section". The ERP role editor's
+location sections hold the 94 transaction keys and nothing else; the switches are in the **POS app's** role editor,
+over a separate set of roles (`GET /erp/roles?channel=POS`: Cashier, Manager, Waiter). Read a feature in the app that
+owns it, and let the bundle say which keys it writes. In that POS editor the header button labelled **Edit** submits
+the form ("Editing role reference …"), so pressing it to "enter edit mode" re-saves the role; a section opens only once
+its location is ticked, which a read can do without saving.
+
 ## A choice no read can ever apply is refused, not stored (phase 75)
 
 A location's template for a Quotation, on a tenant whose Billing Location scope is sales-only, would be stored and never

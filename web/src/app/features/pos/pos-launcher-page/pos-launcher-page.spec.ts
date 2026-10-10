@@ -26,6 +26,7 @@ describe('PosLauncherPage', () => {
     cashVerificationRequired, denominations: [1000, 500, 100], printInvoice: true, abbreviatedTaxInvoiceEnabled: false,
     isVatRegistered: true, warehouseId: null, warehouseName: null, walkInCustomer: null, paymentModes: [],
     categories: [], canSellOnCredit: false, printCreditNote: true, canRefund: false, canDiscount: false,
+    canChangeRate: false,
   });
 
   async function page(tills: PosTillSummary[], verification = false, posMode: PosTill['posMode'] = 'Retail') {

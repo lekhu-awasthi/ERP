@@ -57,7 +57,7 @@ describe('PosSessionPage', () => {
     cashVerificationRequired: false, denominations: [1000, 500, 100], printInvoice: true,
     abbreviatedTaxInvoiceEnabled: false, isVatRegistered: true, warehouseId: null, warehouseName: null,
     walkInCustomer: null, paymentModes: [], categories: [], canSellOnCredit: true, printCreditNote: true,
-    canRefund: true, canDiscount: true,
+    canRefund: true, canDiscount: true, canChangeRate: true,
   };
 
   const account = (id: string, code: string, name: string): Account => ({

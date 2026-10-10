@@ -64,6 +64,9 @@ internal sealed class PosTestTill
         // Phase 63 -- a refund is a credit note created approved.
         PermissionKeys.CreditNoteView, PermissionKeys.CreditNoteCreate, PermissionKeys.CreditNoteApprove,
         PermissionKeys.CreditNoteVoid,
+        // Phase 76 -- the vendor's three per-location switches, which phases 72 and 74 gated on Approve.
+        PermissionKeys.InvoiceTillDiscount, PermissionKeys.InvoiceTillRemoveServiceCharge,
+        PermissionKeys.InvoiceTillChangeRate,
     ];
 
     /// <param name="grantedKeys">What the cashier's role holds; every till key by default.</param>

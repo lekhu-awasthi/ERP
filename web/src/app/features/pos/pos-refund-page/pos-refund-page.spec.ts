@@ -37,6 +37,7 @@ describe('PosRefundPage', () => {
       { id: 'm-cash', name: 'Cash', kind: 'Cash' },
     ],
     categories: [], canSellOnCredit: true, printCreditNote: true, canRefund: true, canDiscount: true,
+    canChangeRate: true,
     ...overrides,
   });
 

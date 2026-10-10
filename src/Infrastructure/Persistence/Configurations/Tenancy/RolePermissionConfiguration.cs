@@ -799,6 +799,14 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
     private static readonly Guid AdminPosPaymentSummaryViewId = Guid.Parse("00000000-0000-0000-0002-0000000001f1");
     private static readonly Guid MemberPosPaymentSummaryViewId = Guid.Parse("00000000-0000-0000-0002-0000000001f2");
 
+    // Phase 76 -- the three till keys (derived in PermissionKeys.InvoiceTillDiscount).
+    private static readonly Guid AdminInvoiceTillDiscountId = Guid.Parse("00000000-0000-0000-0002-0000000001f3");
+    private static readonly Guid MemberInvoiceTillDiscountId = Guid.Parse("00000000-0000-0000-0002-0000000001f4");
+    private static readonly Guid AdminInvoiceTillRemoveServiceChargeId = Guid.Parse("00000000-0000-0000-0002-0000000001f5");
+    private static readonly Guid MemberInvoiceTillRemoveServiceChargeId = Guid.Parse("00000000-0000-0000-0002-0000000001f6");
+    private static readonly Guid AdminInvoiceTillChangeRateId = Guid.Parse("00000000-0000-0000-0002-0000000001f7");
+    private static readonly Guid MemberInvoiceTillChangeRateId = Guid.Parse("00000000-0000-0000-0002-0000000001f8");
+
     public void Configure(EntityTypeBuilder<RolePermission> builder)
     {
         builder.ToTable("RolePermissions", schema: "tenancy");
@@ -1410,6 +1418,12 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
             RolePermission.Create(AdminPosKitchenOperateId, Role.AdminId, PermissionKeys.PosKitchenOperate, true),
             RolePermission.Create(MemberPosKitchenOperateId, Role.MemberId, PermissionKeys.PosKitchenOperate, true),
             RolePermission.Create(AdminPosPaymentSummaryViewId, Role.AdminId, PermissionKeys.PosPaymentSummaryView, true),
-            RolePermission.Create(MemberPosPaymentSummaryViewId, Role.MemberId, PermissionKeys.PosPaymentSummaryView, false));
+            RolePermission.Create(MemberPosPaymentSummaryViewId, Role.MemberId, PermissionKeys.PosPaymentSummaryView, false),
+            RolePermission.Create(AdminInvoiceTillDiscountId, Role.AdminId, PermissionKeys.InvoiceTillDiscount, true),
+            RolePermission.Create(MemberInvoiceTillDiscountId, Role.MemberId, PermissionKeys.InvoiceTillDiscount, false),
+            RolePermission.Create(AdminInvoiceTillRemoveServiceChargeId, Role.AdminId, PermissionKeys.InvoiceTillRemoveServiceCharge, true),
+            RolePermission.Create(MemberInvoiceTillRemoveServiceChargeId, Role.MemberId, PermissionKeys.InvoiceTillRemoveServiceCharge, false),
+            RolePermission.Create(AdminInvoiceTillChangeRateId, Role.AdminId, PermissionKeys.InvoiceTillChangeRate, true),
+            RolePermission.Create(MemberInvoiceTillChangeRateId, Role.MemberId, PermissionKeys.InvoiceTillChangeRate, false));
     }
 }

@@ -33,6 +33,7 @@ describe('PosBillPage', () => {
     canvasHeight: 800, walkInCustomer: null, categories: [], areas: [], orders: [], canVoid: true,
     roundOffEnabled: true, printEstimateBill: true, printInvoice: false, mySessionId: 'ses-1', mySessionCode: 'SES0001',
     canKitchen: true, serviceChargeOnTakeAway: true, canDiscount: true,
+    canRemoveServiceCharge: true,
     ...overrides,
   });
 
@@ -43,6 +44,7 @@ describe('PosBillPage', () => {
     isVatRegistered: true, warehouseId: 'wh', warehouseName: 'Main', walkInCustomer: null,
     paymentModes: [{ id: 'cash', name: 'Cash', kind: 'Cash' }, { id: 'card', name: 'Card', kind: 'Card' }],
     categories: [], canSellOnCredit: false, printCreditNote: false, canRefund: false, canDiscount: false,
+    canChangeRate: false,
   } as PosTill;
 
   const line = (id: string, name: string, quantity: number) => ({

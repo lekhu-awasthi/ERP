@@ -10506,6 +10506,48 @@ namespace ErpApp.Infrastructure.Migrations
                             IsGranted = false,
                             PermissionKey = "Reports.PosPaymentSummary.View",
                             RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000001f3"),
+                            IsGranted = true,
+                            PermissionKey = "Sales.Invoice.TillDiscount",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000001f4"),
+                            IsGranted = false,
+                            PermissionKey = "Sales.Invoice.TillDiscount",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000001f5"),
+                            IsGranted = true,
+                            PermissionKey = "Sales.Invoice.TillRemoveServiceCharge",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000001f6"),
+                            IsGranted = false,
+                            PermissionKey = "Sales.Invoice.TillRemoveServiceCharge",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000001f7"),
+                            IsGranted = true,
+                            PermissionKey = "Sales.Invoice.TillChangeRate",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000001f8"),
+                            IsGranted = false,
+                            PermissionKey = "Sales.Invoice.TillChangeRate",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
                         });
                 });
 

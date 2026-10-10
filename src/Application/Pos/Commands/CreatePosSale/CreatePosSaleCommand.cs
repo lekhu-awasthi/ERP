@@ -43,7 +43,9 @@ public sealed record PosTenderInput(Guid PaymentModeId, decimal Amount);
 /// that key. <b>Phase 72 -- so does a discount, or a line rung up below the catalogue's price</b>: both
 /// lower what is owed past the drawer's count, which is the other thing an approver reviews. Phase 74 -- and so
 /// does any price but the catalogue's, raised as well as lowered (the vendor's <i>Can Change Rate</i>): on their own,
-/// a cashier charges the catalogue.</para>
+/// a cashier charges the catalogue. <b>Phase 76 -- those two are their own keys now</b>: a discount needs
+/// <c>Sales.Invoice.TillDiscount</c> there and a changed price <c>Sales.Invoice.TillChangeRate</c>, the vendor's
+/// separate switches; credit alone still needs Approve.</para>
 ///
 /// <para>The two warnings are phase 31's: a stock shortfall the tenant's setting warns about, and a
 /// credit-limit breach, each a 422 with its own <c>warningKind</c> and its own override flag.</para>

@@ -15,7 +15,7 @@ namespace ErpApp.Application.Pos.Commands.UpdatePosOrderLineDiscount;
 /// Phase 74 -- or <paramref name="DiscountAmount"/> rupees off each unit, as the vendor's <i>Amount</i> takes it.
 ///
 /// <para>Permissions as <see cref="UpdatePosOrderDiscount.UpdatePosOrderDiscountCommand"/>'s: Pos.Order.Operate in
-/// the pipeline, Sales.Invoice.Approve at the order's location in the handler.</para>
+/// the pipeline, Sales.Invoice.TillDiscount at the order's location in the handler (phase 76).</para>
 /// </summary>
 public sealed record UpdatePosOrderLineDiscountCommand(
     Guid OrganizationId, Guid OrderId, Guid LineId, decimal? DiscountPct, decimal? DiscountAmount = null)
@@ -52,7 +52,8 @@ public sealed class UpdatePosOrderLineDiscountCommandHandler(IAppDbContext db, I
     public async Task<PosOrderDto> Handle(UpdatePosOrderLineDiscountCommand request, CancellationToken cancellationToken)
     {
         var (order, invoiced) = await PosOrderTerms.LoadForChangeAsync(
-            db, request.OrganizationId, currentUser.UserId, request.OrderId, cancellationToken);
+            db, request.OrganizationId, currentUser.UserId, request.OrderId, PermissionKeys.InvoiceTillDiscount,
+            cancellationToken);
 
         var (kind, value) = request.DiscountAmount is { } amount
             ? (PosDiscountKind.Amount, amount)

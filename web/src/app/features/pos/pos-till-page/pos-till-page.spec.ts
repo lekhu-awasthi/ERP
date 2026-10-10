@@ -54,6 +54,7 @@ describe('PosTillPage', () => {
     printCreditNote: true,
     canRefund: true,
     canDiscount: true,
+    canChangeRate: true,
     ...overrides,
   });
 
@@ -343,12 +344,13 @@ describe('PosTillPage', () => {
     p.render();
   };
 
-  it('says a discount needs Sales.Invoice.Approve here, for a cashier without it, and will not complete the sale', () => {
+  it('says a discount needs Sales.Invoice.TillDiscount here, for a cashier without it, and will not complete the sale', () => {
     const p = page(till({ canDiscount: false }));
     p.tile('Chicken Momo');
 
     setField(p, '[id^="pos-discount-"]', '10');
-    expect(p.text()).toContain('needs permission to approve invoices at this location (Sales.Invoice.Approve)');
+    expect(p.text()).toContain('At this location, a discount needs Sales.Invoice.TillDiscount.');
+    expect(p.text()).not.toContain('Sales.Invoice.TillChangeRate');
 
     p.press('Pay (F9)');
     p.tender('cash', '1000');
@@ -356,17 +358,33 @@ describe('PosTillPage', () => {
     expect(p.service.sent).toEqual([]);
   });
 
-  it('treats any price but the catalogue\'s as needing approval, raised as well as lowered (phase 74)', () => {
-    const p = page(till({ canDiscount: false }));
+  it('treats any price but the catalogue\'s as needing Sales.Invoice.TillChangeRate, raised as well as lowered (phase 74, 76)', () => {
+    const p = page(till({ canChangeRate: false }));
     p.tile('Chicken Momo');
 
     setField(p, '[id^="pos-rate-"]', '190');
-    expect(p.text()).toContain('Sales.Invoice.Approve');
+    expect(p.text()).toContain('a price other than the catalogue\'s needs Sales.Invoice.TillChangeRate');
 
     setField(p, '[id^="pos-rate-"]', '210');
-    expect(p.text()).toContain('a price other than the catalogue\'s');
+    expect(p.text()).toContain('Sales.Invoice.TillChangeRate');
+
+    // A discount is this cashier's to give: only the price is named.
+    setField(p, '[id^="pos-discount-"]', '10');
+    expect(p.text()).not.toContain('Sales.Invoice.TillDiscount');
 
     setField(p, '[id^="pos-rate-"]', '200');
+    expect(p.text()).not.toContain('Sales.Invoice.TillChangeRate');
+  });
+
+  it('names both keys when a cashier holding neither discounts and reprices (phase 76)', () => {
+    const p = page(till({ canDiscount: false, canChangeRate: false }));
+    p.tile('Chicken Momo');
+
+    setField(p, '[id^="pos-rate-"]', '190');
+    setField(p, '[id^="pos-discount-"]', '10');
+    expect(p.text()).toContain(
+      'At this location, a discount needs Sales.Invoice.TillDiscount, and a price other than the catalogue\'s needs '
+      + 'Sales.Invoice.TillChangeRate.');
     expect(p.text()).not.toContain('Sales.Invoice.Approve');
   });
 

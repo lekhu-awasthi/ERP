@@ -65,6 +65,14 @@ public sealed class GetPosTillQueryHandler(IAppDbContext db, ICurrentUserService
             db, request.OrganizationId, currentUser.UserId, PermissionKeys.InvoiceApprove, location.Id,
             cancellationToken);
 
+        // Phase 76 -- the vendor's Can Give Discount and Can Change Rate, each its own key.
+        var canDiscount = await GrantedPermissionReader.IsGrantedAtLocationAsync(
+            db, request.OrganizationId, currentUser.UserId, PermissionKeys.InvoiceTillDiscount, location.Id,
+            cancellationToken);
+        var canChangeRate = await GrantedPermissionReader.IsGrantedAtLocationAsync(
+            db, request.OrganizationId, currentUser.UserId, PermissionKeys.InvoiceTillChangeRate, location.Id,
+            cancellationToken);
+
         // Phase 63 -- a refund is a credit note created approved, so it needs both keys here.
         var canRefund = await GrantedPermissionReader.IsGrantedAtLocationAsync(
                 db, request.OrganizationId, currentUser.UserId, PermissionKeys.CreditNoteCreate, location.Id,
@@ -98,6 +106,7 @@ public sealed class GetPosTillQueryHandler(IAppDbContext db, ICurrentUserService
             canSellOnCredit,
             settings.PrintCreditNote,
             canRefund,
-            CanDiscount: canSellOnCredit);
+            CanDiscount: canDiscount,
+            CanChangeRate: canChangeRate);
     }
 }
