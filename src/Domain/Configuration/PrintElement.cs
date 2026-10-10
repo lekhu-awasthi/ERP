@@ -21,6 +21,11 @@ public enum PrintElement
     OrganizationEmail,
     OrganizationPan,
     OrganizationWebsite,
+
+    /// <summary>Phase 75 -- the document's location, name and address, under the organization's own address. Printed
+    /// only when the organization has more than one location, so a one-branch tenant never sees "HeadOffice" on a
+    /// bill. Never locked: Schedule 5 asks for the seller's address, which is the organization's registered one.</summary>
+    Location,
     PartyAddress,
     Reference,
     ItemCode,
@@ -81,7 +86,7 @@ public static class PrintElements
     [
         PrintElement.OrganizationLogo, PrintElement.OrganizationAddress, PrintElement.OrganizationPhone,
         PrintElement.OrganizationEmail, PrintElement.OrganizationPan, PrintElement.OrganizationWebsite,
-        PrintElement.SignatureLine,
+        PrintElement.Location, PrintElement.SignatureLine,
     ];
 
     /// <summary>VAT Rules Schedule 5 asks a tax invoice for the seller's name, address and PAN and the buyer's name,

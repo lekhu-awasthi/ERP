@@ -71,6 +71,7 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
     public DbSet<CostTerm> CostTerms => Set<CostTerm>();
 
     public DbSet<PrintingTemplate> PrintingTemplates => Set<PrintingTemplate>();
+    public DbSet<PrintingTemplateLocationChoice> PrintingTemplateLocationChoices => Set<PrintingTemplateLocationChoice>();
 
     public DbSet<CustomTemplate> CustomTemplates => Set<CustomTemplate>();
 

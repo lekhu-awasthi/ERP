@@ -4,9 +4,12 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { ConfigurationService } from '../../../core/configuration/configuration.service';
-import { CustomFieldDefinition, PrintElementsForType, PrintingTemplate } from '../../../core/configuration/configuration.models';
+import {
+  CustomFieldDefinition, PrintElementsForType, PrintingTemplate, PrintingTemplateLocationChoice,
+} from '../../../core/configuration/configuration.models';
 import { DocumentType } from '../../../core/sales/sales.models';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
+import { BillingLocationStore } from '../../../shared/locations/billing-location-store';
 import { PrintingTemplateLayoutEditor } from './printing-template-layout-editor';
 
 /** The subset of DocumentType this screen offers -- excludes the numbering-pool-only types
@@ -36,6 +39,7 @@ export class PrintingTemplateListPage {
   private readonly route = inject(ActivatedRoute);
   private readonly configurationService = inject(ConfigurationService);
   private readonly fb = inject(FormBuilder);
+  private readonly locationStore = inject(BillingLocationStore);
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
   protected readonly documentTypes = PRINTABLE_DOCUMENT_TYPES;
@@ -63,6 +67,44 @@ export class PrintingTemplateListPage {
     [...this.items()].sort((a, b) => a.documentType.localeCompare(b.documentType) || a.name.localeCompare(b.name)),
   );
 
+  /**
+   * Phase 75 -- each location may print a type with its own template instead of the default. Offered only to an
+   * organization with more than one location, and only for the types that carry a location here (the server's own
+   * list, `BillingLocationStore.applies`) and have an active template to choose; the server refuses the rest.
+   */
+  protected readonly locations = this.locationStore.locations(this.organizationId);
+  protected readonly showByLocation = computed(() => this.locations().length > 1);
+  protected readonly choices = signal<PrintingTemplateLocationChoice[]>([]);
+  private readonly pickedLocationId = signal<string | null>(null);
+  protected readonly selectedLocationId = computed(() => {
+    const picked = this.pickedLocationId();
+    const locations = this.locations();
+    return locations.some((x) => x.id === picked) ? picked : (locations[0]?.id ?? null);
+  });
+  protected readonly selectedLocationName = computed(
+    () => this.locations().find((x) => x.id === this.selectedLocationId())?.name ?? '',
+  );
+  protected readonly locationMessage = signal<string | null>(null);
+  protected readonly locationRows = computed(() => {
+    const locationId = this.selectedLocationId();
+    const items = this.items();
+    const choices = this.choices();
+    return this.documentTypes
+      .filter((type) => this.locationStore.applies(this.organizationId, type))
+      .map((type) => {
+        const templates = items.filter((x) => x.documentType === type && x.isActive)
+          .sort((a, b) => a.name.localeCompare(b.name));
+        const chosen = choices.find((x) => x.locationId === locationId && x.documentType === type);
+        return {
+          type,
+          templates,
+          chosenId: templates.some((x) => x.id === chosen?.printingTemplateId) ? chosen!.printingTemplateId : '',
+          defaultName: items.find((x) => x.documentType === type && x.isDefault)?.name ?? null,
+        };
+      })
+      .filter((row) => row.templates.length > 0);
+  });
+
   protected readonly form = this.fb.nonNullable.group({
     name: ['', [Validators.required, Validators.maxLength(100)]],
     documentType: ['Invoice' as DocumentType, [Validators.required]],
@@ -71,6 +113,7 @@ export class PrintingTemplateListPage {
 
   constructor() {
     this.load();
+    this.loadChoices();
     this.configurationService.listPrintElements(this.organizationId).subscribe({
       next: (table) => this.elementTable.set(table),
       error: (err: unknown) => this.errorMessage.set(extractErrorMessage(err) ?? 'Could not load the printable elements.'),
@@ -129,6 +172,7 @@ export class PrintingTemplateListPage {
         this.saving.set(false);
         this.startCreate();
         this.load();
+        this.loadChoices();
       },
       error: (err: unknown) => {
         this.saving.set(false);
@@ -143,6 +187,57 @@ export class PrintingTemplateListPage {
       error: (err: unknown) => {
         this.errorMessage.set(extractErrorMessage(err) ?? 'Could not set default printing template. Please try again.');
       },
+    });
+  }
+
+  protected pickLocation(event: Event): void {
+    this.pickedLocationId.set((event.target as HTMLSelectElement).value);
+    this.locationMessage.set(null);
+  }
+
+  /** An empty value is "the organization's default", which clears the location's own choice. */
+  protected chooseForLocation(type: DocumentType, previousId: string, event: Event): void {
+    const locationId = this.selectedLocationId();
+    if (!locationId) {
+      return;
+    }
+
+    const select = event.target as HTMLSelectElement;
+    const templateId = select.value;
+    const name = this.items().find((x) => x.id === templateId)?.name;
+    const location = this.selectedLocationName();
+    this.errorMessage.set(null);
+    this.locationMessage.set(null);
+
+    if (templateId) {
+      this.configurationService.setPrintingTemplateLocationChoice(this.organizationId, locationId, templateId).subscribe({
+        next: () => this.afterChoice(`${location} now prints ${type} with ${name}.`),
+        error: (err: unknown) => this.failChoice(err, select, previousId),
+      });
+    } else {
+      this.configurationService.clearPrintingTemplateLocationChoice(this.organizationId, locationId, type).subscribe({
+        next: () => this.afterChoice(`${location} now prints ${type} with the organization's default.`),
+        error: (err: unknown) => this.failChoice(err, select, previousId),
+      });
+    }
+  }
+
+  private afterChoice(message: string): void {
+    this.locationMessage.set(message);
+    this.loadChoices();
+  }
+
+  /** The select already shows the refused value and its `[selected]` bindings did not change, so Angular will not
+   * move it back; it is put back by hand (phase 64's cancelled-change rule). */
+  private failChoice(err: unknown, select: HTMLSelectElement, previousId: string): void {
+    this.errorMessage.set(extractErrorMessage(err) ?? "Could not change the location's template. Please try again.");
+    select.value = previousId;
+  }
+
+  private loadChoices(): void {
+    this.configurationService.listPrintingTemplateLocationChoices(this.organizationId).subscribe({
+      next: (choices) => this.choices.set(choices),
+      error: (err: unknown) => this.errorMessage.set(extractErrorMessage(err) ?? "Could not load the locations' templates."),
     });
   }
 

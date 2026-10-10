@@ -272,7 +272,7 @@ export type PrintLayout = 'Standard' | 'Traditional' | 'Minimal';
 
 export type PrintElement =
   | 'OrganizationLogo' | 'OrganizationAddress' | 'OrganizationPhone' | 'OrganizationEmail' | 'OrganizationPan'
-  | 'OrganizationWebsite' | 'PartyAddress' | 'Reference' | 'ItemCode' | 'HsCode' | 'Unit' | 'DiscountColumn'
+  | 'OrganizationWebsite' | 'Location' | 'PartyAddress' | 'Reference' | 'ItemCode' | 'HsCode' | 'Unit' | 'DiscountColumn'
   | 'VatColumn' | 'AmountInWords' | 'Notes' | 'Terms' | 'SignatureLine';
 
 export interface PrintingTemplate {
@@ -288,6 +288,13 @@ export interface PrintingTemplate {
   printedCustomFieldIds: string[];
   footerText: string | null;
   compactMargins: boolean;
+}
+
+/** Phase 75 -- the template one location uses for one document type instead of the organization's default. */
+export interface PrintingTemplateLocationChoice {
+  locationId: string;
+  documentType: DocumentType;
+  printingTemplateId: string;
 }
 
 /** Phase 73 -- the server's table of which elements a type prints and which it may not hide. */

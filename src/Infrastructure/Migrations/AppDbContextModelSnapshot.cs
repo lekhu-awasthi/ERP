@@ -1720,6 +1720,41 @@ namespace ErpApp.Infrastructure.Migrations
                     b.ToTable("PrintingTemplates", "configuration");
                 });
 
+            modelBuilder.Entity("ErpApp.Domain.Configuration.PrintingTemplateLocationChoice", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("DocumentType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<Guid>("LocationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("PrintingTemplateId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LocationId");
+
+                    b.HasIndex("PrintingTemplateId");
+
+                    b.HasIndex("OrganizationId", "DocumentType", "LocationId")
+                        .IsUnique();
+
+                    b.ToTable("PrintingTemplateLocationChoices", "configuration");
+                });
+
             modelBuilder.Entity("ErpApp.Domain.Configuration.ReportingTagCategory", b =>
                 {
                     b.Property<Guid>("Id")
@@ -11378,6 +11413,21 @@ namespace ErpApp.Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("AccountId")
                         .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("ErpApp.Domain.Configuration.PrintingTemplateLocationChoice", b =>
+                {
+                    b.HasOne("ErpApp.Domain.Tenancy.BillingLocation", null)
+                        .WithMany()
+                        .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ErpApp.Domain.Configuration.PrintingTemplate", null)
+                        .WithMany()
+                        .HasForeignKey("PrintingTemplateId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("ErpApp.Domain.Configuration.ReportingTagOption", b =>

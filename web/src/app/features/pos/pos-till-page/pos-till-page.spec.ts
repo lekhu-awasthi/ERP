@@ -118,7 +118,7 @@ describe('PosTillPage', () => {
   const receipt = (printNumber: number): PosReceipt => ({
     invoiceId: 'inv-1', code: 'INV0001', title: 'TaxInvoice', printNumber, printedAt: '2026-10-01T05:00:00Z',
     printedByName: 'Sita', sellerName: 'Momo Ghar', sellerAddress: 'Thamel', sellerPan: '601234567',
-    locationName: 'Thamel', date: '2026-10-01', soldAt: '2026-10-01T05:00:00Z', sessionCode: 'SES0001',
+    locationName: 'Thamel', locationAddress: null, date: '2026-10-01', soldAt: '2026-10-01T05:00:00Z', sessionCode: 'SES0001',
     cashierName: 'Sita', orderType: 'Retail', customerName: 'Cash Customer', customerAddress: null, customerPan: null,
     isWalkIn: true, lines: [], grossAmount: 520, discountAmount: 0, subTotal: 520, serviceCharge: 40, packagingFee: 0,
     taxableAmount: 560, nonTaxableAmount: 0, vat: 72.8, roundOff: 0.2, grandTotal: 633,

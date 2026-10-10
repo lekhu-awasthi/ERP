@@ -48,6 +48,7 @@ public sealed record PosReceiptDto(
     string? SellerAddress,
     string? SellerPan,
     string LocationName,
+    string? LocationAddress,
     DateOnly Date,
     DateTimeOffset? SoldAt,
     string SessionCode,

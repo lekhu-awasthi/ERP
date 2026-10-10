@@ -61,6 +61,7 @@ public interface IAppDbContext
     DbSet<CustomStatus> CustomStatuses { get; }
     DbSet<CostTerm> CostTerms { get; }
     DbSet<PrintingTemplate> PrintingTemplates { get; }
+    DbSet<PrintingTemplateLocationChoice> PrintingTemplateLocationChoices { get; }
     DbSet<CustomTemplate> CustomTemplates { get; }
     DbSet<ReportingTagCategory> ReportingTagCategories { get; }
     DbSet<ReportingTagOption> ReportingTagOptions { get; }

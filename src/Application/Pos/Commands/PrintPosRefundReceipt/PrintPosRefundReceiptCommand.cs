@@ -37,6 +37,7 @@ public sealed record PosRefundReceiptDto(
     string? SellerPan,
     bool SellerVatRegistered,
     string LocationName,
+    string? LocationAddress,
     DateOnly Date,
     DateTimeOffset? RefundedAt,
     string SessionCode,

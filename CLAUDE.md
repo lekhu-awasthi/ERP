@@ -106,6 +106,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 72: the restaurant bill finished: a line's and the order's discount (percent) and a waived service charge are terms of the order, fixed at its first bill; a bill names its own customer, with credit; lowering a bill anywhere (discount, waiver, a Retail line below the catalogue price) needs `Sales.Invoice.Approve` at the location. Before a term that prices an order's parts, gating a till price, or a control that hides itself — `docs/phase-72-status.md`
 - Phase 73: printing templates (three fixed layouts per type; a template stores what it **hides**; a tax document's seller address/PAN and buyer address locked; custom fields by choice; one applier for print and preview). Before a print layout, a setting that changes what a bill shows, or a column on a printed table — `docs/phase-73-status.md`
 - Phase 74: till pricing (a line's Amount is per unit, a bill's or an order's is spread and stored per line, an order's frozen at its first bill; the refund returning the last of a line takes what is left of it; any Retail price but the catalogue's needs Approve). Before a part of a line's money a refund gives back, spreading a figure over lines, or gating a till price — `docs/phase-74-status.md`
+- Phase 75: printing by location ("Location: name, address" when there are two or more locations, hideable; a template per location falling back to the default; the receipt prints both addresses). Before printing anything a location decides — `docs/phase-75-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -292,6 +293,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A rich-text grammar is its **renderer's capability list**: decide what `RichTextPdfRenderer` can draw, then build the toolbar, or the field looks one way on screen and another in the PDF the customer receives (phase-39).
 - A tenant-level field is reachable only if you can name the command that writes it and the screen that calls it; a read path proves nothing about the write path (phase-31).
 - A field an aggregate refuses to expose should be **absent** from the request record, not merely unwritten — present-and-ignored reads to a client as accepted (phase-43's `WorkspaceName`).
+- …and a **row** no read can apply is the same lie: a location's template for a type carrying no location under the scope is a 409, not a stored choice (phase-75).
 - Before calling a tenant-level limit "enforcement", ask who can write it: `Tenancy.Subscription.Manage` sits on the tenant's own Admin, so a quota is a record and a guard, not a control (phase-41).
 - A field dead on two free-trial tenants is one sample, not two; read what the vendor publishes (its price list sells the "dead" fields) before asking for another tenant (phase-41).
 - …and the same about a **behaviour**: two trials are one sample of trial behaviour and zero of paid, so "the reference product deletes an expired tenant" never settles what ours does (phase-49).
@@ -360,6 +362,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A sweep guard over *query records* cannot see whether a **handler** applies the filter it accepts; both statutory registers narrowed only their return half for three phases. Pin it behaviourally, per report (phase-44).
 - A sweep whose set is a screen **shape** is silently blind to every other shape: the Cheque Register escaped 34c's indexes, 42's key-paging and 47's sort menu, one screen missed three times (phase-50).
 - Reporting Tags are **OR within a category, AND across categories** — measured on a six-category tenant; phases 19/36's "any-of across everything" was inherited, never observed (phase-44).
+- A vendor's setting is not a feature until its print shows it: switched on and saved, its location switches wrote a key the renderer never reads. Write it, then read the bill (phase-75).
 - A control recorded as "unbuilt because two options could not be told apart" may just be a **parent and its modifier**: Display Warehouse in Column is `disabled` until Group by Warehouse is ticked (phase-44).
 - A reason to exclude something can be right while the conclusion is wrong: 26c predicted Warehouse Transfer's two-rows-with-blank-money shape exactly, and the reference product ships it (phase-44).
 - A statutory register folds its **lines**, in the **shared reader**, **in memory after `ToListAsync`** — the last because `ToBase` is a static call SQL Server cannot translate (phase-43/44).
@@ -528,28 +531,28 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 
 ## Current status
 
-**Phases 0-74 are complete. Next: not yet scheduled** (the user picks; candidates in `docs/roadmap.md`).
+**Phases 0-75 are complete. Next: not yet scheduled** (the user picks; candidates in `docs/roadmap.md`).
 Each phase's story is in its `docs/phase-N-status.md`, and finished planning entries are archived in
 `docs/roadmap-history.md`.
 
-**Phase 74 finished till pricing.**
+**Phase 75 printed the issuing location.**
 
-- A line's **Amount** discount is rupees off each unit; a bill's (or an order's) is spread over its lines by what each
-  comes to and **stored per line** (`BillDiscountAmount`), an order's frozen at its first bill. Never beside a percent.
-- The refund returning the last of a sale key takes **what is left** of each figure, so a sale returned in parts ties
-  out to the paisa in VAT and cash (phase 72's open item).
-- Any Retail price but the catalogue's, raised or lowered, and either Amount needs `Sales.Invoice.Approve` at the
-  location (the vendor's *Can Change Rate*). No new keys.
+- Every PDF of an organization with two or more locations prints "Location: name, address" under the registered
+  address (`PrintElement.Location`, hideable, never locked); the till receipt prints the registered address as the
+  seller's and the location's own under its name.
+- A location may choose its own template per type (`PrintingTemplateLocationChoice`, `PrintingTemplateResolver`),
+  falling back to the type's default, as the vendor does; a type carrying no location under the scope is a 409.
+  No new keys.
 
-The vendor (abcagro1, written to with the user's leave, readable until about 2026-10-25) spreads the same way, but its
-refund of the rest takes the bill's discount twice and leaves VAT behind, and its split gives the whole order amount to
-the first bill.
+The vendor (abcagro1, readable until about 2026-10-25) falls back the same way, but its Location Name/Address switches
+print nothing even when saved on, and its print dialog's template list 400s for a location with no selection.
 
-**Next:** not yet scheduled. Candidates: phase 73 § 5 (per-location templates, ordering of header blocks, the
-location's address on the print), phase 74 § 5 (transfers with an amount, separate discount/rate keys), phase 71 § 5.
+**Next:** not yet scheduled. Candidates: phase 75 § 5 (with the rest of phase 73 § 5: ordering of header blocks, the
+Modern/Classic layouts, amount in words for a foreign currency), phase 74 § 5 (transfers with an amount, separate
+discount/rate keys), phase 71 § 5.
 
-Tests: Domain **991**, Application.UnitTests **1687**, Infrastructure.UnitTests 13,
-Api.IntegrationTests **52**, Angular **825**. Everything was green at phase 74's close with Docker up.
+Tests: Domain 991, Application.UnitTests **1705**, Infrastructure.UnitTests 13,
+Api.IntegrationTests **57**, Angular **830**. Everything was green at phase 75's close with Docker up.
 The bundle sits at **652.58 kB** against `build-budget.spec.ts`'s 680 kB; every POS screen is lazy.
 
 - `Api.IntegrationTests` needs Docker Desktop running. Without it the Testcontainers-backed tests

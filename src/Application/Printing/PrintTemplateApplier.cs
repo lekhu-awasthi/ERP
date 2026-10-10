@@ -30,6 +30,8 @@ public static class PrintTemplateApplier
             OrganizationEmail = Hides(PrintElement.OrganizationEmail) ? null : dto.OrganizationEmail,
             OrganizationPan = Hides(PrintElement.OrganizationPan) ? null : dto.OrganizationPan,
             OrganizationWebsite = Hides(PrintElement.OrganizationWebsite) ? null : dto.OrganizationWebsite,
+            LocationName = Hides(PrintElement.Location) ? null : dto.LocationName,
+            LocationAddress = Hides(PrintElement.Location) ? null : dto.LocationAddress,
             PartyAddress = Hides(PrintElement.PartyAddress) ? null : dto.PartyAddress,
             Reference = Hides(PrintElement.Reference) ? null : dto.Reference,
             Notes = Hides(PrintElement.Notes) ? null : dto.Notes,

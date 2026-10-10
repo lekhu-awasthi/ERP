@@ -6,7 +6,7 @@ Guiding rule for phase sizing: each phase ends with something *runnable and demo
 
 ---
 
-## Completed phases (0–74)
+## Completed phases (0–75)
 
 One line each; phase *N*'s full story is `docs/phase-N-status.md`. The verbose index as it stood on
 2026-09-28 is archived verbatim in `roadmap-history.md` ("Completed-phases index, verbose form").
@@ -60,6 +60,7 @@ One line each; phase *N*'s full story is `docs/phase-N-status.md`. The verbose i
 | 72 | The restaurant bill finished: a line's and the order's discount (percent) and a waived service charge are terms of the order, fixed at its first bill; a bill names its own customer and may leave the rest on their account; lowering a bill (a discount, a waiver, a Retail line below the catalogue price) needs `Sales.Invoice.Approve` at the location; one shared customer search that returns focus |
 | 73 | Printing templates: three fixed layouts (Standard, Traditional, Minimal) chosen per type, show/hide toggles (a tax document's seller address and PAN and buyer address locked), the custom fields a bill prints, a footer line, compact margins, a preview of unsaved settings; every bill gained a Unit column, the HS code where a line has one, and the amount in words |
 | 74 | Till pricing: Amount discounts at both tills (a line's rupees off each unit, a bill's or an order's spread over its lines and stored per line, an order's frozen at its first bill); the refund returning the last of a sale line takes what is left of it, so refunds tie out to the paisa; any Retail price but the catalogue's needs `Sales.Invoice.Approve` |
+| 75 | Printing by location: "Location: name, address" under the registered address on every PDF of a multi-location organization (hideable, never locked); a location may choose its own template per type, falling back to the default; the till receipt prints the registered address and the location's own |
 
 ---
 
@@ -140,8 +141,11 @@ layouts chosen per type, show/hide toggles with a tax document's statutory conte
 prints, a footer line and compact margins, previewed over sample data; no date-system option anywhere. Phase 74
 finished till pricing (`phase-74-status.md`): Amount discounts at both tills (a line's per unit, a bill's or an order's
 spread over its lines and stored per line, an order's frozen at its first bill), refunds that give back exactly what the
-sale charged, and any Retail price but the catalogue's gated on `Sales.Invoice.Approve`. **Next: not yet scheduled**;
-the candidates are phase 73 § 5's, phase 74 § 5's and phase 71 § 5's.
+sale charged, and any Retail price but the catalogue's gated on `Sales.Invoice.Approve`. Phase 75 printed the
+issuing location (`phase-75-status.md`): "Location: name, address" under the registered address when an organization
+has more than one location, a template per location falling back to the default (phase 73 Decision C reversed), and
+both addresses on the till receipt. **Next: not yet scheduled**; the candidates are phase 75 § 5's (and the rest of
+phase 73 § 5 it carries), phase 74 § 5's and phase 71 § 5's.
 
 Open question for the tax advisor, not to be guessed (carried from the PAN fix): whether IRD expects a buyer PAN
 on a high-value sale to an unregistered buyer. If it does, it would be a warning on approve, never a block.
@@ -159,10 +163,13 @@ calendar is still open.
 **Raised 2026-10-03, done in phase 73: real printing templates.** Three fixed layouts with show/hide toggles and
 the custom fields to print; no date-system toggle (phase 71), no renamed labels, one template per type.
 
-**Carried from phase 73** (§ 5 there): per-location templates (the vendor selects per type, channel and location);
-the Modern and Classic layouts and label renames (never on a statutory label); an 80 mm ERP invoice; the vendor's
+**Carried from phase 73** (§ 5 there): per-location templates and the location's name and address were done in phase
+75; the Modern and Classic layouts and label renames (never on a statutory label); an 80 mm ERP invoice; the vendor's
 custom HTML templates for Delivery Note, GRN and Warehouse Transfer (unread in depth); ordering and placement of the
-header blocks; amount in words for a foreign currency; the location's name and address on the print.
+header blocks; amount in words for a foreign currency.
+
+**Carried from phase 75** (§ 5 there): which address a branch-issued tax invoice must carry (the tax advisor's); the
+till receipt's location line is unconditional; a location's template has no channel axis.
 
 **Carried from phase 67** (§ 5 there): the print race on both print tables is still unraced on SQL Server. The
 standalone credit note was settled by phase 69, and the count note beside Print was looked at in phase 69 (it

@@ -31,6 +31,7 @@ const ELEMENT_LABELS: Record<PrintElement, string> = {
   OrganizationEmail: 'Email',
   OrganizationPan: 'PAN',
   OrganizationWebsite: 'Website',
+  Location: 'Location name and address (when there is more than one location)',
   PartyAddress: 'Customer or supplier address',
   Reference: 'Reference',
   ItemCode: 'Item code before the product name',
@@ -47,7 +48,7 @@ const ELEMENT_LABELS: Record<PrintElement, string> = {
 const ELEMENT_GROUPS: readonly { legend: string; elements: readonly PrintElement[] }[] = [
   {
     legend: 'Organization',
-    elements: ['OrganizationLogo', 'OrganizationAddress', 'OrganizationPhone', 'OrganizationEmail', 'OrganizationPan', 'OrganizationWebsite'],
+    elements: ['OrganizationLogo', 'OrganizationAddress', 'OrganizationPhone', 'OrganizationEmail', 'OrganizationPan', 'OrganizationWebsite', 'Location'],
   },
   { legend: 'Document', elements: ['PartyAddress', 'Reference'] },
   { legend: 'Lines', elements: ['ItemCode', 'HsCode', 'Unit', 'DiscountColumn', 'VatColumn'] },

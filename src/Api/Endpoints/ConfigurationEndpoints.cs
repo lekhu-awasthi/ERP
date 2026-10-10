@@ -15,12 +15,14 @@ using ErpApp.Application.Configuration.Commands.CreateReportingTagOption;
 using ErpApp.Application.Configuration.Commands.CreateTaskType;
 using ErpApp.Application.Configuration.Commands.CreateTdsType;
 using ErpApp.Application.Configuration.Commands.DeleteCustomFieldDefinition;
+using ErpApp.Application.Configuration.Commands.ClearPrintingTemplateLocationChoice;
 using ErpApp.Application.Configuration.Commands.DeleteLookup;
 using ErpApp.Application.Configuration.Commands.SetAlertDefinitionActive;
 using ErpApp.Application.Configuration.Commands.SetCustomFieldValues;
 using ErpApp.Application.Configuration.Commands.SetCustomStatus;
 using ErpApp.Application.Configuration.Commands.SetDefaultCustomTemplate;
 using ErpApp.Application.Configuration.Commands.SetDefaultPrintingTemplate;
+using ErpApp.Application.Configuration.Commands.SetPrintingTemplateLocationChoice;
 using ErpApp.Application.Configuration.Commands.SetTransactionReportingTags;
 using ErpApp.Application.Configuration.Commands.UpdateAlertDefinition;
 using ErpApp.Application.Configuration.Commands.UpdateBank;
@@ -39,6 +41,7 @@ using ErpApp.Application.Configuration.Commands.UpdateReportingTagOption;
 using ErpApp.Application.Configuration.Commands.UpdateTaskType;
 using ErpApp.Application.Configuration.Commands.UpdateTdsType;
 using ErpApp.Application.Common.Pagination;
+using ErpApp.Application.Configuration;
 using ErpApp.Application.Configuration.Queries.GetCustomFieldValues;
 using ErpApp.Application.Configuration.Queries.GetTransactionReportingTags;
 using ErpApp.Application.Configuration.Queries.ListAlertSendLogs;
@@ -49,6 +52,7 @@ using ErpApp.Application.Printing.Queries.PreviewPrintingTemplate;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Configuration;
 using MediatR;
+using Microsoft.AspNetCore.Mvc;
 
 namespace ErpApp.Api.Endpoints;
 
@@ -562,6 +566,23 @@ public static class ConfigurationEndpoints
             await sender.Send(new DeleteLookupCommand<PrintingTemplate>(organizationId, id), ct);
             return Results.NoContent();
         });
+
+        // Phase 75 -- a location's own template per type, in place of the default. Clearing is a DELETE of its own so
+        // the PUT's template is always required.
+        group.MapGet("/printing-templates/location-choices", async (Guid organizationId, ISender sender, CancellationToken ct) =>
+            Results.Ok(await sender.Send(new ListPrintingTemplateLocationChoicesQuery(organizationId), ct)));
+
+        group.MapPut("/printing-templates/location-choices", async (
+            Guid organizationId, PrintingTemplateLocationChoiceRequest request, ISender sender, CancellationToken ct) =>
+            Results.Ok(await sender.Send(
+                new SetPrintingTemplateLocationChoiceCommand(organizationId, request.LocationId, request.PrintingTemplateId), ct)));
+
+        group.MapDelete("/printing-templates/location-choices", async (
+            Guid organizationId, [FromQuery] Guid locationId, [FromQuery] DocumentType? documentType, ISender sender, CancellationToken ct) =>
+        {
+            await sender.Send(new ClearPrintingTemplateLocationChoiceCommand(organizationId, locationId, documentType), ct);
+            return Results.NoContent();
+        });
     }
 
     /// <summary>Phase 20d -- Custom Templates (erp-module-scan.md §13, FR-11.3). Same shape as
@@ -688,6 +709,9 @@ public static class ConfigurationEndpoints
         IReadOnlyList<Guid>? PrintedCustomFieldIds,
         string? FooterText,
         bool? CompactMargins);
+
+    /// <summary>Phase 75 -- both required; a missing one binds to an empty id, which the validator names.</summary>
+    private sealed record PrintingTemplateLocationChoiceRequest(Guid LocationId, Guid PrintingTemplateId);
 
     private sealed record PrintingTemplatePreviewRequest(
         DocumentType? DocumentType,

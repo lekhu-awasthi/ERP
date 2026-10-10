@@ -575,6 +575,8 @@ export interface PosReceipt {
   sellerAddress: string | null;
   sellerPan: string | null;
   locationName: string;
+  /** Phase 75 -- printed under the location's name; the seller address above is the registered one. */
+  locationAddress: string | null;
   date: string;
   soldAt: string | null;
   sessionCode: string;
@@ -615,6 +617,7 @@ export interface PosRefundReceipt {
   sellerPan: string | null;
   sellerVatRegistered: boolean;
   locationName: string;
+  locationAddress: string | null;
   date: string;
   refundedAt: string | null;
   sessionCode: string;

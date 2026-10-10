@@ -4402,3 +4402,21 @@ A line whose discount is "0, as an amount" and one whose discount is "0, as a pe
 discount-kind select derived from the line falls back to Percent the moment the cashier picks Amount, before any figure
 is typed. The till keeps the chosen kind in a signal of its own per line (and one for the bill), falling back to what
 the line has only when nothing was chosen; a change of kind sets the figure to nothing, because 10% is not Rs 10.
+
+## A vendor's switch is not a feature until its print shows it (phase 75)
+
+The vendor's template editor offers *Location Name* and *Location Address* under Organization, off by default. Switched
+on and saved on abcagro1, the save carried `org_location_name: {display: true}` beside the stored
+`organization_location_name: {display: false}`, and the printed invoice showed no location at all. A screen pass would
+have recorded "the vendor prints the location, off by default" and modelled a toggle on it; only writing it and reading
+the bill showed the switch reaches nothing. Phase 54 asked what *writes* a field seen in a payload; this is the mirror:
+ask what *reads* a setting the editor writes. Our line is decided by a rule (more than one location) and hideable.
+
+## A choice no read can ever apply is refused, not stored (phase 75)
+
+A location's template for a Quotation, on a tenant whose Billing Location scope is sales-only, would be stored and never
+read: a Quotation there carries no location, so the print resolves its template from the default. Accepting it would be
+phase 43's present-and-ignored shape one level up (a row rather than a field), and the screen would show a choice that
+changes nothing. The PUT answers 409 naming the scope, and the screen offers only the server's own
+`locationBearingDocumentTypes`. If the scope later narrows, existing rows go dormant; the resolver still reads only a
+document's stored location, so nothing misprints.

@@ -130,6 +130,15 @@ public static class DocumentPdfRenderer
                         Aligned(column.Item(), style).Text(dto.OrganizationAddress).FontSize(9);
                     }
 
+                    // Phase 75 -- the issuing location, on its own line under the registered address.
+                    if (!string.IsNullOrWhiteSpace(dto.LocationName))
+                    {
+                        var location = string.IsNullOrWhiteSpace(dto.LocationAddress)
+                            ? dto.LocationName
+                            : $"{dto.LocationName}, {dto.LocationAddress}";
+                        Aligned(column.Item(), style).Text($"Location: {location}").FontSize(9);
+                    }
+
                     var contactLine = string.Join(
                         "  |  ",
                         new[]

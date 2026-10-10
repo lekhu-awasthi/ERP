@@ -182,7 +182,12 @@ public sealed record PrintableDocumentDto(
     string? AmountInWords = null,
     /// <summary>Phase 73 -- the custom fields the template prints, label and value, in the template's order. Null or
     /// empty prints none, as before this phase.</summary>
-    IReadOnlyList<PrintableFieldDto>? CustomFields = null);
+    IReadOnlyList<PrintableFieldDto>? CustomFields = null,
+    /// <summary>Phase 75 -- the document's location, printed "Location: name, address" under the organization's
+    /// address. Null for an organization with one location, a document with none, and wherever the template hides
+    /// it.</summary>
+    string? LocationName = null,
+    string? LocationAddress = null);
 
 /// <summary>Phase 67 -- what the paper says about this copy. <paramref name="PrintedAtText"/> is the Nepal
 /// wall-clock date (in the request's calendar) and time.</summary>

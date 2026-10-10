@@ -16,7 +16,7 @@ import { PosRefundReceiptView } from './pos-refund-receipt';
 const SALE = {
   invoiceId: 'i1', code: 'INV0001', title: 'TaxInvoice', printNumber: 1,
   printedAt: '2026-08-01T09:05:00Z', printedByName: 'Asha',
-  sellerName: 'Moonbeam', sellerAddress: null, sellerPan: '301234567', locationName: 'Head Office',
+  sellerName: 'Moonbeam', sellerAddress: null, sellerPan: '301234567', locationName: 'Head Office', locationAddress: null,
   date: '2026-08-01', soldAt: '2026-08-01T09:00:00Z', sessionCode: 'S1', cashierName: 'Asha',
   orderType: null, customerName: 'Acme', customerAddress: null, customerPan: null, isWalkIn: false,
   lines: [], grossAmount: 100, discountAmount: 0, subTotal: 100, serviceCharge: 0, packagingFee: 0,
@@ -26,7 +26,7 @@ const SALE = {
 
 const REFUND = {
   creditNoteId: 'c1', code: 'CN0001', printNumber: 1, printedAt: '2026-08-02T09:05:00Z', printedByName: 'Asha',
-  sellerName: 'Moonbeam', sellerAddress: null, sellerPan: '301234567', sellerVatRegistered: true, locationName: 'Head Office',
+  sellerName: 'Moonbeam', sellerAddress: null, sellerPan: '301234567', sellerVatRegistered: true, locationName: 'Head Office', locationAddress: null,
   date: '2026-08-02', refundedAt: '2026-08-02T09:00:00Z', sessionCode: 'S1', cashierName: 'Asha',
   invoiceCode: 'INV0001', invoiceDate: '2026-08-01', customerName: 'Acme', customerAddress: null, customerPan: null,
   isWalkIn: false, reason: 'Damaged', lines: [], grossAmount: 100, discountAmount: 0, subTotal: 100, serviceCharge: 0,

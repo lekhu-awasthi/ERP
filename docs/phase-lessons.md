@@ -2083,3 +2083,20 @@ way, and so the one review key here now covers any price but the catalogue's.
 
 **Look at the PDF.** The bill's amount first printed under a Sub Total it was already inside, which reads as a second
 subtraction; extracted text read it as fine.
+
+## Phase 75 — Printing by location: the issuing location on every bill, and a template per location
+
+**Read `phase-75-status.md` before printing anything a location decides, or adding a per-location setting.**
+
+**A document's location chooses its template and prints its own line.** `PrintDocumentQueryHandler` reads the location
+through phase 32b's `DocumentLocationReader`, then `PrintingTemplateResolver` takes the location's choice (an active
+template of the type) or the type's default, as the vendor falls back from a location to its "Default". The line
+"Location: name, address" prints only when the organization has more than one location, counted active or not, and is a
+hideable `PrintElement.Location`; the registered address stays the seller's, locked on a tax document. The till receipt
+now prints both, where it used to print the branch's address in the seller's place.
+
+**A choice that cannot apply is refused.** A type that carries no location under the tenant's scope gets a 409, not a
+row nobody reads. Retyping or deactivating a template removes its choices and deleting one cascades, but the resolver
+re-checks type and activity anyway.
+
+**Write the vendor's setting and read the bill.** Its location switches save a key its renderer does not read.

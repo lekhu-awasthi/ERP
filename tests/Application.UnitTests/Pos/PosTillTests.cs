@@ -227,6 +227,23 @@ public class PosTillTests
     }
 
     [Fact]
+    public async Task A_receipt_prints_the_registered_address_as_the_sellers_and_the_locations_own_beneath_its_name()
+    {
+        // Phase 75 -- the receipt used to print the location's address in the seller's place; it now prints both, as the
+        // PDF does.
+        var till = await PosTestTill.CreateAsync();
+        till.Location.Update(till.Location.Code, till.Location.Name, "New Road, Pokhara", null, true);
+        await till.Db.SaveChangesAsync();
+        var session = await till.OpenAsync();
+
+        var sale = await till.SellAsync(session.Id, [till.Coke(1)], [till.Cash(68m)]);
+        var receipt = await PrintAsync(till, sale.Id);
+
+        Assert.Equal("Thamel, Kathmandu", receipt.SellerAddress);
+        Assert.Equal(("HeadOffice", "New Road, Pokhara"), (receipt.LocationName, receipt.LocationAddress));
+    }
+
+    [Fact]
     public async Task A_bill_over_ten_thousand_rupees_is_never_abbreviated()
     {
         var till = await PosTestTill.CreateAsync();

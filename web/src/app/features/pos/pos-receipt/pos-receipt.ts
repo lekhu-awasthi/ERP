@@ -84,6 +84,9 @@ export const POS_RECEIPT_STYLES = `
         <p class="r-center">PAN: {{ r.sellerPan }}</p>
       }
       <p class="r-center">{{ r.locationName }}</p>
+      @if (r.locationAddress) {
+        <p class="r-center">{{ r.locationAddress }}</p>
+      }
       <div class="r-rule"></div>
       <div class="r-row"><span>Bill No</span><span>{{ r.code }}</span></div>
       <div class="r-row"><span>Date</span><span>{{ r.date | nepaliDate: 'date' : 'bill' }}</span></div>

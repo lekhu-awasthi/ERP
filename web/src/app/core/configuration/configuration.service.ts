@@ -36,6 +36,7 @@ import {
   PrintingTemplate,
   PrintingTemplatePreviewRequest,
   PrintingTemplateLayoutRequest,
+  PrintingTemplateLocationChoice,
   PrintElementsForType,
   ReportingTagCategory,
   ReportingTagOption,
@@ -427,6 +428,33 @@ export class ConfigurationService {
         responseType: 'blob',
       })
       .pipe(catchError((err: unknown) => from(withParsedBlobError(err)).pipe(switchMap((e) => throwError(() => e)))));
+  }
+
+  // --- Printing templates by location (Phase 75) ---
+
+  listPrintingTemplateLocationChoices(organizationId: string): Observable<PrintingTemplateLocationChoice[]> {
+    return this.http.get<PrintingTemplateLocationChoice[]>(
+      `${this.baseUrl(organizationId)}/printing-templates/location-choices`, { withCredentials: true },
+    );
+  }
+
+  setPrintingTemplateLocationChoice(
+    organizationId: string, locationId: string, printingTemplateId: string,
+  ): Observable<PrintingTemplateLocationChoice> {
+    return this.http.put<PrintingTemplateLocationChoice>(
+      `${this.baseUrl(organizationId)}/printing-templates/location-choices`,
+      { locationId, printingTemplateId },
+      { withCredentials: true },
+    );
+  }
+
+  /** The location goes back to the organization's default for this type. */
+  clearPrintingTemplateLocationChoice(organizationId: string, locationId: string, documentType: DocumentType): Observable<void> {
+    const params: Record<string, string> = { locationId, documentType };
+    return this.http.delete<void>(`${this.baseUrl(organizationId)}/printing-templates/location-choices`, {
+      params,
+      withCredentials: true,
+    });
   }
 
   // --- Custom Templates (Phase 20d) ---

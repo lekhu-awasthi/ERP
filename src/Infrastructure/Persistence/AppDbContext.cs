@@ -52,6 +52,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<CustomStatus> CustomStatuses => Set<CustomStatus>();
     public DbSet<CostTerm> CostTerms => Set<CostTerm>();
     public DbSet<PrintingTemplate> PrintingTemplates => Set<PrintingTemplate>();
+    public DbSet<PrintingTemplateLocationChoice> PrintingTemplateLocationChoices => Set<PrintingTemplateLocationChoice>();
     public DbSet<CustomTemplate> CustomTemplates => Set<CustomTemplate>();
     public DbSet<ReportingTagCategory> ReportingTagCategories => Set<ReportingTagCategory>();
     public DbSet<ReportingTagOption> ReportingTagOptions => Set<ReportingTagOption>();

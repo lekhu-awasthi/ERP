@@ -15,6 +15,11 @@ public class PrintElementsTests
             Assert.Contains(PrintElement.OrganizationLogo, elements);
             Assert.Contains(PrintElement.OrganizationPan, elements);
             Assert.Contains(PrintElement.SignatureLine, elements);
+
+            // Phase 75 -- every printable type carries a location, and none must print it (Schedule 5 asks for the
+            // seller's address, which is the registered one).
+            Assert.Contains(PrintElement.Location, elements);
+            Assert.DoesNotContain(PrintElement.Location, PrintElements.Locked(type));
         }
     }
 

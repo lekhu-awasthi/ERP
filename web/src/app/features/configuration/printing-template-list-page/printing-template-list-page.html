@@ -122,4 +122,67 @@
       }
     </div>
   </div>
+
+  @if (showByLocation()) {
+    <div class="card border-0 shadow-sm mt-4">
+      <div class="card-body p-4">
+        <h2 class="h6 fw-bold text-dark mb-1">By location</h2>
+        <p class="text-muted small mb-3">
+          A location can print a document type with a template of its own. Without one it prints with the organization's default.
+        </p>
+        <div class="mb-3" style="max-width: 320px;">
+          <label class="form-label small fw-semibold" for="printing-by-location-location">Location</label>
+          <select id="printing-by-location-location" class="form-select" (change)="pickLocation($event)">
+            @for (location of locations(); track location.id) {
+              <option [value]="location.id" [selected]="location.id === selectedLocationId()">{{ location.name }} ({{ location.code }})</option>
+            }
+          </select>
+        </div>
+
+        <app-status-banner [message]="locationMessage()" tone="success" spacing="mb-3" />
+
+        @if (locationRows().length === 0) {
+          <p class="text-muted small mb-0">
+            No document type that carries a location here has an active template yet. Add one above, or change which
+            documents carry a location under Organization &gt; Billing Locations.
+          </p>
+        } @else {
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+              <caption class="visually-hidden">The template each document type prints with at {{ selectedLocationName() }}</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Document type</th>
+                  <th scope="col">Template at {{ selectedLocationName() }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of locationRows(); track row.type) {
+                  <tr>
+                    <th scope="row" class="fw-normal">
+                      <label class="mb-0" [for]="'printing-by-location-' + row.type">{{ row.type }}</label>
+                    </th>
+                    <td>
+                      <select
+                        class="form-select form-select-sm"
+                        [id]="'printing-by-location-' + row.type"
+                        (change)="chooseForLocation(row.type, row.chosenId, $event)"
+                      >
+                        <option value="" [selected]="row.chosenId === ''">
+                          Organization default{{ row.defaultName ? ' (' + row.defaultName + ')' : '' }}
+                        </option>
+                        @for (template of row.templates; track template.id) {
+                          <option [value]="template.id" [selected]="template.id === row.chosenId">{{ template.name }}</option>
+                        }
+                      </select>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </div>
+    </div>
+  }
 </div>

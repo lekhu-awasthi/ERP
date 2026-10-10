@@ -28,6 +28,17 @@ public sealed class UpdatePrintingTemplateCommandHandler(IAppDbContext db)
                 $"A printing template named '{request.Name}' already exists for {request.DocumentType}.");
         }
 
+        // Phase 75 -- a location's choice names an active template of its own type. Moving the template to another
+        // type, or switching it off, sends those locations back to the default rather than leaving a choice the print
+        // would ignore anyway (PrintingTemplateResolver re-checks both).
+        if (template.DocumentType != request.DocumentType || !request.IsActive)
+        {
+            var choices = await db.PrintingTemplateLocationChoices
+                .Where(x => x.OrganizationId == request.OrganizationId && x.PrintingTemplateId == template.Id)
+                .ToListAsync(cancellationToken);
+            db.PrintingTemplateLocationChoices.RemoveRange(choices);
+        }
+
         template.Update(request.Name, request.DocumentType, request.IsActive);
         await db.SaveChangesAsync(cancellationToken);
 

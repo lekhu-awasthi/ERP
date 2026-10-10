@@ -47,6 +47,10 @@ public sealed class PreviewPrintingTemplateQueryHandler(IAppDbContext db, IFileS
         var (sections, summary, total) = SampleBody(type, settings.Shows(PrintElement.ItemCode));
         var hasParty = offered.Contains(PrintElement.PartyAddress);
 
+        // Phase 75 -- a sample location line on the same rule a real print follows: only for an organization with
+        // more than one location.
+        var multipleLocations = await db.BillingLocations.CountAsync(x => x.OrganizationId == request.OrganizationId, cancellationToken) > 1;
+
         var dto = new PrintableDocumentDto(
             type,
             SampleTitle(type),
@@ -79,6 +83,8 @@ public sealed class PreviewPrintingTemplateQueryHandler(IAppDbContext db, IFileS
                 .Where(customFieldNames.ContainsKey)
                 .Select(id => new PrintableFieldDto(customFieldNames[id], "Sample value"))
                 .ToList(),
+            LocationName = multipleLocations ? "Sample Branch" : null,
+            LocationAddress = multipleLocations ? "Lakeside, Pokhara" : null,
         };
 
         return PrintTemplateApplier.Apply(dto, settings);

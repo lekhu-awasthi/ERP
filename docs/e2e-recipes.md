@@ -322,3 +322,13 @@ beside a 200 from the same user, and create a fresh Organization per phase.
   voided). A refund's lines carry their share; sale less refunds should be zero per product and per figure (phase-74).
 - A test user can hold only **one open session per location**: a second `POST /pos/sessions` at the same location is a
   409 naming the open one, so a later script must reuse the session an earlier one opened (phase-74).
+- A fresh organization has **no chart of accounts**, so an invoice's Approve is a 409 ("no Default Sales Account").
+  Three `POST /account-groups {name, rootType, parentGroupId: null}` (Asset, Liability, Income), three `POST /accounts
+  {name, groupId, kind: "Other"}`, then `GET /accounting-defaults`, set `defaultSalesAccountId`,
+  `defaultAccountsReceivableId` and `defaultVatPayableAccountId`, and `PUT` it back whole (200) (phase-75).
+- A location's printing template (phase 75): `GET|PUT|DELETE /configuration/printing-templates/location-choices`. The
+  PUT takes `{locationId, printingTemplateId}` (200, the type is the template's); a type carrying no location under the
+  scope is **409**, an inactive template 409, an unknown template or location 404. The DELETE takes `?locationId=
+  &documentType=` (204; no type is a 400 naming `DocumentType`). The 403-not-404 pair: the PUT naming a nonexistent
+  template is **404** as Admin and **403 naming `Configuration.PrintingTemplate.Manage`** from a role holding only
+  `.View`, beside its 200 on the GET. In SQL: `configuration.PrintingTemplateLocationChoices`.

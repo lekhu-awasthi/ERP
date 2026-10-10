@@ -1,5 +1,6 @@
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Formatting;
+using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Configuration;
@@ -49,13 +50,17 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
 
         var organization = await db.Organizations.SingleAsync(x => x.Id == request.OrganizationId, cancellationToken);
 
-        // Phase 73 -- the type's default template, or the settings every document printed with before there were
-        // any. Read into a field because the builders consult it below the frame (a product's label drops its code,
-        // the logo's blob is not read when hidden); everything else it does is PrintTemplateApplier's, once, below.
-        var defaultTemplate = await db.PrintingTemplates.SingleOrDefaultAsync(
-            x => x.OrganizationId == request.OrganizationId && x.DocumentType == request.DocumentType && x.IsDefault,
-            cancellationToken);
-        template = defaultTemplate?.Settings ?? PrintingTemplateSettings.Default;
+        // Phase 75 -- the document's location chooses its template (falling back to the type's default) and prints
+        // its own line under the organization's address. A missing document reads as no location here; its builder
+        // 404s below as it always did.
+        var (_, locationId) = await DocumentLocationReader.ReadAsync(db, request.DocumentType, request.DocumentId, cancellationToken);
+
+        // Phase 73 -- the template, or the settings every document printed with before there were any. Read into a
+        // field because the builders consult it below the frame (a product's label drops its code, the logo's blob is
+        // not read when hidden); everything else it does is PrintTemplateApplier's, once, below.
+        var chosenTemplate = await PrintingTemplateResolver.ResolveAsync(
+            db, request.OrganizationId, request.DocumentType, locationId, cancellationToken);
+        template = chosenTemplate?.Settings ?? PrintingTemplateSettings.Default;
 
         var dto = request.DocumentType switch
         {
@@ -82,11 +87,38 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
 
         dto = dto with { CustomFields = await CustomFieldsAsync(request, cancellationToken) };
 
+        if (await PrintedLocationAsync(request.OrganizationId, locationId, cancellationToken) is { } location)
+        {
+            dto = dto with { LocationName = location.Name, LocationAddress = location.Address };
+        }
+
         return PrintTemplateApplier.Apply(dto, template);
     }
 
-    /// <summary>Phase 73 -- the request's default template's settings; set first thing in <see cref="Handle"/>.</summary>
+    /// <summary>Phase 73 -- the request's template's settings; set first thing in <see cref="Handle"/>.</summary>
     private PrintingTemplateSettings template = PrintingTemplateSettings.Default;
+
+    /// <summary>
+    /// Phase 75 (Decision A) -- the location a document prints under the organization's address: its own, and only
+    /// when the organization has more than one, so a one-branch tenant's bills never say "HeadOffice". Counted over
+    /// every location, active or not, because a branch since closed still issued the bills being reprinted.
+    /// </summary>
+    private async Task<(string Name, string? Address)?> PrintedLocationAsync(
+        Guid organizationId, Guid? locationId, CancellationToken ct)
+    {
+        if (locationId is not { } id
+            || await db.BillingLocations.CountAsync(x => x.OrganizationId == organizationId, ct) < 2)
+        {
+            return null;
+        }
+
+        var location = await db.BillingLocations
+            .Where(x => x.Id == id && x.OrganizationId == organizationId)
+            .Select(x => new { x.Name, x.Address })
+            .SingleOrDefaultAsync(ct);
+
+        return location is null ? null : (location.Name, location.Address);
+    }
 
     // ---- Sales -------------------------------------------------------------------------------
 
