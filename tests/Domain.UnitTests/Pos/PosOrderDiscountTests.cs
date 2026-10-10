@@ -188,11 +188,11 @@ public class PosOrderDiscountTests
         var (order, momo, _) = Table();
         order.SetLineDiscount(momo.Id, 10m, NothingBilled);
 
-        var parcel = Assert.Single(order.MarkTakeAway(momo.Id, 1m, true, PackagingFee.None, User, NothingBilled).NewLines);
+        var parcel = Assert.Single(order.MarkTakeAway(momo.Id, 1m, true, PackagingFee.None, User, PosBills.None).NewLines);
         Assert.Equal(10m, parcel.DiscountPct);
 
         order.SetLineDiscount(parcel.Id, 20m, NothingBilled);
-        var second = Assert.Single(order.MarkTakeAway(momo.Id, 1m, true, PackagingFee.None, User, NothingBilled).NewLines);
+        var second = Assert.Single(order.MarkTakeAway(momo.Id, 1m, true, PackagingFee.None, User, PosBills.None).NewLines);
 
         Assert.Equal(10m, second.DiscountPct);
         Assert.Equal(1m, order.QuantitiesOf(parcel).Net);
@@ -209,7 +209,7 @@ public class PosOrderDiscountTests
         var target = PosOrder.Open(
             Organization, Location, "ORD0002", PosTab.DineIn, Guid.NewGuid(), 1, null, User, DateTimeOffset.UtcNow);
 
-        var result = PosOrder.Transfer(source, target, [Q(momo, 1m)], User, NothingBilled, DateTimeOffset.UtcNow);
+        var result = PosOrder.Transfer(source, target, [Q(momo, 1m)], User, PosBills.None, DateTimeOffset.UtcNow);
 
         var moved = Assert.Single(result.Target.NewLines);
         Assert.Equal(10m, moved.DiscountPct);
@@ -228,13 +228,13 @@ public class PosOrderDiscountTests
         var (target, _, _) = Table("ORD0002");
 
         var refused = Assert.Throws<InvalidOperationException>(() =>
-            PosOrder.Transfer(source, target, [Q(momo, 1m)], User, NothingBilled, DateTimeOffset.UtcNow));
+            PosOrder.Transfer(source, target, [Q(momo, 1m)], User, PosBills.None, DateTimeOffset.UtcNow));
         Assert.Contains("ORD0002 is priced with no discount and service charge", refused.Message);
         Assert.Contains("ORD0001 with a 5% discount and service charge", refused.Message);
         Assert.Equal(0m, target.DiscountPct);
 
         target.SetDiscount(5m, NothingBilled);
-        PosOrder.Transfer(source, target, [Q(momo, 1m)], User, NothingBilled, DateTimeOffset.UtcNow);
+        PosOrder.Transfer(source, target, [Q(momo, 1m)], User, PosBills.None, DateTimeOffset.UtcNow);
 
         Assert.Equal(3m, target.Lines.Where(x => x.Rate == 200m).Sum(x => target.QuantitiesOf(x).Net));
     }

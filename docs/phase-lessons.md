@@ -2117,3 +2117,21 @@ may approve one"; it also approved every ERP draft at the branch. Splitting it o
 
 **The vendor's POS has its own roles.** Its switches are in the POS app's role editor, not the ERP's; read a screen in
 the app that owns it.
+
+## Phase 77 — The share moves with the food, and the export carries the till's money
+
+**Read `phase-77-status.md` before moving a quantity that carries an order's Amount discount, reading which invoice a
+credit note is against, or adding money to a sales line.**
+
+**A transferred or parcelled quantity takes its share of the order's amount** (`PosOrder.ShareCarriedBy`, then
+`GiveUpShare` / `TakeShare`). Before the first bill it is the quantity's part of the live share. After it, it is the
+quantity's part of what the line's bills have not taken, so `Transfer` and `MarkTakeAway` take
+`IReadOnlyDictionary<Guid, PosOrderLineBilled>`, not quantities. An amount is the same terms as another amount: the
+food brings its own figure. A target with a percentage, or a non-empty one with no discount, is phase 72's 409. Discard
+of a dish carrying a frozen share stays refused.
+
+**The export is read in parts and merged in memory.** *Sales Documents* is four queries: lines and round-off rows, for
+invoices and credit notes. *Payments* is four too: payments, tenders, change and payouts. Neither uses a `Concat` with
+null constants. New columns are appended so phase 38's positions hold, and round-off is a row of its own. A till
+refund's invoice comes through `ReferrerId`, not `AgainstInvoiceId`. `TillExportTests` holds every `decimal` on a sales
+line to an exported column or a named reason.

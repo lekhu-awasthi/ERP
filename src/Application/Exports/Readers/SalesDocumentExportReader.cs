@@ -1,5 +1,7 @@
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Domain.Common;
 using ErpApp.Domain.Exports;
+using ErpApp.Domain.Sales;
 using Microsoft.EntityFrameworkCore;
 
 namespace ErpApp.Application.Exports.Readers;
@@ -24,6 +26,24 @@ namespace ErpApp.Application.Exports.Readers;
 /// report: a draft invoice is data the tenant entered and would expect to find. The Status column is
 /// what separates it from an approved one, and Voided documents carry that status too rather than
 /// vanishing.</para>
+///
+/// <para><b>Phase 77 -- every part of a line's money, and the document's round-off.</b> Phases 61-74 gave a line a
+/// service charge, a packaging fee, a per-unit discount and a share of its bill's Amount discount, and a document a
+/// round-off; this sheet carried none of them, so its columns stopped adding up to what a customer was charged. They
+/// are <b>appended</b> after phase 38's fourteen, so a reader that located a column by position still finds it. A
+/// document's round-off is a figure of the document, not of any line, so it has a <b>row of its own</b> after its lines
+/// (no product, every line figure zero): putting it on a line would make that line say something untrue about itself,
+/// and repeating it on every line would make its column sum wrong. Summing Amount + Service Charge + Packaging Fee +
+/// VAT Amount + Round Off gives what was billed, net of returns. A restaurant bill names its order (Order No), and a
+/// credit note the invoice it is against (phase 69's picked or typed one, else the invoice it was raised from: a
+/// till refund names its sale that way); an order's own terms reach the sheet through its bills' lines (each
+/// line's Bill Discount share, a zero service charge when waived), and an unbilled tab is not exported (Decision D).
+/// <see cref="ExportedLineMoney"/> names every money column of a line, and a guard test holds the Domain to it.</para>
+///
+/// <para><b>Four queries merged in memory, not one <c>Concat</c>.</b> The round-off rows have no product and a credit
+/// note has no order of its own, so a single set operation would need typed null constants on one side, which is a
+/// translation this codebase has never proven on SQL Server. Each half is ordered and capped on its own and the pages are
+/// merged by the sheet's ordering; the total is the sum of the four counts.</para>
 /// </summary>
 public sealed class SalesDocumentExportReader(IAppDbContext db) : IExportCategoryReader
 {
@@ -32,6 +52,25 @@ public sealed class SalesDocumentExportReader(IAppDbContext db) : IExportCategor
     public string SheetName => "Sales Documents";
 
     public bool IsDateFiltered => true;
+
+    /// <summary>
+    /// Phase 77 -- the money of an <see cref="InvoiceLine"/> and a <see cref="CreditNoteLine"/> this sheet carries, by
+    /// property name. <c>SalesExportCoverageTests</c> asserts every <c>decimal</c> property of both line types is here
+    /// or named there as not money (a rate, a factor, a cost), so the next part of a line's money cannot be added
+    /// without deciding whether it is exported.
+    /// </summary>
+    public static readonly IReadOnlySet<string> ExportedLineMoney = new HashSet<string>(StringComparer.Ordinal)
+    {
+        nameof(InvoiceLine.Quantity),
+        nameof(InvoiceLine.Rate),
+        nameof(InvoiceLine.DiscountPct),
+        nameof(InvoiceLine.DiscountPerUnit),
+        nameof(InvoiceLine.BillDiscountAmount),
+        nameof(InvoiceLine.Amount),
+        nameof(InvoiceLine.ServiceChargeAmount),
+        nameof(InvoiceLine.PackagingFeeAmount),
+        nameof(InvoiceLine.VatAmount),
+    };
 
     public IReadOnlyList<string> Headers { get; } =
     [
@@ -49,12 +88,21 @@ public sealed class SalesDocumentExportReader(IAppDbContext db) : IExportCategor
         "Discount %",
         "Amount",
         "VAT Amount",
+        "Channel",
+        "Order No",
+        "Against Invoice",
+        "Discount per Unit",
+        "Document Discount %",
+        "Bill Discount",
+        "Service Charge",
+        "Packaging Fee",
+        "Round Off",
     ];
 
     public async Task<ExportCategoryResult> ReadAsync(
         Guid organizationId, int maxRows, ExportDateRange range, CancellationToken cancellationToken)
     {
-        var invoices =
+        var invoiceLines =
             from line in db.InvoiceLines
             join doc in db.Invoices on line.InvoiceId equals doc.Id
             where doc.OrganizationId == organizationId
@@ -64,25 +112,21 @@ public sealed class SalesDocumentExportReader(IAppDbContext db) : IExportCategor
             from contact in contacts.DefaultIfEmpty()
             join product in db.Products on line.ProductId equals product.Id into products
             from product in products.DefaultIfEmpty()
-            select new
-            {
-                DocumentType = "Invoice",
-                DocumentCode = doc.Code,
-                doc.Date,
-                Status = doc.Status.ToString(),
-                ContactName = contact == null ? null : contact.Name,
-                doc.Reference,
-                doc.CurrencyCode,
-                ProductCode = product == null ? null : product.Code,
-                ProductName = product == null ? null : product.Name,
-                line.Quantity,
-                line.Rate,
-                line.DiscountPct,
-                line.Amount,
-                line.VatAmount,
-            };
+            join order in db.PosOrders on doc.PosOrderId equals (Guid?)order.Id into orders
+            from order in orders.DefaultIfEmpty()
+            orderby doc.Date, doc.Code
+            select new SalesRow(
+                "Invoice", doc.Code, doc.Date, doc.Status.ToString(),
+                contact == null ? null : contact.Name, doc.Reference, doc.CurrencyCode,
+                product == null ? null : product.Code, product == null ? null : product.Name,
+                line.Quantity, line.Rate, line.DiscountPct, line.Amount, line.VatAmount,
+                doc.Channel, order == null ? null : order.Code, null,
+                line.DiscountPerUnit, doc.DiscountPct, line.BillDiscountAmount,
+                line.ServiceChargeAmount, line.PackagingFeeAmount, 0m, false);
 
-        var creditNotes =
+        // A Credit Note's figures are negated so the columns sum to net sales; its rates and percentages are not, as
+        // phase 38's Rate never was. Its order is the one its invoice billed.
+        var creditNoteLines =
             from line in db.CreditNoteLines
             join doc in db.CreditNotes on line.CreditNoteId equals doc.Id
             where doc.OrganizationId == organizationId
@@ -92,57 +136,125 @@ public sealed class SalesDocumentExportReader(IAppDbContext db) : IExportCategor
             from contact in contacts.DefaultIfEmpty()
             join product in db.Products on line.ProductId equals product.Id into products
             from product in products.DefaultIfEmpty()
-            select new
-            {
-                DocumentType = "Credit Note",
-                DocumentCode = doc.Code,
-                doc.Date,
-                Status = doc.Status.ToString(),
-                ContactName = contact == null ? null : contact.Name,
-                doc.Reference,
-                doc.CurrencyCode,
-                ProductCode = product == null ? null : product.Code,
-                ProductName = product == null ? null : product.Name,
-                Quantity = -line.Quantity,
-                line.Rate,
-                line.DiscountPct,
-                Amount = -line.Amount,
-                VatAmount = -line.VatAmount,
-            };
+            join invoice in db.Invoices
+                on doc.AgainstInvoiceId ?? (doc.ReferrerType == DocumentType.Invoice ? doc.ReferrerId : null)
+                equals (Guid?)invoice.Id into invoices
+            from invoice in invoices.DefaultIfEmpty()
+            join order in db.PosOrders on (invoice == null ? null : invoice.PosOrderId) equals (Guid?)order.Id into orders
+            from order in orders.DefaultIfEmpty()
+            orderby doc.Date, doc.Code
+            select new SalesRow(
+                "Credit Note", doc.Code, doc.Date, doc.Status.ToString(),
+                contact == null ? null : contact.Name, doc.Reference, doc.CurrencyCode,
+                product == null ? null : product.Code, product == null ? null : product.Name,
+                -line.Quantity, line.Rate, line.DiscountPct, -line.Amount, -line.VatAmount,
+                doc.Channel, order == null ? null : order.Code, doc.AgainstInvoiceNumber ?? (invoice == null ? null : invoice.Code),
+                line.DiscountPerUnit, doc.DiscountPct, -line.BillDiscountAmount,
+                -line.ServiceChargeAmount, -line.PackagingFeeAmount, 0m, false);
 
-        // The two halves are Concat-ed while they are still anonymous, and only the materialised
-        // page is turned into DocumentLineRow. EF refuses a set operation "after client projection
-        // has been applied": a constructor call is a client projection, so Concat-ing two
-        // `select new DocumentLineRow(...)` queries throws at run time -- and not on InMemory alone,
-        // which is what makes it worth the comment. The shared record stays; what moved is where it
-        // is built.
-        var query = invoices
-            .Concat(creditNotes)
+        var invoiceRoundOffs =
+            from doc in db.Invoices
+            where doc.OrganizationId == organizationId
+                  && doc.RoundOff != 0m
+                  && (range.From == null || doc.Date >= range.From)
+                  && (range.To == null || doc.Date <= range.To)
+            join contact in db.Contacts on doc.ContactId equals contact.Id into contacts
+            from contact in contacts.DefaultIfEmpty()
+            join order in db.PosOrders on doc.PosOrderId equals (Guid?)order.Id into orders
+            from order in orders.DefaultIfEmpty()
+            orderby doc.Date, doc.Code
+            select new SalesRow(
+                "Invoice", doc.Code, doc.Date, doc.Status.ToString(),
+                contact == null ? null : contact.Name, doc.Reference, doc.CurrencyCode,
+                null, null, 0m, 0m, 0m, 0m, 0m,
+                doc.Channel, order == null ? null : order.Code, null,
+                0m, doc.DiscountPct, 0m, 0m, 0m, doc.RoundOff, true);
+
+        var creditNoteRoundOffs =
+            from doc in db.CreditNotes
+            where doc.OrganizationId == organizationId
+                  && doc.RoundOff != 0m
+                  && (range.From == null || doc.Date >= range.From)
+                  && (range.To == null || doc.Date <= range.To)
+            join contact in db.Contacts on doc.ContactId equals contact.Id into contacts
+            from contact in contacts.DefaultIfEmpty()
+            join invoice in db.Invoices
+                on doc.AgainstInvoiceId ?? (doc.ReferrerType == DocumentType.Invoice ? doc.ReferrerId : null)
+                equals (Guid?)invoice.Id into invoices
+            from invoice in invoices.DefaultIfEmpty()
+            join order in db.PosOrders on (invoice == null ? null : invoice.PosOrderId) equals (Guid?)order.Id into orders
+            from order in orders.DefaultIfEmpty()
+            orderby doc.Date, doc.Code
+            select new SalesRow(
+                "Credit Note", doc.Code, doc.Date, doc.Status.ToString(),
+                contact == null ? null : contact.Name, doc.Reference, doc.CurrencyCode,
+                null, null, 0m, 0m, 0m, 0m, 0m,
+                doc.Channel, order == null ? null : order.Code, doc.AgainstInvoiceNumber ?? (invoice == null ? null : invoice.Code),
+                0m, doc.DiscountPct, 0m, 0m, 0m, -doc.RoundOff, true);
+
+        var totalRowCount = 0;
+        var merged = new List<SalesRow>();
+
+        foreach (var query in new[] { invoiceLines, creditNoteLines, invoiceRoundOffs, creditNoteRoundOffs })
+        {
+            totalRowCount += await query.CountAsync(cancellationToken);
+            merged.AddRange(await query.Take(maxRows).ToListAsync(cancellationToken));
+        }
+
+        var rows = merged
             .OrderBy(r => r.Date)
-            .ThenBy(r => r.DocumentType)
-            .ThenBy(r => r.DocumentCode);
-
-        var totalRowCount = await query.CountAsync(cancellationToken);
-        var page = await query.Take(maxRows).ToListAsync(cancellationToken);
-
-        var rows = page
-            .Select(r => new DocumentLineRow(
-                r.DocumentType,
-                r.DocumentCode,
-                r.Date,
-                r.Status,
-                r.ContactName,
-                r.Reference,
-                r.CurrencyCode,
-                r.ProductCode,
-                r.ProductName,
-                r.Quantity,
-                r.Rate,
-                r.DiscountPct,
-                r.Amount,
-                r.VatAmount).ToCells())
+            .ThenBy(r => r.DocumentType, StringComparer.Ordinal)
+            .ThenBy(r => r.DocumentCode, StringComparer.Ordinal)
+            .ThenBy(r => r.IsRoundOff)
+            .Take(maxRows)
+            .Select(r => r.ToCells())
             .ToList();
 
         return new ExportCategoryResult(rows, totalRowCount);
+    }
+
+    /// <summary>One row of the sheet, as both halves and both kinds of row project it. Every member is a plain value
+    /// (EF builds it from columns; the Concat that would refuse a constructor is not used here).</summary>
+    private sealed record SalesRow(
+        string DocumentType,
+        string DocumentCode,
+        DateOnly Date,
+        string Status,
+        string? ContactName,
+        string? Reference,
+        string CurrencyCode,
+        string? ProductCode,
+        string? ProductName,
+        decimal Quantity,
+        decimal Rate,
+        decimal DiscountPct,
+        decimal Amount,
+        decimal VatAmount,
+        SalesChannel Channel,
+        string? OrderCode,
+        string? AgainstInvoice,
+        decimal DiscountPerUnit,
+        decimal DocumentDiscountPct,
+        decimal BillDiscount,
+        decimal ServiceCharge,
+        decimal PackagingFee,
+        decimal RoundOff,
+        bool IsRoundOff)
+    {
+        public object?[] ToCells() =>
+        [
+            .. new DocumentLineRow(
+                DocumentType, DocumentCode, Date, Status, ContactName, Reference, CurrencyCode, ProductCode,
+                ProductName, Quantity, Rate, DiscountPct, Amount, VatAmount).ToCells(),
+            Channel == SalesChannel.Pos ? "POS" : "ERP",
+            OrderCode,
+            AgainstInvoice,
+            DiscountPerUnit,
+            DocumentDiscountPct,
+            BillDiscount,
+            ServiceCharge,
+            PackagingFee,
+            RoundOff,
+        ];
     }
 }

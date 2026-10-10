@@ -108,6 +108,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 74: till pricing (a line's Amount is per unit, a bill's or an order's is spread and stored per line, an order's frozen at its first bill; the refund returning the last of a line takes what is left of it; any Retail price but the catalogue's needs Approve). Before a part of a line's money a refund gives back, spreading a figure over lines, or gating a till price — `docs/phase-74-status.md`
 - Phase 75: printing by location ("Location: name, address" when there are two or more locations, hideable; a template per location falling back to the default; the receipt prints both addresses). Before printing anything a location decides — `docs/phase-75-status.md`
 - Phase 76: separate till keys (a discount, a waiver and a changed price each their own location-scoped `Sales.Invoice.Till*` key instead of Approve; existing Approve grants backfilled at the same scope; credit stays on Approve). Before borrowing a key for a new power, or splitting one — `docs/phase-76-status.md`
+- Phase 77: an order's Amount discount moves with its food (a transfer or parcel takes its share, read from the line's bills once billed; discard still refused) + the export carries every part of a sale's money and the till's tenders, change and payouts. Before moving a quantity that carries a share, reading a credit note's invoice, or adding money to a sales line — `docs/phase-77-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -290,6 +291,8 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A tab's terms travel with its food: a transfer's empty target takes the source's discount and waiver, and a target on other terms is a 409 naming both (phase-72).
 - Gating a till discount alone is a price edit away from useless: a Retail line below `ProductPrices.CatalogueRate` needs the same `Sales.Invoice.Approve` (phase-72).
 - A key borrowed for a second power grants everything the first one does: till discounts on Approve also approved every ERP draft. Split it and backfill at the old scope (phase-76).
+- A share moved off a part-billed line is the quantity's part of what its bills left (frozen − billed share), all of it with the last of the food; prorating the whole line drifts a paisa (phase-77).
+- A till refund names its sale by `ReferrerType`/`ReferrerId`, not `AgainstInvoiceId`; "the note's invoice" joins on the coalesce of both (phase-77).
 
 - Rich text is sanitised on write, in the Domain setter, by re-emission from a parsed tree, never by filtering; `Sanitize` must stay idempotent (phase-39).
 - A rich-text grammar is its **renderer's capability list**: decide what `RichTextPdfRenderer` can draw, then build the toolbar, or the field looks one way on screen and another in the PDF the customer receives (phase-39).
@@ -326,6 +329,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - …but "the row resolves into no command" is **not** that case: phase 21c's lifecycle-free register row has an ordinary create command, and `ImportRowPlan` only asks that the command exist before it is sent (phase-55).
 - Context for the **run** is not data on the row: a statement row names no account, so `ImportJob.BankAccountId` is required for one entity type and refused for the other nine — the refusing half is the one that rots (phase-55).
 - A bank statement has no natural key (two identical ATM withdrawals in a day are two real rows), so a duplicate upload cannot be refused; carry the `ImportJobId` on each row and make the whole upload one undo (phase-55).
+- Each phase that adds money to a line owes the export a column; `TillExportTests` holds every `decimal` on a sales line to an exported column or a named reason (phase-77).
 
 **Background jobs**
 - A singleton `BackgroundService` cannot inject scoped services; take `IServiceScopeFactory`, read options via `IOptionsMonitor`, and never let a tick's exception escape `ExecuteAsync` (`AlertSchedulerHostedService`).
@@ -534,27 +538,25 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 
 ## Current status
 
-**Phases 0-76 are complete. Next: not yet scheduled** (the user picks; candidates in `docs/roadmap.md`).
+**Phases 0-77 are complete. Next: not yet scheduled** (the user picks; candidates in `docs/roadmap.md`).
 Each phase's story is in its `docs/phase-N-status.md`, and finished planning entries are archived in
 `docs/roadmap-history.md`.
 
-**Phase 76 split the till's price powers off `Sales.Invoice.Approve`.**
+**Phase 77 let an order's Amount discount move with its food, and completed the full-tenant export.**
 
-- A discount, a waived service charge and any Retail price but the catalogue's each need their own key
-  (`Sales.Invoice.TillDiscount` / `.TillRemoveServiceCharge` / `.TillChangeRate`), location-scoped through phase 32b's
-  derivation, Admin-only. Credit still needs Approve.
-- `Phase76TillKeys` copied every existing Approve grant to the three keys at the same scope, so no till started
-  refusing on upgrade.
-
-The vendor (abcagro1, readable until about 2026-10-25) keeps these as three switches per location in its **POS** app's
-own role editor, over POS-channel roles separate from its ERP roles.
+- A transferred or parcelled quantity takes its share of the order's amount (`PosOrder.ShareCarriedBy`). Once the
+  order is billed, the share is read from the line's bills. An amount is the same terms as another amount. Discard of
+  a dish carrying a frozen share stays refused.
+- *Sales Documents* gains nine appended columns, plus a round-off row per document. *Payments* gains till tenders,
+  change and refund payouts, with a *Source* column.
 
 **Next:** not yet scheduled. Candidates: phase 75 § 5 (with the rest of phase 73 § 5: ordering of header blocks, the
-Modern/Classic layouts, amount in words for a foreign currency), phase 74 § 5's remaining items (transfers with an
-amount, the full-tenant export's per-unit discount), phase 71 § 5, phase 76 § 5.
+Modern/Classic layouts, amount in words for a foreign currency), phase 76 § 5 (a discount ceiling per role, the ERP
+invoice form's discount/rate gating), phase 77 § 5 (discard with a share, a drawer's cash movements in the export),
+phase 71 § 5.
 
-Tests: Domain 991, Application.UnitTests **1708**, Infrastructure.UnitTests 13,
-Api.IntegrationTests 57, Angular **833**. Everything was green at phase 76's close with Docker up.
+Tests: Domain **995**, Application.UnitTests **1714**, Infrastructure.UnitTests 13,
+Api.IntegrationTests 57, Angular 833. Everything was green at phase 77's close with Docker up.
 The bundle sits at **652.58 kB** against `build-budget.spec.ts`'s 680 kB; every POS screen is lazy.
 
 - `Api.IntegrationTests` needs Docker Desktop running. Without it the Testcontainers-backed tests

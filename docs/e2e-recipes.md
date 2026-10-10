@@ -340,3 +340,19 @@ beside a 200 from the same user, and create a fresh Organization per phase.
   `GET /pos/tills/{loc}` carries `canDiscount`/`canChangeRate`, `GET /pos/restaurants/{loc}` `canDiscount`/
   `canRemoveServiceCharge`. A table's `shape` is `Rectangle` or `Circle` (`Square` is a 400 naming no field).
   The POS role-editor read: `/pos/settings/users-permissions/role-reference/edit?id=…`, its *Edit* button saves (phase-76).
+- Phase 77. A transfer is `POST /pos/orders/{id}/transfers {tableId, items: [{lineId, quantity}]}` (200, returning
+  `{source, target, targetCreated}`), and a parcel is `POST /pos/orders/{id}/take-away {lineId, quantity}` (200, the
+  order). Validation runs before authorization, so a 403-not-404 probe needs a **valid** body: one item with a random
+  `lineId` and quantity 1, not `items: []` (that is a 400 for everyone).
+  - A restaurant bill is `POST /pos/orders/{id}/bill/preview {split, items, parts}` (its `total`), then
+    `POST /pos/orders/{id}/invoices` with the same and `sessionId`, `locationId`, `tenders`, `changeAmount`,
+    `contactId`, `overrideStockWarning` and `overrideCreditLimitWarning`.
+  - A till refund is `POST /pos/refunds/preview {sessionId, invoiceId, lines: [{invoiceLineId, quantity}]}` (its
+    `grandTotal`), then `POST /pos/refunds` with `locationId`, `payouts` and `reason`.
+  - In SQL, a refund's sale is `sales.CreditNotes.ReferrerId` (with `ReferrerType = 'Invoice'`), not
+    `AgainstInvoiceId`. `pos.PosOrderLines.[LineNo]` needs its brackets: `LineNo` is a T-SQL keyword.
+  - The export is `POST /export-jobs?categories=SalesDocuments&categories=Payments` (201). Poll `GET /export-jobs`
+    for `Completed`, then `GET /export-jobs/{id}/download`. Read the .xlsx from its XML with `zipfile`; no openpyxl is
+    needed. Sales Documents' Σ(Amount + Service Charge + Packaging Fee + VAT Amount + Round Off) equals SQL's
+    invoices less credit notes, and Payments' received less paid equals Σ tenders − Σ `ChangeAmount` − Σ payouts.
+  - `python -I` ignores `PYTHONIOENCODING`; print a Σ with `python -I -X utf8`.

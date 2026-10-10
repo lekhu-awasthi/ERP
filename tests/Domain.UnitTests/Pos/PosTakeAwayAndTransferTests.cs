@@ -50,7 +50,7 @@ public class PosTakeAwayAndTransferTests
         var order = Table();
         var momo = order.Lines[0];
 
-        var result = order.MarkTakeAway(momo.Id, 1m, serviceChargeOnTakeAway: true, PackagingFee.None, User, NothingBilled);
+        var result = order.MarkTakeAway(momo.Id, 1m, serviceChargeOnTakeAway: true, PackagingFee.None, User, PosBills.None);
 
         var parcel = Assert.Single(result.NewLines);
         Assert.True(parcel.IsTakeAway);
@@ -79,7 +79,7 @@ public class PosTakeAwayAndTransferTests
     {
         var order = Table();
 
-        order.MarkTakeAway(order.Lines[0].Id, 1m, serviceChargeOnTakeAway: false, PackagingFee.None, User, NothingBilled);
+        order.MarkTakeAway(order.Lines[0].Id, 1m, serviceChargeOnTakeAway: false, PackagingFee.None, User, PosBills.None);
 
         Assert.Equal(0m, TakeAwayOf(order, order.Lines[0]).ServiceChargeRate);
         Assert.Equal(632.80m - 248.60m + 226.00m, Total(order));
@@ -91,7 +91,7 @@ public class PosTakeAwayAndTransferTests
         var order = Table();
         var coke = order.Lines[1];
 
-        order.MarkTakeAway(coke.Id, 1m, serviceChargeOnTakeAway: true, PackagingFee.None, User, NothingBilled);
+        order.MarkTakeAway(coke.Id, 1m, serviceChargeOnTakeAway: true, PackagingFee.None, User, PosBills.None);
 
         Assert.Equal(0m, TakeAwayOf(order, coke).ServiceChargeRate);
         Assert.Equal(632.80m, Total(order));
@@ -103,15 +103,15 @@ public class PosTakeAwayAndTransferTests
         var order = Table();
         var momo = order.Lines[0];
 
-        order.MarkTakeAway(momo.Id, 0.5m, true, PackagingFee.None, User, NothingBilled);
-        var again = order.MarkTakeAway(momo.Id, 0.5m, true, PackagingFee.None, User, NothingBilled);
+        order.MarkTakeAway(momo.Id, 0.5m, true, PackagingFee.None, User, PosBills.None);
+        var again = order.MarkTakeAway(momo.Id, 0.5m, true, PackagingFee.None, User, PosBills.None);
         Assert.Empty(again.NewLines);
         Assert.Equal(1m, order.QuantitiesOf(TakeAwayOf(order, momo)).Net);
 
         // Frozen when marked: the setting switched off now reprices nothing already parcelled.
         var other = Table("ORD0002");
-        other.MarkTakeAway(other.Lines[0].Id, 1m, true, PackagingFee.None, User, NothingBilled);
-        var later = other.MarkTakeAway(other.Lines[0].Id, 1m, false, PackagingFee.None, User, NothingBilled);
+        other.MarkTakeAway(other.Lines[0].Id, 1m, true, PackagingFee.None, User, PosBills.None);
+        var later = other.MarkTakeAway(other.Lines[0].Id, 1m, false, PackagingFee.None, User, PosBills.None);
         Assert.Equal(0m, Assert.Single(later.NewLines).ServiceChargeRate);
         Assert.Equal([0m, 10m], other.Lines.Where(x => x.IsTakeAway).Select(x => x.ServiceChargeRate).Order());
     }
@@ -123,25 +123,25 @@ public class PosTakeAwayAndTransferTests
         var momo = order.Lines[0];
         order.Serve([Q(momo, 1m)]);
 
-        var served = Assert.Throws<InvalidOperationException>(() => order.MarkTakeAway(momo.Id, 2m, true, PackagingFee.None, User, NothingBilled));
+        var served = Assert.Throws<InvalidOperationException>(() => order.MarkTakeAway(momo.Id, 2m, true, PackagingFee.None, User, PosBills.None));
         Assert.Contains("1 not yet served or billed", served.Message, StringComparison.Ordinal);
 
         var billed = new Dictionary<Guid, decimal> { [momo.Id] = 2m };
-        Assert.Throws<InvalidOperationException>(() => order.MarkTakeAway(momo.Id, 1m, true, PackagingFee.None, User, billed));
+        Assert.Throws<InvalidOperationException>(() => order.MarkTakeAway(momo.Id, 1m, true, PackagingFee.None, User, PosBills.Of(billed)));
 
-        order.MarkTakeAway(momo.Id, 1m, true, PackagingFee.None, User, NothingBilled);
+        order.MarkTakeAway(momo.Id, 1m, true, PackagingFee.None, User, PosBills.None);
     }
 
     [Fact]
     public void Only_a_dine_in_line_is_marked_and_a_take_away_line_cannot_be_marked_again()
     {
         var parcel = Table(type: PosTab.TakeAway);
-        Assert.Throws<InvalidOperationException>(() => parcel.MarkTakeAway(parcel.Lines[0].Id, 1m, true, PackagingFee.None, User, NothingBilled));
+        Assert.Throws<InvalidOperationException>(() => parcel.MarkTakeAway(parcel.Lines[0].Id, 1m, true, PackagingFee.None, User, PosBills.None));
 
         var order = Table();
-        order.MarkTakeAway(order.Lines[0].Id, 1m, true, PackagingFee.None, User, NothingBilled);
+        order.MarkTakeAway(order.Lines[0].Id, 1m, true, PackagingFee.None, User, PosBills.None);
         var line = TakeAwayOf(order, order.Lines[0]);
-        Assert.Throws<InvalidOperationException>(() => order.MarkTakeAway(line.Id, 1m, true, PackagingFee.None, User, NothingBilled));
+        Assert.Throws<InvalidOperationException>(() => order.MarkTakeAway(line.Id, 1m, true, PackagingFee.None, User, PosBills.None));
     }
 
     [Fact]
@@ -149,7 +149,7 @@ public class PosTakeAwayAndTransferTests
     {
         var order = Table();
         var momo = order.Lines[0];
-        var mark = order.MarkTakeAway(momo.Id, 1m, true, PackagingFee.None, User, NothingBilled);
+        var mark = order.MarkTakeAway(momo.Id, 1m, true, PackagingFee.None, User, PosBills.None);
         var parcel = Assert.Single(mark.NewLines);
 
         var send = order.TicketProgress().Single(x => x.TicketId == order.Tickets.First(t => t.KitchenStationId == Kitchen).Id);
@@ -168,7 +168,7 @@ public class PosTakeAwayAndTransferTests
     {
         var order = Table();
         var momo = order.Lines[0];
-        order.MarkTakeAway(momo.Id, 1m, serviceChargeOnTakeAway: false, PackagingFee.None, User, NothingBilled);
+        order.MarkTakeAway(momo.Id, 1m, serviceChargeOnTakeAway: false, PackagingFee.None, User, PosBills.None);
         var parcel = TakeAwayOf(order, momo);
 
         // The parcel alone, then the rest: 226 + 384.20 is the order's 610.20, rounded on the running total.
@@ -195,7 +195,7 @@ public class PosTakeAwayAndTransferTests
         var target = Table("ORD0002");
         var momo = source.Lines[0];
 
-        var result = PosOrder.Transfer(source, target, [Q(momo, 1m)], User, NothingBilled, DateTimeOffset.UtcNow);
+        var result = PosOrder.Transfer(source, target, [Q(momo, 1m)], User, PosBills.None, DateTimeOffset.UtcNow);
 
         // The target already had Momo on the same terms, so the quantity joins that line.
         Assert.Empty(result.Target.NewLines);
@@ -215,11 +215,11 @@ public class PosTakeAwayAndTransferTests
     public void A_transfer_to_a_table_without_the_dish_copies_the_lines_frozen_terms_including_a_take_away()
     {
         var source = Table("ORD0001");
-        source.MarkTakeAway(source.Lines[0].Id, 1m, serviceChargeOnTakeAway: false, PackagingFee.None, User, NothingBilled);
+        source.MarkTakeAway(source.Lines[0].Id, 1m, serviceChargeOnTakeAway: false, PackagingFee.None, User, PosBills.None);
         var parcel = TakeAwayOf(source, source.Lines[0]);
 
         var target = PosOrder.Open(Organization, Location, "ORD0002", PosTab.DineIn, Guid.NewGuid(), 1, null, User, DateTimeOffset.UtcNow);
-        var result = PosOrder.Transfer(source, target, [Q(parcel, 1m)], User, NothingBilled, DateTimeOffset.UtcNow);
+        var result = PosOrder.Transfer(source, target, [Q(parcel, 1m)], User, PosBills.None, DateTimeOffset.UtcNow);
 
         var copy = Assert.Single(result.Target.NewLines);
         Assert.Equal((true, 0m, 200m, Kitchen), (copy.IsTakeAway, copy.ServiceChargeRate, copy.Rate, copy.KitchenStationId));
@@ -235,7 +235,7 @@ public class PosTakeAwayAndTransferTests
         var momo = source.Lines[0];
         source.Serve([Q(momo, 1m)]);
 
-        var result = PosOrder.Transfer(source, target, [Q(momo, 2m)], User, NothingBilled, DateTimeOffset.UtcNow);
+        var result = PosOrder.Transfer(source, target, [Q(momo, 2m)], User, PosBills.None, DateTimeOffset.UtcNow);
 
         Assert.Equal(0m, momo.ServedQuantity);
         var moved = Assert.Single(result.Target.NewLines);
@@ -252,10 +252,10 @@ public class PosTakeAwayAndTransferTests
         var billed = new Dictionary<Guid, decimal> { [momo.Id] = 1m };
 
         var refused = Assert.Throws<InvalidOperationException>(() =>
-            PosOrder.Transfer(source, target, [Q(momo, 2m)], User, billed, DateTimeOffset.UtcNow));
+            PosOrder.Transfer(source, target, [Q(momo, 2m)], User, PosBills.Of(billed), DateTimeOffset.UtcNow));
         Assert.Contains("1 not yet billed", refused.Message, StringComparison.Ordinal);
 
-        PosOrder.Transfer(source, target, [Q(momo, 1m)], User, billed, DateTimeOffset.UtcNow);
+        PosOrder.Transfer(source, target, [Q(momo, 1m)], User, PosBills.Of(billed), DateTimeOffset.UtcNow);
 
         // The source line still holds exactly its billed quantity; a void of that bill would give it back
         // to this line, which has room for it.
@@ -271,7 +271,7 @@ public class PosTakeAwayAndTransferTests
         var target = Table("ORD0002");
 
         var all = PosOrder.Transfer(
-            source, target, [Q(source.Lines[0], 2m), Q(source.Lines[1], 2m)], User, NothingBilled, DateTimeOffset.UtcNow);
+            source, target, [Q(source.Lines[0], 2m), Q(source.Lines[1], 2m)], User, PosBills.None, DateTimeOffset.UtcNow);
 
         Assert.True(all.SourceEmptied);
         Assert.Equal(PosOrderStatus.Voided, source.Status);
@@ -279,7 +279,7 @@ public class PosTakeAwayAndTransferTests
 
         var billedSource = Table("ORD0003");
         var billed = new Dictionary<Guid, decimal> { [billedSource.Lines[1].Id] = 2m };
-        var rest = PosOrder.Transfer(billedSource, Table("ORD0004"), [Q(billedSource.Lines[0], 2m)], User, billed, DateTimeOffset.UtcNow);
+        var rest = PosOrder.Transfer(billedSource, Table("ORD0004"), [Q(billedSource.Lines[0], 2m)], User, PosBills.Of(billed), DateTimeOffset.UtcNow);
 
         Assert.False(rest.SourceEmptied);
         Assert.True(billedSource.SettleIfFullyBilled(billed, DateTimeOffset.UtcNow));
@@ -291,16 +291,16 @@ public class PosTakeAwayAndTransferTests
         var source = Table("ORD0001");
 
         Assert.Throws<InvalidOperationException>(() =>
-            PosOrder.Transfer(source, source, [Q(source.Lines[0], 1m)], User, NothingBilled, DateTimeOffset.UtcNow));
+            PosOrder.Transfer(source, source, [Q(source.Lines[0], 1m)], User, PosBills.None, DateTimeOffset.UtcNow));
         Assert.Throws<InvalidOperationException>(() =>
-            PosOrder.Transfer(source, Table("ORD0002", PosTab.TakeAway), [Q(source.Lines[0], 1m)], User, NothingBilled, DateTimeOffset.UtcNow));
+            PosOrder.Transfer(source, Table("ORD0002", PosTab.TakeAway), [Q(source.Lines[0], 1m)], User, PosBills.None, DateTimeOffset.UtcNow));
         Assert.Throws<InvalidOperationException>(() =>
-            PosOrder.Transfer(source, Table("ORD0003", location: Guid.NewGuid()), [Q(source.Lines[0], 1m)], User, NothingBilled, DateTimeOffset.UtcNow));
+            PosOrder.Transfer(source, Table("ORD0003", location: Guid.NewGuid()), [Q(source.Lines[0], 1m)], User, PosBills.None, DateTimeOffset.UtcNow));
 
         var voided = Table("ORD0004");
         voided.Void("Guests left", User, DateTimeOffset.UtcNow, NothingBilled);
         Assert.Throws<InvalidOperationException>(() =>
-            PosOrder.Transfer(source, voided, [Q(source.Lines[0], 1m)], User, NothingBilled, DateTimeOffset.UtcNow));
+            PosOrder.Transfer(source, voided, [Q(source.Lines[0], 1m)], User, PosBills.None, DateTimeOffset.UtcNow));
     }
 
     [Fact]
@@ -309,7 +309,7 @@ public class PosTakeAwayAndTransferTests
         var source = Table("ORD0001");
         var target = PosOrder.Open(Organization, Location, "ORD0002", PosTab.DineIn, Guid.NewGuid(), 1, null, User, DateTimeOffset.UtcNow);
 
-        var result = PosOrder.Transfer(source, target, [Q(source.Lines[0], 2m)], User, NothingBilled, DateTimeOffset.UtcNow);
+        var result = PosOrder.Transfer(source, target, [Q(source.Lines[0], 2m)], User, PosBills.None, DateTimeOffset.UtcNow);
 
         Assert.Equal(KitchenTicketState.Moved, source.TicketProgress().Single(x => x.TicketId == result.Source.NewTickets[0].Id).State);
         // The original send's Momo all moved before any was served: the send reads as moved, not cancelled.

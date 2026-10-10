@@ -4439,3 +4439,31 @@ phase 43's present-and-ignored shape one level up (a row rather than a field), a
 changes nothing. The PUT answers 409 naming the scope, and the screen offers only the server's own
 `locationBearingDocumentTypes`. If the scope later narrows, existing rows go dormant; the resolver still reads only a
 document's stored location, so nothing misprints.
+
+## A till refund names its sale through the referrer, not `AgainstInvoiceId` (phase 77)
+
+Phase 69 gave a credit note `AgainstInvoiceId` / `AgainstInvoiceNumber` for the invoice an ERP note is against, picked
+or typed. Phase 63's till refund was written before that and records its sale the way a conversion does:
+`ReferrerType = Invoice`, `ReferrerId` = the sale, and the sale's code as its `Reference`. It leaves phase 69's fields
+null. The export's *Against Invoice* column, joined on `AgainstInvoiceId` alone, came out empty for every till refund,
+and so did the order the refund's sale billed. Join on `AgainstInvoiceId ?? (ReferrerType == Invoice ? ReferrerId :
+null)`. Any reader asking "which invoice is this credit note against" owes the same coalesce.
+
+## A share moved off a part-billed line is read from its bills (phase 77)
+
+Once an order's Amount discount is frozen, each line holds a share, and each bill takes its quantity's part of it, the
+last bill taking what is left. Food moving off such a line (a transfer, a parcel) must take the quantity's part of
+**what the line's bills have not yet taken**: the frozen share less `PosOrderLineBilled.BillDiscountAmount`, and all
+of it when all the unbilled food moves. Prorating the whole share over the whole line instead looks the same on a line
+nobody has billed. On a part-billed one it leaves the line's frozen share a paisa away from the sum of its bills, and
+the last bill pays the difference. So the transfer and the parcel take the bills' state, not their quantities.
+
+## Each phase that adds money to a line owes the export a column (phase 77)
+
+Phase 38's *Sales Documents* sheet had Amount and VAT. Phases 61 (service charge, round-off), 70 (packaging fee) and
+74 (per-unit and Amount discounts) each added money to a line, and each status doc recorded "the export lacks it" in
+its § 5. The gap compounded for sixteen phases. In that time the sheet's columns stopped adding up to what a customer
+was charged, and its Payments sheet had none of the till's tenders. A reflection test now lists every `decimal` on
+`InvoiceLine` and `CreditNoteLine` and requires it to be exported (`SalesDocumentExportReader.ExportedLineMoney`) or
+named with a reason (a rate, a factor, a cost, a derived total). Each list is asserted to name only properties that
+exist.

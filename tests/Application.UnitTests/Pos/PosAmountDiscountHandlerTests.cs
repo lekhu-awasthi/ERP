@@ -1,8 +1,10 @@
+using ErpApp.Application.Pos.Commands.CreatePosOrderTransfer;
 using ErpApp.Application.Pos.Commands.CreatePosSale;
 using ErpApp.Application.Printing.Queries.PrintDocument;
 using ErpApp.Application.UnitTests.TestSupport;
 using ErpApp.Application.Pos.Commands.UpdatePosOrderDiscount;
 using ErpApp.Application.Pos.Commands.UpdatePosOrderLineDiscount;
+using ErpApp.Application.Pos.Commands.UpdatePosOrderTakeAway;
 using ErpApp.Application.Pos.Restaurant;
 using ErpApp.Domain.Pos;
 using ErpApp.Domain.Sales;
@@ -221,5 +223,69 @@ public class PosAmountDiscountHandlerTests
         Assert.Contains(sale.Validate(Sale(momo with { DiscountPerUnit = 10m, DiscountPct = 5m })).Errors, x => x.PropertyName.EndsWith("DiscountPerUnit"));
         Assert.Contains(sale.Validate(Sale(momo, pct: 5m, amount: 5m)).Errors, x => x.PropertyName == "DiscountAmount");
         Assert.Contains(sale.Validate(Sale(momo with { DiscountPerUnit = 10m }, amount: 190.01m)).Errors, x => x.PropertyName == "DiscountAmount");
+    }
+
+    // ---- Phase 77: the share moves with the food ----------------------------------------------------------------
+
+    private static Task<PosOrderTransferDto> TransferAsync(
+        PosTestRestaurant r, Guid orderId, Guid tableId, params PosOrderLineQuantityInput[] items) =>
+        new CreatePosOrderTransferCommandHandler(r.Till.Db, r.Till.Seed.NumberGenerator, r.CurrentUser()).Handle(
+            new CreatePosOrderTransferCommand(r.OrganizationId, orderId, tableId, items), CancellationToken.None);
+
+    [Fact]
+    public async Task Food_transferred_from_a_billed_tab_takes_what_its_bills_left_and_the_bills_add_up_to_the_amount()
+    {
+        var r = await PosTestRestaurant.CreateAsync();
+        var order = await r.SeatAsync(r.T1, [r.Momo(2), r.Coke(2)]);
+        await OrderAmountAsync(r, order.Id, null, 52m);
+
+        // The first bill takes one of each: 20 and 6 of the momo's 40 and the Coke's 12, and freezes the rest.
+        var session = await r.Till.OpenAsync();
+        var items = new[] { PosTestRestaurant.Line(order, "Chicken Momo", 1), PosTestRestaurant.Line(order, "Coke 250ml", 1) };
+        var half = await r.PreviewAsync(order.Id, PosOrderSplit.Items, items);
+        await r.BillAsync(session.Id, order.Id, PosOrderSplit.Items, [r.Till.Cash(half.Total)], items);
+
+        // The other momo moves to T2 with its 20: 180 + 18 service charge + 25.74 VAT there.
+        var moved = await TransferAsync(r, order.Id, r.T2, PosTestRestaurant.Line(order, "Chicken Momo", 1));
+        Assert.Equal((32m, 20m), (moved.Source.DiscountAmount, moved.Target.DiscountAmount));
+        Assert.Equal(223.74m, moved.Target.Total);
+
+        var stored = await r.Till.Db.PosOrders.Include(x => x.Lines).SingleAsync(x => x.Id == order.Id);
+        Assert.Equal([20m, 12m], stored.Lines.OrderBy(x => x.LineNo).Select(x => x.OrderDiscountShare));
+
+        var restPreview = await r.PreviewAsync(order.Id, PosOrderSplit.Whole);
+        await r.BillAsync(session.Id, order.Id, PosOrderSplit.Whole, [r.Till.Cash(restPreview.Total)]);
+        var t2Preview = await r.PreviewAsync(moved.Target.Id, PosOrderSplit.Whole);
+        await r.BillAsync(session.Id, moved.Target.Id, PosOrderSplit.Whole, [r.Till.Cash(t2Preview.Total)]);
+
+        var invoices = await r.Till.Db.Invoices
+            .Where(x => x.PosOrderId == order.Id || x.PosOrderId == moved.Target.Id)
+            .ToListAsync();
+        Assert.Equal([26m, 6m, 20m], invoices.OrderBy(x => x.ApprovedAt).Select(x => x.DiscountAmount));
+    }
+
+    [Fact]
+    public async Task A_parcel_marked_after_the_first_bill_takes_its_share_and_is_billed_with_it()
+    {
+        var r = await PosTestRestaurant.CreateAsync();
+        var order = await r.SeatAsync(r.T1, [r.Momo(2), r.Coke(2)]);
+        await OrderAmountAsync(r, order.Id, null, 52m);
+
+        var session = await r.Till.OpenAsync();
+        var coke = new[] { PosTestRestaurant.Line(order, "Coke 250ml", 1) };
+        var first = await r.PreviewAsync(order.Id, PosOrderSplit.Items, coke);
+        await r.BillAsync(session.Id, order.Id, PosOrderSplit.Items, [r.Till.Cash(first.Total)], coke);
+
+        var momo = PosTestRestaurant.Line(order, "Chicken Momo", 1);
+        var marked = await new UpdatePosOrderTakeAwayCommandHandler(r.Till.Db, r.CurrentUser()).Handle(
+            new UpdatePosOrderTakeAwayCommand(r.OrganizationId, order.Id, momo.LineId, 1m), CancellationToken.None);
+
+        Assert.Equal(52m, marked.DiscountAmount);
+        Assert.Equal([20m, 6m * 2, 20m], marked.Lines.OrderBy(x => x.LineNo).Select(x => x.OrderDiscountShare));
+
+        var restPreview = await r.PreviewAsync(order.Id, PosOrderSplit.Whole);
+        await r.BillAsync(session.Id, order.Id, PosOrderSplit.Whole, [r.Till.Cash(restPreview.Total)]);
+        var invoices = await r.Till.Db.Invoices.Where(x => x.PosOrderId == order.Id).ToListAsync();
+        Assert.Equal(52m, invoices.Sum(x => x.DiscountAmount));
     }
 }

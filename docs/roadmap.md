@@ -147,8 +147,12 @@ issuing location (`phase-75-status.md`): "Location: name, address" under the reg
 has more than one location, a template per location falling back to the default (phase 73 Decision C reversed), and
 both addresses on the till receipt. Phase 76 split the till's price powers off Approve (`phase-76-status.md`): a
 discount, a waiver and a changed price each have their own location-scoped key, as the vendor's POS role editor keeps
-three switches, and every existing Approve grant was copied to them. **Next: not yet scheduled**; the candidates are
-phase 75 § 5's (and the rest of phase 73 § 5 it carries), phase 74 § 5's remaining items and phase 71 § 5's.
+three switches, and every existing Approve grant was copied to them. Phase 77 let an order's Amount discount move
+with its food (`phase-77-status.md`): a transferred or parcelled quantity takes its share, read from the line's bills
+once the order is billed. The full-tenant export now carries every part of a sale's money (service charge, packaging
+fee, both kinds of discount, round-off on a row of its own, the order and the invoice a note is against) and the
+till's tenders, change and refund payouts. **Next: not yet scheduled**; the candidates are phase 75 § 5's (and the rest
+of phase 73 § 5 it carries), phase 76 § 5's, phase 77 § 5's and phase 71 § 5's.
 
 Open question for the tax advisor, not to be guessed (carried from the PAN fix): whether IRD expects a buyer PAN
 on a high-value sale to an unregistered buyer. If it does, it would be a warning on approve, never a block.
@@ -179,7 +183,7 @@ standalone credit note was settled by phase 69, and the count note beside Print 
 wraps under Print at 375 px, legible, still described-by).
 
 **Carried from phase 69** (§ 5 there): older standalone notes name nothing (no backfill is possible); two drafts can
-race for one invoice's remainder, as the line caps always could; the export has no invoice column.
+race for one invoice's remainder, as the line caps always could. The export's invoice column was added in phase 77.
 
 **Carried from phase 66** (§ 5 there): a from/to *time* on the Day Report (a shift across midnight as one report;
 a reader change, not a screen change); the vendor's Delivery Partner Statement (delivery partners are outside
@@ -189,21 +193,25 @@ the sequence).
 with the user's 2026-10-03 answer, the packaging fee in phase 70, and a discount, credit and per-part customers on a
 restaurant bill in phase 72. VAT stays in code; only fees are settings.
 
-**Carried from phase 72** (§ 5 there): a discount on one guest's part once splitting has begun; the full-tenant
-export lacks the order terms as well. Its refund-of-a-remainder paisa, Amount discounts and *Can Change Rate* were done
+**Carried from phase 72** (§ 5 there): a discount on one guest's part once splitting has begun. The export's order
+terms were settled in phase 77 (a bill names its order and its lines carry the terms; no POS Orders sheet). Its refund-of-a-remainder paisa, Amount discounts and *Can Change Rate* were done
 in phase 74.
 
-**Carried from phase 74** (§ 5 there): an order with an Amount discount cannot transfer items, and a dish carrying a
-share cannot be discarded or parcelled once the order is billed; the full-tenant export lacks the per-unit discount
-and the bill's amount. Its third item, the vendor's three role switches as one key, was done in phase 76.
+**Carried from phase 74** (§ 5 there): a dish carrying a share cannot be discarded once the order is billed. Its
+transfers and parcels, and the export's per-unit discount and bill amount, were done in phase 77; its third item, the
+vendor's three role switches as one key, in phase 76.
 
 **Carried from phase 76** (§ 5 there): the ERP invoice form's discount and rate are still reviewed only at Approve; a
 maximum discount per role (the vendor's `discount_limit` is a switch despite its name) has no live evidence; the
 vendor's server-side enforcement of its switches is unread; its POS-channel role sets are not modelled.
 
+**Carried from phase 77** (§ 5 there): discarding a dish that carries a frozen share is still refused; a drawer's
+cash in/out is not on the export's Payments sheet; the Purchase Documents sheet keeps phase 38's fourteen columns; the
+vendor's server-side handling of an amount on a transfer is unread.
+
 **Carried from phase 70** (§ 5 there): the VAT Act §13 wording for packaging is unverified (phase 61's reading
-applied to a second charge); the full-tenant export now lacks the packaging fee as well as service charge and
-round-off; a receipt prints the fee's total, not which items carried it.
+applied to a second charge); a receipt prints the fee's total, not which items carried it. The export's packaging
+fee, service charge and round-off were done in phase 77.
 
 **Carried from phase 63** (§ 5 there): cross-branch returns; split payouts on the refund screen (the
 API takes several); a fully refunded bill still listed in the refund search.

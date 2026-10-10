@@ -59,7 +59,7 @@ public sealed class UpdatePosOrderTakeAwayCommandHandler(IAppDbContext db, ICurr
             db, request.OrganizationId, currentUser.UserId, request.OrderId, cancellationToken);
 
         // Billed food is on a tax invoice at its rate, so it cannot be parcelled into another one.
-        var invoiced = (await PosOrderBilling.LoadAsync(db, request.OrganizationId, order.Id, cancellationToken)).Invoiced;
+        var billed = (await PosOrderBilling.LoadAsync(db, request.OrganizationId, order.Id, cancellationToken)).Lines;
 
         var productId = order.Lines.FirstOrDefault(x => x.Id == request.LineId)?.ProductId;
         var packagingFeeApplicable = productId is { } id && await db.Products
@@ -69,7 +69,7 @@ public sealed class UpdatePosOrderTakeAwayCommandHandler(IAppDbContext db, ICurr
 
         var result = PosOrderCommands.Run(() => order.MarkTakeAway(
             request.LineId, request.Quantity, till.Settings.ServiceChargeOnTakeAway,
-            PosPackagingFee.ForParcel(till.Settings, packagingFeeApplicable), currentUser.UserId, invoiced));
+            PosPackagingFee.ForParcel(till.Settings, packagingFeeApplicable), currentUser.UserId, billed));
 
         // Added through the sets: a child appended to a tracked parent reads as Modified (phase 24).
         db.PosOrderLines.AddRange(result.NewLines);

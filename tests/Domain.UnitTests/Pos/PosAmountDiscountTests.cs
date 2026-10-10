@@ -238,18 +238,115 @@ public class PosAmountDiscountTests
         Assert.Equal((0m, 15m), (momo.DiscountPct, momo.DiscountPerUnit));
     }
 
+    // ---- Phase 77: the share moves with the food ----------------------------------------------------------------
+
+    private static PosOrder Empty(string code) => PosOrder.Open(
+        Organization, Location, code, PosTab.DineIn, Guid.NewGuid(), 1, null, User, DateTimeOffset.UtcNow);
+
     [Fact]
-    public void Items_are_not_transferred_to_or_from_a_tab_with_an_amount_discount()
+    public void A_transfer_from_an_unbilled_tab_takes_the_dishes_share_and_the_two_discounts_add_up_to_the_first()
     {
-        var (source, momo, _) = Table("ORD0001");
-        var (target, _, _) = Table("ORD0002");
-        source.SetDiscount(PosDiscountKind.Amount, 20m, NothingBilled);
+        var (source, momo, _) = Table();
+        source.SetDiscount(PosDiscountKind.Amount, 52m, NothingBilled);
+        var before = source.FiguresOf(momo, 1m);
+        var whole = source.Estimate().Total;
+        var target = Empty("ORD0002");
 
+        var result = PosOrder.Transfer(source, target, [new PosOrderLineQuantity(momo.Id, 1m)], User, PosBills.None, DateTimeOffset.UtcNow);
+
+        // One momo of two carries 20 of its 40.
+        var moved = Assert.Single(result.Target.NewLines);
+        Assert.Equal((32m, 20m), (source.DiscountAmount, target.DiscountAmount));
+        Assert.Equal(before, target.FiguresOf(moved, 1m));
+        Assert.Equal(whole, source.Estimate().Total + target.Estimate().Total);
+        Assert.False(target.DiscountSharesFixed);
+    }
+
+    [Fact]
+    public void An_amount_joins_only_a_tab_taking_rupees_off_or_an_empty_one()
+    {
+        var (source, momo, _) = Table();
+        source.SetDiscount(PosDiscountKind.Amount, 52m, NothingBilled);
+
+        var (plain, _, _) = Table("ORD0002");
         var refused = Assert.Throws<InvalidOperationException>(() =>
-            PosOrder.Transfer(source, target, [new PosOrderLineQuantity(momo.Id, 1m)], User, NothingBilled, DateTimeOffset.UtcNow));
-        Assert.Contains("ORD0001", refused.Message);
+            PosOrder.Transfer(source, plain, [new PosOrderLineQuantity(momo.Id, 1m)], User, PosBills.None, DateTimeOffset.UtcNow));
+        Assert.Contains("ORD0001 with a discount of 52.00", refused.Message);
 
+        var (percent, _, _) = Table("ORD0003");
+        percent.SetDiscount(5m, NothingBilled);
         Assert.Throws<InvalidOperationException>(() =>
-            PosOrder.Transfer(target, source, [new PosOrderLineQuantity(target.Lines[0].Id, 1m)], User, NothingBilled, DateTimeOffset.UtcNow));
+            PosOrder.Transfer(source, percent, [new PosOrderLineQuantity(momo.Id, 1m)], User, PosBills.None, DateTimeOffset.UtcNow));
+        Assert.Throws<InvalidOperationException>(() =>
+            PosOrder.Transfer(percent, source, [new PosOrderLineQuantity(percent.Lines[0].Id, 1m)], User, PosBills.None, DateTimeOffset.UtcNow));
+        Assert.Equal(52m, source.DiscountAmount);
+
+        // Another amount is the same kind of terms: it rises by what the dish brings.
+        var (amount, _, _) = Table("ORD0004");
+        amount.SetDiscount(PosDiscountKind.Amount, 10m, NothingBilled);
+        PosOrder.Transfer(source, amount, [new PosOrderLineQuantity(momo.Id, 1m)], User, PosBills.None, DateTimeOffset.UtcNow);
+        Assert.Equal((32m, 30m), (source.DiscountAmount, amount.DiscountAmount));
+    }
+
+    [Fact]
+    public void A_transfer_from_a_billed_tab_takes_what_the_dishes_bills_left_and_every_bill_still_adds_up()
+    {
+        var (source, momo, coke) = Table();
+        source.SetDiscount(PosDiscountKind.Amount, 52m, NothingBilled);
+        var billing = new Billing();
+        billing.Pay(source, PosOrderSplit.Items, new PosOrderLineQuantity(momo.Id, 1m), new PosOrderLineQuantity(coke.Id, 1m));
+        Assert.True(source.DiscountSharesFixed);
+
+        // The momo's bill took 20 of its 40; the momo still on the tab carries the other 20, and takes it along.
+        var target = Empty("ORD0002");
+        PosOrder.Transfer(source, target, [new PosOrderLineQuantity(momo.Id, 1m)], User, billing.Lines, DateTimeOffset.UtcNow);
+        Assert.Equal((20m, 12m, 32m), (momo.OrderDiscountShare, coke.OrderDiscountShare, source.DiscountAmount));
+        Assert.Equal(20m, target.DiscountAmount);
+
+        // What is left of the source bills the coke's other 6; the target bills the momo's 20: 52 in all.
+        var rest = billing.Pay(source, PosOrderSplit.Whole);
+        Assert.Equal([6m], rest.Lines.Select(x => x.BillDiscountShare));
+        Assert.Equal(PosOrderStatus.Settled, source.Status);
+
+        var elsewhere = new Billing().Pay(target, PosOrderSplit.Whole);
+        Assert.Equal([20m], elsewhere.Lines.Select(x => x.BillDiscountShare));
+        Assert.Equal(52m, billing.Lines.Values.Sum(x => x.BillDiscountAmount) + elsewhere.Lines.Sum(x => x.BillDiscountShare));
+    }
+
+    [Fact]
+    public void Part_of_a_billed_dish_takes_its_quantitys_part_and_a_billed_target_freezes_what_arrives()
+    {
+        var (source, momo, coke) = Table();
+        source.SetDiscount(PosDiscountKind.Amount, 52m, NothingBilled);
+        var billing = new Billing();
+        billing.Pay(source, PosOrderSplit.Items, new PosOrderLineQuantity(coke.Id, 1m));
+
+        var (target, _, targetCoke) = Table("ORD0002");
+        target.SetDiscount(PosDiscountKind.Amount, 26m, NothingBilled);
+        new Billing().Pay(target, PosOrderSplit.Items, new PosOrderLineQuantity(targetCoke.Id, 1m));
+
+        var result = PosOrder.Transfer(source, target, [new PosOrderLineQuantity(momo.Id, 1m)], User, billing.Lines, DateTimeOffset.UtcNow);
+
+        var arrived = Assert.Single(result.Target.NewLines);
+        Assert.Equal((20m, 32m), (momo.OrderDiscountShare, source.DiscountAmount));
+        Assert.Equal((20m, 46m), (arrived.OrderDiscountShare, target.DiscountAmount));
+        Assert.Equal(180m, target.FiguresOf(arrived, 1m).Amount);
+    }
+
+    [Fact]
+    public void A_parcel_from_a_billed_tab_takes_its_share_and_the_order_keeps_its_amount()
+    {
+        var (order, momo, coke) = Table();
+        order.SetDiscount(PosDiscountKind.Amount, 52m, NothingBilled);
+        var billing = new Billing();
+        billing.Pay(order, PosOrderSplit.Items, new PosOrderLineQuantity(coke.Id, 1m));
+
+        var parcel = Assert.Single(order.MarkTakeAway(momo.Id, 1m, true, PackagingFee.None, User, billing.Lines).NewLines);
+
+        Assert.Equal((20m, 20m, 52m), (momo.OrderDiscountShare, parcel.OrderDiscountShare, order.DiscountAmount));
+
+        var rest = billing.Pay(order, PosOrderSplit.Whole);
+        Assert.Equal(52m, billing.Lines.Values.Sum(x => x.BillDiscountAmount));
+        Assert.Contains(rest.Lines, x => x.Line.Id == parcel.Id && x.BillDiscountShare == 20m);
     }
 }

@@ -211,7 +211,7 @@ public class PackagingFeeTests
         var order = DineIn();
         var plated = order.Lines[0];
 
-        var first = order.MarkTakeAway(plated.Id, 1m, serviceChargeOnTakeAway: true, TwentyABox, User, new Dictionary<Guid, decimal>());
+        var first = order.MarkTakeAway(plated.Id, 1m, serviceChargeOnTakeAway: true, TwentyABox, User, PosBills.None);
         var parcel = Assert.Single(first.NewLines);
 
         Assert.Equal(TwentyABox, parcel.PackagingFee);
@@ -219,8 +219,8 @@ public class PackagingFeeTests
 
         // A later mark at the same terms joins the parcel; at other terms (the setting changed) it is a second
         // sibling, and the first keeps the fee it was marked at.
-        Assert.Empty(order.MarkTakeAway(plated.Id, 1m, true, TwentyABox, User, new Dictionary<Guid, decimal>()).NewLines);
-        var second = Assert.Single(order.MarkTakeAway(plated.Id, 1m, true, FivePercent, User, new Dictionary<Guid, decimal>()).NewLines);
+        Assert.Empty(order.MarkTakeAway(plated.Id, 1m, true, TwentyABox, User, PosBills.None).NewLines);
+        var second = Assert.Single(order.MarkTakeAway(plated.Id, 1m, true, FivePercent, User, PosBills.None).NewLines);
         Assert.Equal(FivePercent, second.PackagingFee);
         Assert.Equal(TwentyABox, parcel.PackagingFee);
         Assert.Equal(2m, order.QuantitiesOf(parcel).Net);
@@ -236,20 +236,20 @@ public class PackagingFeeTests
         var nothing = new Dictionary<Guid, decimal>();
         var source = DineIn();
         var target = DineIn();
-        source.MarkTakeAway(source.Lines[0].Id, 2m, true, TwentyABox, User, nothing);
-        target.MarkTakeAway(target.Lines[0].Id, 1m, true, FivePercent, User, nothing);
+        source.MarkTakeAway(source.Lines[0].Id, 2m, true, TwentyABox, User, PosBills.Of(nothing));
+        target.MarkTakeAway(target.Lines[0].Id, 1m, true, FivePercent, User, PosBills.Of(nothing));
         var parcel = source.Lines.Single(x => x.IsTakeAway);
         var targetParcel = target.Lines.Single(x => x.IsTakeAway);
 
         // The target's parcel was marked at another fee, so the food arrives on a line of its own.
-        var first = PosOrder.Transfer(source, target, [new PosOrderLineQuantity(parcel.Id, 1m)], User, nothing, DateTimeOffset.UtcNow);
+        var first = PosOrder.Transfer(source, target, [new PosOrderLineQuantity(parcel.Id, 1m)], User, PosBills.Of(nothing), DateTimeOffset.UtcNow);
         var arrived = Assert.Single(first.Target.NewLines);
         Assert.Equal(TwentyABox, arrived.PackagingFee);
         Assert.True(arrived.IsTakeAway);
         Assert.Equal(1m, target.QuantitiesOf(targetParcel).Net);
 
         // A second transfer at the same terms joins the line the first one made.
-        var second = PosOrder.Transfer(source, target, [new PosOrderLineQuantity(parcel.Id, 1m)], User, nothing, DateTimeOffset.UtcNow);
+        var second = PosOrder.Transfer(source, target, [new PosOrderLineQuantity(parcel.Id, 1m)], User, PosBills.Of(nothing), DateTimeOffset.UtcNow);
         Assert.Empty(second.Target.NewLines);
         Assert.Equal(2m, target.QuantitiesOf(arrived).Net);
     }

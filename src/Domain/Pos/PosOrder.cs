@@ -450,10 +450,14 @@ public sealed class PosOrder
     /// <para><b>Phase 70 -- the packaging fee is decided here too</b>, by the caller from the location's
     /// setting and the product's flag (<see cref="PosPackagingFee.ForParcel"/>), and frozen on the sibling
     /// beside its service charge: plated food never carried one, so there is nothing to copy.</para>
+    ///
+    /// <para><b>Phase 77 -- a parcel takes its share of the order's Amount discount with it</b>, as a transfer
+    /// does: once the order's shares are frozen, the parcelled quantity's part of the dish's share moves to the
+    /// sibling, and the order's amount is unchanged. Phase 74 refused the mark instead.</para>
     /// </summary>
     public PosOrderMoveResult MarkTakeAway(
         Guid lineId, decimal quantity, bool serviceChargeOnTakeAway, PackagingFee packagingFee, Guid userId,
-        IReadOnlyDictionary<Guid, decimal> invoiced)
+        IReadOnlyDictionary<Guid, PosOrderLineBilled> billed)
     {
         EnsureOpen();
 
@@ -471,9 +475,8 @@ public sealed class PosOrder
 
         var q = RequireQuantity(quantity);
         var quantities = QuantitiesOf(line);
-        var billed = invoiced.GetValueOrDefault(line.Id);
-        var markable = Math.Min(quantities.Outstanding, quantities.Net - billed);
-        EnsureShareStays(line, "marked as take away");
+        var lineBilled = billed.GetValueOrDefault(line.Id);
+        var markable = Math.Min(quantities.Outstanding, quantities.Net - (lineBilled?.Quantity ?? 0m));
 
         if (q > markable)
         {
@@ -500,7 +503,15 @@ public sealed class PosOrder
             created.Add(parcel);
         }
 
+        var share = ShareCarriedBy(line, q, lineBilled);
         var tickets = Ticket([(line, -q), (parcel, q)], userId, reason: null, KitchenTicketKind.TakeAway);
+
+        if (share != 0m)
+        {
+            GiveUpShare(line, share);
+            TakeShare(parcel, share);
+        }
+
         return new PosOrderMoveResult(created, tickets);
     }
 
@@ -518,6 +529,13 @@ public sealed class PosOrder
     /// way. A target with nothing on it and no terms of its own (a table just seated, or the order a transfer
     /// to a free table opens) takes the source's; any other must already have them (a 409 naming both).</para>
     ///
+    /// <para><b>Phase 77 -- and an Amount discount moves with the food</b> (phase-77-status.md Decision A). The
+    /// moved quantity takes its share of the source's amount (<see cref="ShareCarriedBy"/>), the source's
+    /// amount falls by it and the target's rises by it, so the two discounts still add up to what was given.
+    /// "The same terms" for an amount is the kind, not the figure: both orders take rupees off, or the target is
+    /// empty. Where an order's shares are frozen (it has been billed), the share moves between frozen line shares.
+    /// </para>
+    ///
     /// <para><b>Never more than is unbilled</b>, so the source can never fall below what its own invoices
     /// name, and a void of any bill gives its quantity back to the line that bill names. Unserved food moves
     /// first; any served food that moves takes its served count with it.</para>
@@ -528,7 +546,7 @@ public sealed class PosOrder
     /// </summary>
     public static PosOrderTransferResult Transfer(
         PosOrder source, PosOrder target, IReadOnlyList<PosOrderLineQuantity> items, Guid userId,
-        IReadOnlyDictionary<Guid, decimal> sourceInvoiced, DateTimeOffset now)
+        IReadOnlyDictionary<Guid, PosOrderLineBilled> sourceBilled, DateTimeOffset now)
     {
         if (source.Id == target.Id)
         {
@@ -551,20 +569,12 @@ public sealed class PosOrder
         EnsureNotEmpty(items, "Choose what to transfer.");
         EnsureDistinct(items);
 
-        // Phase 74 -- an amount is off a whole tab: copying it to the other would give it twice, and moving food out
-        // of a tab with one changes what it is spread over (Decision B).
-        if (new[] { source, target }.FirstOrDefault(x => x.DiscountAmount != 0m) is { } spread)
-        {
-            throw new InvalidOperationException(
-                $"Order {spread.Code} has a discount of {spread.DiscountAmount:0.00} spread over its dishes, so items cannot "
-                + "be transferred to or from it. Give it a percentage discount instead, or remove it, first.");
-        }
-
         target.TakeTermsFor(source);
 
         var outgoing = new List<(PosOrderLine Line, decimal Quantity)>();
         var incoming = new List<(PosOrderLine Line, decimal Quantity)>();
         var servedMoving = new List<(PosOrderLine Line, decimal Served)>();
+        var sharesMoving = new List<(PosOrderLine From, PosOrderLine To, decimal Share)>();
         var created = new List<PosOrderLine>();
 
         foreach (var item in items)
@@ -572,7 +582,8 @@ public sealed class PosOrder
             var line = source.FindLine(item.LineId);
             var q = RequireQuantity(item.Quantity);
             var quantities = source.QuantitiesOf(line);
-            var transferable = quantities.Net - sourceInvoiced.GetValueOrDefault(line.Id);
+            var billed = sourceBilled.GetValueOrDefault(line.Id);
+            var transferable = quantities.Net - (billed?.Quantity ?? 0m);
 
             if (q > transferable)
             {
@@ -594,6 +605,9 @@ public sealed class PosOrder
             outgoing.Add((line, -q));
             incoming.Add((destination, q));
             servedMoving.Add((destination, Math.Max(0m, q - quantities.Outstanding)));
+
+            // Read before the tickets move anything: a share is of the line as it stands.
+            sharesMoving.Add((line, destination, source.ShareCarriedBy(line, q, billed)));
         }
 
         var sourceTickets = source.Ticket(outgoing, userId, reason: null, KitchenTicketKind.Transfer, target.Id);
@@ -604,8 +618,14 @@ public sealed class PosOrder
             line.AddServed(served);
         }
 
+        foreach (var (from, to, share) in sharesMoving.Where(x => x.Share != 0m))
+        {
+            source.GiveUpShare(from, share);
+            target.TakeShare(to, share);
+        }
+
         var emptied = source._lines.All(x => source.QuantitiesOf(x).Net == 0m)
-            && sourceInvoiced.Values.All(x => x == 0m);
+            && sourceBilled.Values.All(x => x.Quantity == 0m);
 
         if (emptied)
         {
@@ -824,8 +844,64 @@ public sealed class PosOrder
         return _lines.Select((x, i) => (x.Id, shares[i])).ToDictionary(x => x.Id, x => x.Item2);
     }
 
+    /// <summary>
+    /// Phase 77 -- what <paramref name="quantity"/> of a line's unbilled food carries of the order's Amount discount
+    /// when it moves (a transfer, or a parcel). Before the first bill it is the quantity's part of the line's live
+    /// share. Once the shares are frozen it is the quantity's part of what the line's bills have not yet taken, and
+    /// moving all that is left takes all of it: the rule a bill's parts follow (<see cref="PosOrderBill"/>), so the
+    /// food that stays keeps the same share a unit and its last part still takes exactly what is left.
+    /// </summary>
+    private decimal ShareCarriedBy(PosOrderLine line, decimal quantity, PosOrderLineBilled? billed)
+    {
+        if (DiscountAmount == 0m)
+        {
+            return 0m;
+        }
+
+        if (!DiscountSharesFixed)
+        {
+            return DiscountShareOf(line, quantity);
+        }
+
+        var unbilledShare = (line.OrderDiscountShare ?? 0m) - (billed?.BillDiscountAmount ?? 0m);
+        var unbilled = QuantitiesOf(line).Net - (billed?.Quantity ?? 0m);
+
+        return quantity == unbilled
+            ? unbilledShare
+            : PosLineArithmetic.Prorate(unbilledShare, quantity, unbilled);
+    }
+
+    /// <summary>Phase 77 -- a share leaving this order with its food: off the line's frozen share when the shares
+    /// are frozen, and off the order's amount either way.</summary>
+    private void GiveUpShare(PosOrderLine line, decimal share)
+    {
+        if (DiscountSharesFixed)
+        {
+            line.FixDiscountShare((line.OrderDiscountShare ?? 0m) - share);
+        }
+
+        DiscountAmount -= share;
+        Touch();
+    }
+
+    /// <summary>Phase 77 -- a share arriving with its food: frozen on the line it joins when this order's shares are
+    /// frozen (a dish sent after the first bill would carry none, but this one brings its own), and onto the order's
+    /// amount either way. Before the first bill the amount is spread over the dishes as they stand, as always.</summary>
+    private void TakeShare(PosOrderLine line, decimal share)
+    {
+        if (DiscountSharesFixed)
+        {
+            line.FixDiscountShare((line.OrderDiscountShare ?? 0m) + share);
+        }
+
+        DiscountAmount += share;
+        Touch();
+    }
+
     /// <summary>Phase 74 -- once the order's amount discount is fixed, a dish carrying a share keeps the quantity it
-    /// was spread over: discarding or parcelling part of it would leave its share on fewer units, or none.</summary>
+    /// was spread over: discarding part of it would leave its share on fewer units, or none. Phase 77 -- a parcel or
+    /// a transfer takes its share with it instead (<see cref="ShareCarriedBy"/>); a discard has nowhere for it to go.
+    /// </summary>
     private void EnsureShareStays(PosOrderLine line, string action)
     {
         if (line.OrderDiscountShare is > 0m)
@@ -1216,12 +1292,16 @@ public sealed class PosOrder
     /// the source's; any other must already have them.</summary>
     private void TakeTermsFor(PosOrder source)
     {
-        if (DiscountPct == source.DiscountPct && ServiceChargeWaived == source.ServiceChargeWaived)
+        // Phase 77 -- an Amount is the same terms as another Amount: the food brings its own share (Transfer), so the
+        // figures need not agree, only that both orders take rupees off.
+        if (DiscountPct == source.DiscountPct
+            && (DiscountAmount != 0m) == (source.DiscountAmount != 0m)
+            && ServiceChargeWaived == source.ServiceChargeWaived)
         {
             return;
         }
 
-        if (_lines.Count == 0 && DiscountPct == 0m && !ServiceChargeWaived)
+        if (_lines.Count == 0 && DiscountPct == 0m && DiscountAmount == 0m && !ServiceChargeWaived)
         {
             DiscountPct = source.DiscountPct;
             ServiceChargeWaived = source.ServiceChargeWaived;
@@ -1235,7 +1315,9 @@ public sealed class PosOrder
     }
 
     private string DescribeTerms() =>
-        (DiscountPct > 0m ? $"a {DiscountPct:0.##}% discount" : "no discount")
+        (DiscountPct > 0m ? $"a {DiscountPct:0.##}% discount"
+            : DiscountAmount > 0m ? $"a discount of {DiscountAmount:0.00}"
+            : "no discount")
         + (ServiceChargeWaived ? " and the service charge waived" : " and service charge");
 
     private static string RequireReason(string? reason)

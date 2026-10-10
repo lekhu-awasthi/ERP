@@ -98,17 +98,19 @@ public sealed class CreatePosOrderTransferCommandHandler(
                 table.Id, covers: 1, contactId: null, currentUser.UserId, now);
         }
 
-        var invoiced = (await PosOrderBilling.LoadAsync(db, request.OrganizationId, source.Id, cancellationToken)).Invoiced;
+        // Phase 77 -- the bills' shares as well as their quantities: food moving from a billed order takes what its
+        // line's bills have not yet taken of the order's Amount discount.
+        var billed = await PosOrderBilling.LoadAsync(db, request.OrganizationId, source.Id, cancellationToken);
 
         var result = PosOrderCommands.Run(() => PosOrder.Transfer(
             source, target,
             [.. request.Items.Select(x => new PosOrderLineQuantity(x.LineId, x.Quantity))],
-            currentUser.UserId, invoiced, now));
+            currentUser.UserId, billed.Lines, now));
 
         // A transfer that leaves the source fully billed settles it, as a discard of the rest does.
         if (!result.SourceEmptied)
         {
-            source.SettleIfFullyBilled(invoiced, now);
+            source.SettleIfFullyBilled(billed.Invoiced, now);
         }
 
         // A new target joins the context only once the transfer succeeded, so a refusal leaves nothing behind.
