@@ -180,26 +180,123 @@ public class PosAmountDiscountTests
     }
 
     [Fact]
-    public void Once_spread_a_dish_carrying_a_share_keeps_its_quantity_and_a_later_dish_carries_none()
+    public void Once_spread_the_amount_is_fixed_and_a_later_dish_carries_none()
+    {
+        var (order, momo, _) = Table();
+        order.SetDiscount(PosDiscountKind.Amount, 52m, NothingBilled);
+        var billing = new Billing();
+        billing.Pay(order, PosOrderSplit.Items, new PosOrderLineQuantity(momo.Id, 1m));
+
+        // The amount itself is a term fixed at the first bill, as a percentage is (phase 72).
+        Assert.Throws<InvalidOperationException>(() => order.SetDiscount(PosDiscountKind.Amount, 60m, billing.Invoiced));
+
+        // A dish sent after the first bill was not on the table the amount came off, so discarding it moves nothing.
+        order.Send([new PosOrderNewLine(Guid.NewGuid(), null, 1m, 1m, 100m, VatRate.ThirteenPercentVat, 0m, PackagingFee.None, null, null)], [], User);
+        var later = order.Lines[2];
+        Assert.Equal(0m, order.DiscountShareOf(later));
+        Assert.Equal(100m, order.FiguresOf(later, 1m).Amount);
+        order.Discard([new PosOrderLineQuantity(later.Id, 1m)], "Sent by mistake", User, billing.Lines);
+        Assert.Equal(52m, order.DiscountAmount);
+    }
+
+    // ---- Phase 82: a discarded dish's share leaves with it ------------------------------------------------------
+
+    [Fact]
+    public void Before_the_first_bill_a_discard_leaves_the_amount_whole_and_spread_over_what_is_left()
+    {
+        var (order, momo, coke) = Table();
+        order.SetDiscount(PosDiscountKind.Amount, 52m, NothingBilled);
+
+        order.Discard([new PosOrderLineQuantity(coke.Id, 1m)], "Spilt", User, PosBills.None);
+
+        // 52 over 400 and 60 is 45.22 and 6.78: the tab's term, not yet any dish's.
+        Assert.Equal(52m, order.DiscountAmount);
+        Assert.False(order.DiscountSharesFixed);
+        Assert.Equal((45.22m, 6.78m), (order.DiscountShareOf(momo), order.DiscountShareOf(coke)));
+    }
+
+    [Fact]
+    public void After_the_first_bill_a_discarded_dish_takes_its_quantitys_part_of_its_share_and_the_bills_add_up()
     {
         var (order, momo, coke) = Table();
         order.SetDiscount(PosDiscountKind.Amount, 52m, NothingBilled);
         var billing = new Billing();
         billing.Pay(order, PosOrderSplit.Items, new PosOrderLineQuantity(momo.Id, 1m));
 
-        var discard = Assert.Throws<InvalidOperationException>(() =>
-            order.Discard([new PosOrderLineQuantity(coke.Id, 1m)], "Spilt", User, billing.Invoiced));
-        Assert.Contains("12.00 of the order's discount", discard.Message);
+        // One Coke of two carries 6 of the 12 spread over them; the momo is untouched.
+        order.Discard([new PosOrderLineQuantity(coke.Id, 1m)], "Spilt", User, billing.Lines);
+        Assert.Equal((40m, 6m, 46m), (momo.OrderDiscountShare, coke.OrderDiscountShare, order.DiscountAmount));
 
-        // The amount itself is a term fixed at the first bill, as a percentage is (phase 72).
-        Assert.Throws<InvalidOperationException>(() => order.SetDiscount(PosDiscountKind.Amount, 60m, billing.Invoiced));
+        // Every dish left costs what it did: the other momo and the other Coke bill their 20 and 6.
+        var rest = billing.Pay(order, PosOrderSplit.Whole);
+        Assert.Equal([20m, 6m], rest.Lines.Select(x => x.BillDiscountShare));
+        Assert.Equal(46m, billing.Lines.Values.Sum(x => x.BillDiscountAmount));
+        Assert.Equal(PosOrderStatus.Settled, order.Status);
+    }
 
-        // A dish sent after the first bill was not on the table the amount came off.
-        order.Send([new PosOrderNewLine(Guid.NewGuid(), null, 1m, 1m, 100m, VatRate.ThirteenPercentVat, 0m, PackagingFee.None, null, null)], [], User);
-        var later = order.Lines[2];
-        Assert.Equal(0m, order.DiscountShareOf(later));
-        Assert.Equal(100m, order.FiguresOf(later, 1m).Amount);
-        order.Discard([new PosOrderLineQuantity(later.Id, 1m)], "Sent by mistake", User, billing.Invoiced);
+    [Fact]
+    public void Discarding_all_a_dish_has_left_unbilled_takes_all_its_bills_left_of_its_share()
+    {
+        var (order, momo, coke) = Table();
+        order.SetDiscount(PosDiscountKind.Amount, 52m, NothingBilled);
+        var billing = new Billing();
+        billing.Pay(order, PosOrderSplit.Items, new PosOrderLineQuantity(momo.Id, 1m), new PosOrderLineQuantity(coke.Id, 1m));
+
+        // Both dishes in one discard: each takes what its bill left, 20 and 6, and the order keeps what was billed.
+        order.Discard(
+            [new PosOrderLineQuantity(momo.Id, 1m), new PosOrderLineQuantity(coke.Id, 1m)], "Guests left", User, billing.Lines);
+        order.SettleIfFullyBilled(billing.Invoiced, DateTimeOffset.UtcNow);
+
+        Assert.Equal((20m, 6m, 26m), (momo.OrderDiscountShare, coke.OrderDiscountShare, order.DiscountAmount));
+        Assert.Equal(order.DiscountAmount, billing.Lines.Values.Sum(x => x.BillDiscountAmount));
+        Assert.Equal(PosOrderStatus.Settled, order.Status);
+    }
+
+    [Fact]
+    public void A_share_that_does_not_divide_leaves_the_last_unit_what_is_left()
+    {
+        // Three momo at 200 with 10 off the order: 10 over 600, frozen at the first bill.
+        var order = Empty("ORD0001");
+        order.Send([new PosOrderNewLine(Guid.NewGuid(), null, 1m, 3m, 200m, VatRate.ThirteenPercentVat, 0m, PackagingFee.None, null, null)], [], User);
+        var momo = order.Lines[0];
+        order.SetDiscount(PosDiscountKind.Amount, 10m, NothingBilled);
+        var billing = new Billing();
+        var first = billing.Pay(order, PosOrderSplit.Items, new PosOrderLineQuantity(momo.Id, 1m));
+        Assert.Equal([3.33m], first.Lines.Select(x => x.BillDiscountShare));
+
+        // 6.67 is left on two: the discarded one takes half (3.335, rounded away from zero), and the last bill the
+        // 3.33 that remains of the dish's 10 -- not a second 3.34, or the order's parts would add up to 10.01.
+        order.Discard([new PosOrderLineQuantity(momo.Id, 1m)], "Dropped", User, billing.Lines);
+        Assert.Equal((6.66m, 6.66m), (momo.OrderDiscountShare, order.DiscountAmount));
+
+        var rest = billing.Pay(order, PosOrderSplit.Whole);
+        Assert.Equal([3.33m], rest.Lines.Select(x => x.BillDiscountShare));
+        Assert.Equal(order.DiscountAmount, billing.Lines.Values.Sum(x => x.BillDiscountAmount));
+    }
+
+    [Fact]
+    public void A_discard_leaves_the_rest_of_the_tab_billed_as_billing_the_dish_and_refunding_it_would()
+    {
+        // The way round a refused discard was to bill the Coke on its own and refund that bill in full. Its bill took
+        // 6 of the Coke's 12, so what remained to bill is what the discard leaves.
+        var (billedAndRefunded, bMomo, bCoke) = Table();
+        billedAndRefunded.SetDiscount(PosDiscountKind.Amount, 52m, NothingBilled);
+        var viaRefund = new Billing();
+        viaRefund.Pay(billedAndRefunded, PosOrderSplit.Items, new PosOrderLineQuantity(bMomo.Id, 1m));
+        var theCoke = viaRefund.Pay(billedAndRefunded, PosOrderSplit.Items, new PosOrderLineQuantity(bCoke.Id, 1m));
+        var lastViaRefund = viaRefund.Pay(billedAndRefunded, PosOrderSplit.Whole);
+
+        var (discarded, dMomo, dCoke) = Table("ORD0002");
+        discarded.SetDiscount(PosDiscountKind.Amount, 52m, NothingBilled);
+        var viaDiscard = new Billing();
+        viaDiscard.Pay(discarded, PosOrderSplit.Items, new PosOrderLineQuantity(dMomo.Id, 1m));
+        discarded.Discard([new PosOrderLineQuantity(dCoke.Id, 1m)], "Spilt", User, viaDiscard.Lines);
+        var lastViaDiscard = viaDiscard.Pay(discarded, PosOrderSplit.Whole);
+
+        Assert.Equal(
+            lastViaRefund.Lines.Select(x => (x.Quantity, x.Figures, x.BillDiscountShare)),
+            lastViaDiscard.Lines.Select(x => (x.Quantity, x.Figures, x.BillDiscountShare)));
+        Assert.Equal(52m - theCoke.Lines.Single().BillDiscountShare, discarded.DiscountAmount);
     }
 
     [Fact]

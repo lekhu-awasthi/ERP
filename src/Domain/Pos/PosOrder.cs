@@ -360,37 +360,58 @@ public sealed class PosOrder
     /// <para>Phase 65 -- never what is already billed: <paramref name="invoiced"/> is each line's
     /// quantity on invoices not voided (see <see cref="RemainingToBill"/>). Food on a tax invoice is
     /// returned with a refund, not discarded off the tab.</para>
+    ///
+    /// <para><b>Phase 82 -- once the order's Amount shares are frozen, the discarded food's share leaves with
+    /// it</b> (the user's decision of 2026-10-11): the order's amount falls by what the quantity carries
+    /// (<see cref="ShareCarriedBy"/>, the rule a transfer and a parcel follow), and every other dish keeps the
+    /// share and the price it was billed at. That is exactly what billing the dish and refunding it leaves, without
+    /// the two tax documents. Before the first bill the amount is a term of the tab, still spread over whatever is
+    /// on it, so a discard leaves it whole. Phase 74 refused the discard instead.</para>
     /// </summary>
     public IReadOnlyList<KitchenTicket> Discard(
         IReadOnlyList<PosOrderLineQuantity> items, string reason, Guid userId,
-        IReadOnlyDictionary<Guid, decimal> invoiced)
+        IReadOnlyDictionary<Guid, PosOrderLineBilled> billed)
     {
         EnsureOpen();
         EnsureNotEmpty(items, "Choose what to discard.");
         EnsureDistinct(items);
 
         var changes = new List<(PosOrderLine Line, decimal Quantity)>();
+        var shares = new List<(PosOrderLine Line, decimal Share)>();
 
         foreach (var item in items)
         {
             var line = FindLine(item.LineId);
             var quantity = RequireQuantity(item.Quantity);
             var net = QuantitiesOf(line).Net;
-            var billed = invoiced.GetValueOrDefault(line.Id);
-            EnsureShareStays(line, "discarded");
+            var lineBilled = billed.GetValueOrDefault(line.Id);
+            var invoiced = lineBilled?.Quantity ?? 0m;
 
-            if (quantity > net - billed)
+            if (quantity > net - invoiced)
             {
-                throw new InvalidOperationException(billed > 0m
-                    ? $"Line {line.LineNo} has {net:0.####} on the order and {billed:0.####} of it billed, so at most "
-                      + $"{net - billed:0.####} can be discarded. What is billed is refunded, not discarded."
+                throw new InvalidOperationException(invoiced > 0m
+                    ? $"Line {line.LineNo} has {net:0.####} on the order and {invoiced:0.####} of it billed, so at most "
+                      + $"{net - invoiced:0.####} can be discarded. What is billed is refunded, not discarded."
                     : $"Line {line.LineNo} has {net:0.####} on the order, so {quantity:0.####} cannot be discarded.");
             }
 
             changes.Add((line, -quantity));
+
+            // Read before the tickets change the quantity the share is a part of.
+            if (DiscountSharesFixed)
+            {
+                shares.Add((line, ShareCarriedBy(line, quantity, lineBilled)));
+            }
         }
 
-        return Ticket(changes, userId, RequireReason(reason), KitchenTicketKind.Cancellation);
+        var tickets = Ticket(changes, userId, RequireReason(reason), KitchenTicketKind.Cancellation);
+
+        foreach (var (line, share) in shares.Where(x => x.Share != 0m))
+        {
+            GiveUpShare(line, share);
+        }
+
+        return tickets;
     }
 
     /// <summary>
@@ -872,7 +893,8 @@ public sealed class PosOrder
     }
 
     /// <summary>Phase 77 -- a share leaving this order with its food: off the line's frozen share when the shares
-    /// are frozen, and off the order's amount either way.</summary>
+    /// are frozen, and off the order's amount either way. Phase 82 -- a discard's food leaves for nowhere, and so
+    /// does its share.</summary>
     private void GiveUpShare(PosOrderLine line, decimal share)
     {
         if (DiscountSharesFixed)
@@ -896,20 +918,6 @@ public sealed class PosOrder
 
         DiscountAmount += share;
         Touch();
-    }
-
-    /// <summary>Phase 74 -- once the order's amount discount is fixed, a dish carrying a share keeps the quantity it
-    /// was spread over: discarding part of it would leave its share on fewer units, or none. Phase 77 -- a parcel or
-    /// a transfer takes its share with it instead (<see cref="ShareCarriedBy"/>); a discard has nowhere for it to go.
-    /// </summary>
-    private void EnsureShareStays(PosOrderLine line, string action)
-    {
-        if (line.OrderDiscountShare is > 0m)
-        {
-            throw new InvalidOperationException(
-                $"Line {line.LineNo} carries {line.OrderDiscountShare:0.00} of the order's discount, spread when the "
-                + $"order was first billed, so it cannot be {action} now. Bill it; a refund gives back what was not wanted.");
-        }
     }
 
     /// <summary>

@@ -203,12 +203,12 @@ public class PosOrderSettlingTests
         billing.Pay(order, PosOrderSplit.Items, 0, Q(momo, 1m));
 
         Assert.Throws<InvalidOperationException>(() =>
-            order.Discard([new(momo.Id, 2m)], "typo", User, billing.Invoiced));
+            order.Discard([new(momo.Id, 2m)], "typo", User, billing.Lines));
         Assert.Throws<InvalidOperationException>(() =>
             order.Void("Guests left", User, DateTimeOffset.UtcNow, billing.Invoiced));
 
         // Discarding the unbilled rest settles it: nothing is left, and something was billed.
-        order.Discard([new(momo.Id, 1m), new(coke.Id, 2m)], "Guests left", User, billing.Invoiced);
+        order.Discard([new(momo.Id, 1m), new(coke.Id, 2m)], "Guests left", User, billing.Lines);
         Assert.True(order.SettleIfFullyBilled(billing.Invoiced, DateTimeOffset.UtcNow));
         Assert.Equal(PosOrderStatus.Settled, order.Status);
     }
@@ -269,7 +269,7 @@ public class PosOrderSettlingTests
         Assert.Equal(KitchenTicketState.Pending, progress[1].State);
         Assert.Equal(1m, progress[1].Lines.Single().Pending);
 
-        order.Discard([new(momo.Id, 1m)], "Guest changed their mind", User, new Dictionary<Guid, decimal>());
+        order.Discard([new(momo.Id, 1m)], "Guest changed their mind", User, PosBills.None);
         progress = order.TicketProgress();
         Assert.Equal(
             [KitchenTicketState.Served, KitchenTicketState.Cancelled, KitchenTicketState.Cancellation],

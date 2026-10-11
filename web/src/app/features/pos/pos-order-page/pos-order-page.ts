@@ -593,7 +593,7 @@ export class PosOrderPage {
         this.busy.set(false);
         this.panel.set(null);
         this.restoreFocus();
-        this.noticeMessage.set(this.panelNotice(panel.kind, saved));
+        this.noticeMessage.set(this.panelNotice(panel.kind, saved, order));
         if (panel.kind === 'details') {
           // The move freed one table and took another; the floor's own read says which.
           this.loadRestaurant(saved.locationId, false);
@@ -677,6 +677,15 @@ export class PosOrderPage {
     this.transferQuantities.update((q) => ({ ...q, [lineId]: value }));
   }
 
+  /**
+   * Phase 82 -- once the order's Amount is spread (its first bill fixes each dish's share), a discarded dish takes
+   * its part of its share with it and the order's discount falls by that. Said before it is done; the figure it
+   * falls by depends on what the dish's bills took, so the server's answer names it afterwards.
+   */
+  protected discardCarriesShare(order: PosOrder, line: PosOrderLine): boolean {
+    return order.discountAmount > 0 && line.orderDiscountShare > 0 && order.lines.some((l) => l.invoiced > 0);
+  }
+
   /** Phase 68 -- what of a dine-in line can be parcelled: not yet served and not yet billed. */
   protected markable(line: PosOrderLine): number {
     return Math.max(0, Math.min(line.outstanding, line.toBill));
@@ -708,14 +717,20 @@ export class PosOrderPage {
     }
   }
 
-  private panelNotice(kind: Panel['kind'], saved: PosOrder): string {
+  private panelNotice(kind: Panel['kind'], saved: PosOrder, before: PosOrder): string {
     switch (kind) {
       case 'takeAway':
         return 'Marked as take away; the kitchen has a ticket to pack it.';
       case 'serve':
         return 'Marked as served.';
-      case 'discard':
-        return 'Discarded; the kitchen has a cancellation ticket.';
+      case 'discard': {
+        // Phase 82 -- both figures are the server's: what the discard took is the difference it reports.
+        const fell = before.discountAmount - saved.discountAmount;
+        return fell > 0
+          ? `Discarded; the kitchen has a cancellation ticket. The order's discount fell by ${fell.toFixed(2)} `
+            + `to ${saved.discountAmount.toFixed(2)}.`
+          : 'Discarded; the kitchen has a cancellation ticket.';
+      }
       case 'void':
         return `Order ${saved.code} is voided and its table is free.`;
       case 'discount':

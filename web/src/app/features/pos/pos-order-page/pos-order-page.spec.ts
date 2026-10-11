@@ -84,6 +84,7 @@ describe('PosOrderPage', () => {
 
   function page(options: {
     orderId?: string; query?: Record<string, string>; restaurant?: PosRestaurant; order?: PosOrder; preview?: PosOrderBillPreview;
+    discarded?: PosOrder;
   } = {}) {
     const created: CreatePosOrderRequest[] = [];
     const added: { newItems: PosOrderItemInput[]; moreOf: PosOrderLineQuantityInput[] }[] = [];
@@ -129,7 +130,7 @@ describe('PosOrderPage', () => {
       },
       discard: (_o: string, _id: string, items: PosOrderLineQuantityInput[], reason: string): Observable<PosOrder> => {
         discarded.push({ items, reason });
-        return of(order());
+        return of(options.discarded ?? order());
       },
       setOrderDiscount: (_o: string, _id: string, kind: PosDiscountKind, value: number): Observable<PosOrder> => {
         terms.push({ kind: kind === 'Amount' ? 'orderAmount' : 'order', value });
@@ -265,6 +266,35 @@ describe('PosOrderPage', () => {
     p.type('pos-order-discard-reason', 'Guest changed their mind');
     p.submitPanel();
     expect(p.discarded).toEqual([{ items: [{ lineId: 'l-Chicken Momo', quantity: 1 }], reason: 'Guest changed their mind' }]);
+  });
+
+  it("says a discarded dish takes its share of a billed order's amount, and names what the discount fell by", () => {
+    // Phase 82 -- 52 off the order, frozen at the first bill (one momo): the momo line carries 40 of it.
+    const billed = order({ discountAmount: 52 });
+    billed.lines = billed.lines.map((l) => l.productName === 'Chicken Momo'
+      ? { ...l, invoiced: 1, toBill: 1, orderDiscountShare: 40 }
+      : { ...l, orderDiscountShare: 12 });
+    const p = page({ orderId: 'ord-1', order: billed, discarded: order({ discountAmount: 32 }) });
+
+    p.press('Discard Chicken Momo');
+    const note = p.element.querySelector('#pos-order-discard-share');
+    expect(note?.textContent?.replace(/\s+/g, ' ')).toContain("This item carries 40.00 of the order's discount");
+    expect(p.element.querySelector('#pos-order-panel-first')?.getAttribute('aria-describedby')).toBe('pos-order-discard-share');
+
+    p.type('pos-order-discard-reason', 'Sent back cold');
+    p.submitPanel();
+    expect(p.discarded).toEqual([{ items: [{ lineId: 'l-Chicken Momo', quantity: 1 }], reason: 'Sent back cold' }]);
+    expect(p.text()).toContain("The order's discount fell by 20.00 to 32.00.");
+  });
+
+  it("says nothing of a share before the first bill, when the amount is still the tab's", () => {
+    const live = order({ discountAmount: 52 });
+    live.lines = live.lines.map((l) => ({ ...l, orderDiscountShare: l.productName === 'Chicken Momo' ? 40 : 12 }));
+    const p = page({ orderId: 'ord-1', order: live });
+
+    p.press('Discard Chicken Momo');
+    expect(p.element.querySelector('#pos-order-discard-share')).toBeNull();
+    expect(p.element.querySelector('#pos-order-panel-first')?.hasAttribute('aria-describedby')).toBe(false);
   });
 
   it('offers no Discard to a waiter without Pos.Order.Void, and says why', () => {

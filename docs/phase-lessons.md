@@ -2197,3 +2197,16 @@ safe only because the quotation passes the same gate. A rate is kept when it is 
 Recent mode). Building the gate on that reader found the form's unit pick had never applied the basis. Both keys are
 Admin+Member and backfilled to every role that drafts these documents, so the upgrade changes nothing; the restriction
 is a custom role. Handler tests that seed through the six commands use `TestSupport/SalesPricing.PricerAsync`.
+
+## Phase 82 — A discarded dish takes its share of the order's discount with it
+
+**Read `phase-82-status.md` before lifting a refusal that has a legal way round, or taking food off a billed tab.**
+
+Phase 74 froze each dish's share of an order's Amount discount at the first bill and refused to discard a dish carrying
+one; phase 77 moved the share with a transfer or a parcel but kept the discard refused. Bill-and-refund was always
+allowed, so its figures were the specification: the discard now takes the quantity's share with it (`ShareCarriedBy`,
+read before the cancellation ticket changes the quantity), the order's amount falls by that, and a Domain test holds the
+rest of the tab to the same bill lines the workaround produced. Before the first bill a discard leaves the amount whole.
+No key changed (`Pos.Order.Void`), and the vendor has no per-dish share to copy (phase 74's live read). The panel says
+the rule in words; the message names what the discount fell by from the server's two figures, because the share
+depends on the dish's bills.

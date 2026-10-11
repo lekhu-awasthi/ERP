@@ -379,7 +379,14 @@
                       <form class="pos-panel" [id]="'pos-order-discard-' + line.id" (submit)="$event.preventDefault(); confirmPanel()">
                         <label class="form-label small mb-1" for="pos-order-panel-first">Discard (of {{ line.quantity }} on the order)</label>
                         <input class="form-control form-control-sm pos-qty mb-2" id="pos-order-panel-first" type="number" min="1"
-                          [max]="line.quantity" [value]="panelQuantity()" (input)="onPanelQuantity($event)" />
+                          [max]="line.quantity" [value]="panelQuantity()" (input)="onPanelQuantity($event)"
+                          [attr.aria-describedby]="discardCarriesShare(o, line) ? 'pos-order-discard-share' : null" />
+                        @if (discardCarriesShare(o, line)) {
+                          <p class="small text-body-secondary mb-2" id="pos-order-discard-share">
+                            This item carries {{ line.orderDiscountShare | amount }} of the order's discount, fixed at the first bill.
+                            What you discard takes its part of that with it, so the order's discount falls by as much.
+                          </p>
+                        }
                         <label class="form-label small mb-1" for="pos-order-discard-reason">Reason (required)</label>
                         <input class="form-control form-control-sm mb-2" id="pos-order-discard-reason" type="text" maxlength="200"
                           [attr.aria-invalid]="panelError() ? true : null" (input)="onPanelReason($event)" />

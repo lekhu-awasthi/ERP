@@ -288,4 +288,37 @@ public class PosAmountDiscountHandlerTests
         var invoices = await r.Till.Db.Invoices.Where(x => x.PosOrderId == order.Id).ToListAsync();
         Assert.Equal(52m, invoices.Sum(x => x.DiscountAmount));
     }
+
+    // ---- Phase 82: a discarded dish's share leaves with it ------------------------------------------------------
+
+    [Fact]
+    public async Task Food_discarded_after_the_first_bill_takes_what_its_bills_left_and_the_order_settles_on_what_was_billed()
+    {
+        var r = await PosTestRestaurant.CreateAsync();
+        var order = await r.SeatAsync(r.T1, [r.Momo(2), r.Coke(2)]);
+        await OrderAmountAsync(r, order.Id, null, 52m);
+
+        // The first bill takes one of each: 20 and 6 of the momo's 40 and the Coke's 12, and freezes the rest.
+        var session = await r.Till.OpenAsync();
+        var items = new[] { PosTestRestaurant.Line(order, "Chicken Momo", 1), PosTestRestaurant.Line(order, "Coke 250ml", 1) };
+        var half = await r.PreviewAsync(order.Id, PosOrderSplit.Items, items);
+        await r.BillAsync(session.Id, order.Id, PosOrderSplit.Items, [r.Till.Cash(half.Total)], items);
+
+        // The other momo is sent back: its 20 leaves with it, and the Coke still on the tab keeps its 6.
+        var discarded = await r.DiscardAsync(order.Id, "Sent back cold", PosTestRestaurant.Line(order, "Chicken Momo", 1));
+        Assert.Equal(32m, discarded.DiscountAmount);
+        Assert.Equal([20m, 12m], discarded.Lines.OrderBy(x => x.LineNo).Select(x => x.OrderDiscountShare));
+        Assert.Equal(PosOrderStatus.Open, discarded.Status);
+
+        var restPreview = await r.PreviewAsync(order.Id, PosOrderSplit.Whole);
+        Assert.Equal(6m, restPreview.DiscountAmount);
+
+        // Discarding the last of the tab settles it, and the order's amount is what its bills took.
+        var settled = await r.DiscardAsync(order.Id, "Guests left", PosTestRestaurant.Line(order, "Coke 250ml", 1));
+        Assert.Equal((26m, PosOrderStatus.Settled), (settled.DiscountAmount, settled.Status));
+
+        var stored = await r.Till.Db.PosOrders.Include(x => x.Lines).SingleAsync(x => x.Id == order.Id);
+        var invoices = await r.Till.Db.Invoices.Where(x => x.PosOrderId == order.Id).ToListAsync();
+        Assert.Equal(stored.DiscountAmount, invoices.Sum(x => x.DiscountAmount));
+    }
 }

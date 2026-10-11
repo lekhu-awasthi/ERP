@@ -407,3 +407,13 @@ beside a 200 from the same user, and create a fresh Organization per phase.
   `suggestSellingPriceMode` `FixedSellingPrice|RecentSellingPrice` and `productPriceBasis`; read it, change, and `PUT`
   it back whole. `GET /products/{id}/suggested-rate?unitId=` answers in that unit. Conversion is `POST /invoices` with
   `referrerType: "Quotation"` and `referrerId` of an **approved** quotation.
+- Phase 82. A restaurant seed from nothing: `POST /organizations {name, industry, address, accountingStartDate,
+  isVatRegistered, workspaceName, …, posRestaurant: true, turnstileToken}` (201, `organizationId`; any token passes
+  the dev secret). A payment mode's `accountId` must be an account created with `kind: "Cash"` or `"Bank"` (a 400
+  naming `AccountId` otherwise), and a restaurant bill is a **409** until the location has a warehouse: `PUT
+  /billing-locations/{id} {code, name, address, warehouseId, isActive}` (204). `PUT /pos/locations/{id}/mode
+  {posMode: "Restaurant"}`, then the settings, payment modes, an area and `PUT /pos/areas/{id}/layout`. A discard is
+  `POST /pos/orders/{id}/discard {items: [{lineId, quantity}], reason}` (200, the order, its `discountAmount` lowered
+  once billed). Its 403-not-404 pair, with a valid body: **404** "Order not found." as Admin and **403 naming
+  `Pos.Order.Void`** from a role holding `Pos.Order.View` + `.Operate` + `Tenancy.BillingLocation.View`. In SQL a
+  discard is a `pos.KitchenTickets` row of `Kind = 'Cancellation'` with its `Reason` and a negative line quantity.

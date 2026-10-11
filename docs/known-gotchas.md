@@ -4561,3 +4561,12 @@ invoice now has no lines. A test that called Update again on the same `IAppDbCon
 found nothing carried, and refused the wrong thing. A refused conversion had likewise marked its quotation converted
 in memory. The Api opens one context per request; a test that makes several calls after a refusal should too
 (`TestAppDbContext.Create(name)` on a shared name). Phase 57's "read past it" is the same fact seen from the database.
+
+## A refusal with a legal way round has its specification already written (phase 82)
+
+Phase 74 refused to discard a dish carrying a frozen share of the order's discount, and said "bill it; a refund gives
+back what was not wanted". That way round was always open, so its arithmetic was already what the business accepted:
+the refund gives back the dish at its net, share included, so the guest's discount on that dish goes with it. Phase 82
+built the discard to equal it and asserts it: the bill of what is left is identical either way. The alternative
+considered (re-spreading the share over the rest of the tab) would have re-priced frozen dishes, which no other path
+does. Before designing the lifted refusal, compute what the workaround leaves and make that the test.

@@ -6,7 +6,7 @@ Guiding rule for phase sizing: each phase ends with something *runnable and demo
 
 ---
 
-## Completed phases (0–81)
+## Completed phases (0–82)
 
 One line each; phase *N*'s full story is `docs/phase-N-status.md`. The verbose index as it stood on
 2026-09-28 is archived verbatim in `roadmap-history.md` ("Completed-phases index, verbose form").
@@ -67,6 +67,7 @@ One line each; phase *N*'s full story is `docs/phase-N-status.md`. The verbose i
 | 79 | Print layouts finished: Modern and Classic on A4 for every printable type; an 80 mm roll (*Retail*) for Invoice, Credit Note and Sales Order that stacks each line and keeps both statutory dates; the total in words in any catalogue currency; the vendor's block ordering retired as no control |
 | 80 | The export's remaining documents: four new sheets (Bills of Materials; Orders for Quotation, Sales Order and Purchase Order; Goods Notes for Delivery Note and GRN; Production for Production Order and Journal), Document No and Reference on Ledger Transactions and Stock Movements, an additional cost's Allocation Method |
 | 81 | The ERP's price keys: a discount or a rate the form would not suggest on a Quotation, Sales Order or Invoice draft needs `Sales.Invoice.Discount` / `.ChangeRate` at its location (Admin+Member, backfilled to every role that drafts them; what a draft or its source quotation already carried needs neither); the forms disable what Save would refuse; a picked unit's rate goes through the price basis |
+| 82 | A dish carrying a frozen share of an order's Amount discount can be discarded: its share leaves with it (the order's amount falls by what the quantity carries, every other dish keeps its price), exactly what billing and refunding it gave; before the first bill a discard leaves the amount whole; the panel says so and the message names what the discount fell by |
 
 ---
 
@@ -169,9 +170,11 @@ sheets now print each row's Document No and Reference. Phase 81 gave the ERP its
 (`phase-81-status.md`): the vendor's ERP has none (168 keys read in its bundle, none about price), so a clerk who may
 draft but not price is our divergence. A discount, or a rate the form would not suggest, on a Quotation, Sales Order or
 Invoice needs `Sales.Invoice.Discount` / `.ChangeRate` at the document's location; what the draft or its source
-quotation already carried needs neither, and the forms disable what Save would refuse. **Next: not yet scheduled**;
-the candidates are phase 77 § 5's discard-with-a-share, phase 79 § 5's (positioning and renames, the custom HTML
-templates, lakh grouping, the money receipt on the roll) and phase 71 § 5's.
+quotation already carried needs neither, and the forms disable what Save would refuse. Phase 82 let a dish carrying a
+frozen share of an order's discount be discarded (`phase-82-status.md`): its share leaves with it, which is exactly
+what billing it and refunding it gave. **Next: not yet scheduled**; the candidates are phase 79 § 5's (positioning
+and renames, the custom HTML templates, lakh grouping, the money receipt on the roll), phase 71 § 5's, and phase
+72 § 5's discount on one guest's part after splitting.
 
 Open question for the tax advisor, not to be guessed (carried from the PAN fix): whether IRD expects a buyer PAN
 on a high-value sale to an unregistered buyer. If it does, it would be a warning on approve, never a block.
@@ -220,7 +223,7 @@ restaurant bill in phase 72. VAT stays in code; only fees are settings.
 terms were settled in phase 77 (a bill names its order and its lines carry the terms; no POS Orders sheet). Its refund-of-a-remainder paisa, Amount discounts and *Can Change Rate* were done
 in phase 74.
 
-**Carried from phase 74** (§ 5 there): a dish carrying a share cannot be discarded once the order is billed. Its
+**Carried from phase 74** (§ 5 there): a dish carrying a share can be discarded since phase 82. Its
 transfers and parcels, and the export's per-unit discount and bill amount, were done in phase 77; its third item, the
 vendor's three role switches as one key, in phase 76.
 
@@ -231,6 +234,9 @@ its POS-channel role sets are not modelled.
 **Carried from phase 81** (§ 5 there): the form does not offer a clerk the removal of a discount the API allows; the
 note's "at this location" is loose on a quotation outside the location scope.
 
+**Carried from phase 82** (§ 5 there): the discard panel's maximum is the line's whole quantity, not what is
+unbilled (the server refuses the excess with a 409).
+
 **Carried from phase 78** (§ 5 there): done in phase 80 (four new sheets, an additional cost's Allocation Method, and
 the ledger sheets naming each document). Cash Transfers and the drawer's over/short stay on Ledger Transactions by
 phase 78's Decision C, now named by number.
@@ -238,8 +244,8 @@ phase 78's Decision C, now named by number.
 **Carried from phase 80** (§ 5 there): POS Orders stay off the export (phase 77 Decision D); an Inventory Adjustment's
 entered unit is not on Stock Movements, which is primary-unit by design.
 
-**Carried from phase 77** (§ 5 there): discarding a dish that carries a frozen share is still refused; the vendor's
-server-side handling of an amount on a transfer is unread. The drawer's cash in/out and the Purchase Documents sheet's
+**Carried from phase 77** (§ 5 there): discarding a dish that carries a frozen share was done in phase 82 (the share
+leaves with it); the vendor's server-side handling of an amount on a transfer is unread. The drawer's cash in/out and the Purchase Documents sheet's
 missing columns were done in phase 78.
 
 **Carried from phase 70** (§ 5 there): the VAT Act §13 wording for packaging is unverified (phase 61's reading

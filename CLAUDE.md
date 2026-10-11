@@ -113,6 +113,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 79: print layouts finished (Modern, Classic, an 80 mm roll for Invoice/Credit Note/Sales Order that stacks each line and keeps both statutory dates; `PrintLayouts` says who is offered what and what each omits; the total in words in any catalogue currency; the vendor's block ordering retired as no control). Before adding a print layout, printing on a narrow page, or an amount in words — `docs/phase-79-status.md`
 - Phase 80: the export's remaining documents (four new sheets: Bills of Materials, Orders, Goods Notes, Production; Document No and Reference on both ledger sheets via `GlSourceDocumentResolver.LoadEveryAsync`; an additional cost's Allocation Method). Before adding an export category, or naming the document behind a ledger row — `docs/phase-80-status.md`
 - Phase 81: the ERP's price keys (`Sales.Invoice.Discount` / `.ChangeRate` on Quotation, Sales Order and Invoice drafts at the location, Admin+Member and backfilled; what the draft or its source quotation carried needs neither; the vendor's ERP has no such key; a picked unit's rate through the price basis). Before gating a value on a document, or judging what an edit changed — `docs/phase-81-status.md`
+- Phase 82: a discarded dish takes its share of the order's Amount discount with it (once frozen at the first bill; before it the amount stays whole), exactly what billing and refunding it gave; no new key. Before lifting a refusal that has a legal way round — `docs/phase-82-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -299,6 +300,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A gate keeps what the form suggests, so both read one source (`ProductRateReferences`); the unit pick had dropped a raw, VAT-inclusive price into Rate on five forms (phase-81).
 - A share moved off a part-billed line is the quantity's part of what its bills left (frozen − billed share), all of it with the last of the food; prorating the whole line drifts a paisa (phase-77).
 - A till refund names its sale by `ReferrerType`/`ReferrerId`, not `AgainstInvoiceId`; "the note's invoice" joins on the coalesce of both (phase-77).
+- A refusal with a legal way round has its spec written: a discard with a share equals bill-and-refund, and a test holds them to the same bill (phase-82).
 
 - Rich text is sanitised on write, in the Domain setter, by re-emission from a parsed tree, never by filtering; `Sanitize` must stay idempotent (phase-39).
 - A rich-text grammar is its **renderer's capability list**: decide what `RichTextPdfRenderer` can draw, then build the toolbar, or the field looks one way on screen and another in the PDF the customer receives (phase-39).
@@ -552,25 +554,24 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 
 ## Current status
 
-**Phases 0-81 are complete. Next: not yet scheduled** (the user picks; candidates in `docs/roadmap.md`).
+**Phases 0-82 are complete. Next: not yet scheduled** (the user picks; candidates in `docs/roadmap.md`).
 Each phase's story is in its `docs/phase-N-status.md`, and finished planning entries are archived in
 `docs/roadmap-history.md`.
 
-**Phase 81 gave the ERP its own price keys.**
+**Phase 82 let a dish carrying a frozen share of an order's Amount discount be discarded.**
 
-- A discount, or a rate the form would not suggest, on a Quotation, Sales Order or Invoice draft needs
-  `Sales.Invoice.Discount` / `.ChangeRate` at the document's location (`SalesPriceGate`); what the saved draft or its
-  source quotation already carried needs neither. Admin+Member, backfilled to every role that drafts these documents.
-- The vendor's ERP has no such key (168 read in its bundle), so this is our divergence; a maximum discount per role was
-  closed (neither vendor app has one).
-- The forms disable what Save would refuse (`GET /sales/price-powers`), and a picked unit's rate now goes through the
-  price basis (it had dropped the raw, VAT-inclusive unit price into Rate on five forms).
+- Its share leaves with it: the order's amount falls by what the quantity carries (`ShareCarriedBy`), and every other
+  dish keeps its price. That is exactly what billing it and refunding it gave, and a Domain test holds the two equal.
+- Before the first bill a discard leaves the amount whole. No key changed (`Pos.Order.Void`); the vendor has no per-dish
+  share (phase 74's live read), so there was nothing to copy.
+- The discard panel says the rule; the message names what the discount fell by, from the server's figures.
 
-**Next:** not yet scheduled. Candidates: phase 77 § 5 (discard with a share), phase 79 § 5 (positioning, renames, the
-vendor's DN/GRN/WT HTML templates, lakh grouping, the money receipt on the roll), phase 71 § 5.
+**Next:** not yet scheduled. Candidates: phase 79 § 5 (positioning, renames, the vendor's DN/GRN/WT HTML templates,
+lakh grouping, the money receipt on the roll), phase 71 § 5, phase 72 § 5 (a discount on one guest's part after
+splitting), phase 81 § 5.
 
-Tests: Domain 1014, Application.UnitTests **1759**, Infrastructure.UnitTests **14**,
-Api.IntegrationTests 71, Angular **842**. Everything was green at phase 81's close with Docker up.
+Tests: Domain **1019**, Application.UnitTests **1760**, Infrastructure.UnitTests 14,
+Api.IntegrationTests 71, Angular **844**. Everything was green at phase 82's close with Docker up.
 The bundle sits at **652.58 kB** against `build-budget.spec.ts`'s 680 kB; every POS screen is lazy.
 
 - `Api.IntegrationTests` needs Docker Desktop running. Without it the Testcontainers-backed tests
