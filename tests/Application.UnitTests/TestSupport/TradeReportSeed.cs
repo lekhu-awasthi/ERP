@@ -167,7 +167,7 @@ internal sealed record TradeReportSeed(
         IAppDbContext db, DateOnly date, decimal rate, Guid? contactId = null,
         Guid? productId = null, decimal quantity = 1m, decimal discountPct = 0m, Guid? locationId = null)
     {
-        var created = await new CreateInvoiceCommandHandler(db).Handle(
+        var created = await new CreateInvoiceCommandHandler(db, await SalesPricing.PricerAsync(db, this.OrganizationId)).Handle(
             new CreateInvoiceCommand(
                 this.OrganizationId, contactId ?? this.CustomerId, this.WarehouseId, date, null,
                 [new InvoiceLineInput(productId ?? this.ProductId, quantity, rate, VatRate.NoVat, discountPct)])
@@ -187,7 +187,7 @@ internal sealed record TradeReportSeed(
 
     public async Task<(Guid Id, string Code)> ApproveVatInvoiceAsync(IAppDbContext db, DateOnly date, decimal rate)
     {
-        var created = await new CreateInvoiceCommandHandler(db).Handle(
+        var created = await new CreateInvoiceCommandHandler(db, await SalesPricing.PricerAsync(db, this.OrganizationId)).Handle(
             new CreateInvoiceCommand(
                 this.OrganizationId, this.CustomerId, this.WarehouseId, date, null,
                 [new InvoiceLineInput(this.VatProductId, 1m, rate, VatRate.ThirteenPercentVat)]),

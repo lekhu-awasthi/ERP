@@ -22,6 +22,7 @@ import { TermsEditor } from '../../../shared/terms/terms-editor';
 import { SendEmailDialog } from '../../../shared/send-email/send-email-dialog';
 import { DocumentLocationPicker } from '../../../shared/locations/document-location-picker';
 import { locationAwareProducts } from '../../../shared/catalog/location-aware-products';
+import { SalesPriceNote, SalesPricePowers, rateIsLocked, salesPricePowers } from '../../../shared/sales/sales-price-powers';
 import { FieldError, FieldErrorMessage } from '../../../shared/a11y/field-error';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
 import { LineUnitControl, LineUnitOption } from '../../../shared/catalog/line-unit-control';
@@ -54,7 +55,7 @@ let nextLineKey = 1;
  */
 @Component({
   selector: 'app-quotation-detail-page',
-  imports: [RouterLink, ReportingTagsEditor, CustomFieldsEditor, AmountPipe, BsDateInput, DocumentTabs, TermsEditor, CurrencyRateFields, SendEmailDialog, DocumentLocationPicker, StatusBanner, FieldErrorMessage, LineUnitControl],
+  imports: [RouterLink, ReportingTagsEditor, CustomFieldsEditor, AmountPipe, BsDateInput, DocumentTabs, TermsEditor, CurrencyRateFields, SendEmailDialog, DocumentLocationPicker, StatusBanner, FieldErrorMessage, LineUnitControl, SalesPriceNote],
   templateUrl: './quotation-detail-page.html',
 })
 export class QuotationDetailPage {
@@ -93,6 +94,9 @@ export class QuotationDetailPage {
   protected readonly quotation = signal<QuotationDetail | null>(null);
   protected readonly customers = signal<Contact[]>([]);
   protected readonly products = signal<Product[]>([]);
+  /** Phase 81 -- what this user may price at the header location; null until it arrives. */
+  protected readonly pricePowers = signal<SalesPricePowers | null>(null);
+  protected readonly discountLocked = computed(() => this.pricePowers()?.canDiscount === false);
   protected readonly isNew = signal(false);
 
   protected readonly contactId = signal('');
@@ -154,6 +158,7 @@ export class QuotationDetailPage {
     // Phase 36 -- the picker lists the products available at THIS document's billing location,
     // and re-reads when the header location changes. See shared/catalog/location-aware-products.
     locationAwareProducts(this.organizationId, this.locationId, this.products);
+    salesPricePowers(this.organizationId, 'Quotation', this.locationId, this.pricePowers);
 
     this.route.paramMap.subscribe((params) => {
       this.routeQuotationId = params.get('quotationId')!;
@@ -228,6 +233,12 @@ export class QuotationDetailPage {
   protected onQuantityChange(key: number, event: Event): void {
     const quantity = (event.target as HTMLInputElement).valueAsNumber;
     this.updateLine(key, { quantity: Number.isFinite(quantity) ? quantity : 0 });
+  }
+
+  /** Phase 81 -- the line's Rate is the catalogue's while the user may not change a rate. */
+  protected rateLocked(line: EditableLine): boolean {
+    return rateIsLocked(
+      this.pricePowers(), this.currencyCode(), this.products().find((p) => p.id === line.productId), line.unitId);
   }
 
   protected onRateChange(key: number, event: Event): void {
@@ -447,7 +458,19 @@ export class QuotationDetailPage {
    * the stock ledger.
    */
   protected onUnitChange(key: number, option: LineUnitOption): void {
-    this.updateLine(key, { unitId: option.unitId, rate: option.sellingPrice });
+    const productId = this.lines().find((l) => l.key === key)?.productId;
+    this.updateLine(key, { unitId: option.unitId });
+    if (!productId) {
+      return;
+    }
+
+    // Phase 81 -- the unit's rate as the server suggests it: its own price through the tenant's price
+    // basis, or its last sale in that unit. The raw unit price was VAT-inclusive on an inclusive tenant,
+    // and is now what the ERP's price gate would refuse as a changed rate.
+    this.catalogService.suggestProductRate(this.organizationId, productId, option.unitId).subscribe({
+      next: (suggestion) => this.updateLine(key, { rate: suggestion.rate }),
+      error: () => undefined,
+    });
   }
 
   /** Phase 52 -- the unit's short name for the read-only branch of the Qty cell. */

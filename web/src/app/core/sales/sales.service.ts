@@ -6,6 +6,8 @@ import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { PagedResult } from '../common/paged-result';
 import {
+  PricedSalesDocumentType,
+  SalesPricePowers,
   DeliveryNote,
   DeliveryNoteConversionTemplate,
   DeliveryNoteDetail,
@@ -61,6 +63,22 @@ export class SalesService {
 
   private baseUrl(organizationId: string): string {
     return `${environment.apiBaseUrl}/api/organizations/${organizationId}`;
+  }
+
+  /** Phase 81 -- what the caller may price at this location (empty: the tenant's default). */
+  getPricePowers(
+    organizationId: string,
+    documentType: PricedSalesDocumentType,
+    locationId?: string,
+  ): Observable<SalesPricePowers> {
+    const params: Record<string, string> = { documentType };
+    if (locationId) {
+      params['locationId'] = locationId;
+    }
+    return this.http.get<SalesPricePowers>(`${this.baseUrl(organizationId)}/sales/price-powers`, {
+      params,
+      withCredentials: true,
+    });
   }
 
   listQuotations(

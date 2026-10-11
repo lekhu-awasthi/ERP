@@ -336,10 +336,12 @@ export class CatalogService {
    * the Fixed branch of a two-way setting. Mirrors the reference product's own
    * `get_recent_selling_price` call at line-picker time.
    */
-  suggestProductRate(organizationId: string, productId: string): Observable<SuggestedProductRate> {
+  /** Phase 81 -- `unitId` asks for the rate in that unit; omitted, the product's primary unit. */
+  suggestProductRate(organizationId: string, productId: string, unitId?: string): Observable<SuggestedProductRate> {
+    const params: Record<string, string> = unitId ? { unitId } : {};
     return this.http.get<SuggestedProductRate>(
       `${this.baseUrl(organizationId)}/products/${productId}/suggested-rate`,
-      { withCredentials: true },
+      { params, withCredentials: true },
     );
   }
 

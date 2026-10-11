@@ -2183,3 +2183,17 @@ take Document No and Reference from `GlSourceDocumentResolver.LoadEveryAsync`, t
 the page, because a 50,000-row page is too long to send back as ids. Each new reader's every `decimal` is exported or
 named (the guards found two computed getters on `ProductionJournal`). `ExportJobModelTests` holds the stored selection
 (155 characters) under its column's 200.
+
+## Phase 81 — The ERP's price keys: a clerk who may draft a sale but not price it
+
+**Read `phase-81-status.md` before gating a value on a document, or judging what an edit "changed".**
+
+**The vendor's ERP has no price key** (168 keys in its bundle, invoice-view/add/edit/approve/void), so
+`Sales.Invoice.Discount` and `.ChangeRate` are a divergence the user chose, and the form's line naming the missing key is
+the surface it owes. `SalesPriceGate` judges only what a request changes: a line's discount is carried by (product, unit,
+discount) and its rate by (product, unit, rate) from the saved draft, or from the quotation a conversion names. That is
+safe only because the quotation passes the same gate. A rate is kept when it is what the form suggests
+(`ProductRateReferences`: the catalogue in the line's unit through the price basis, or the last sale in that unit in
+Recent mode). Building the gate on that reader found the form's unit pick had never applied the basis. Both keys are
+Admin+Member and backfilled to every role that drafts these documents, so the upgrade changes nothing; the restriction
+is a custom role. Handler tests that seed through the six commands use `TestSupport/SalesPricing.PricerAsync`.

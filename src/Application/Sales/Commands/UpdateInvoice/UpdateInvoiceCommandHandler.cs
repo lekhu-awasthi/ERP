@@ -2,6 +2,7 @@ using ErpApp.Application.Common.Documents;
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Application.Common.Security;
 using ErpApp.Application.Inventory.Stock;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Inventory;
@@ -12,7 +13,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ErpApp.Application.Sales.Commands.UpdateInvoice;
 
-public sealed class UpdateInvoiceCommandHandler(IAppDbContext db)
+public sealed class UpdateInvoiceCommandHandler(IAppDbContext db, ICurrentUserService currentUser)
     : IRequestHandler<UpdateInvoiceCommand, UpdateInvoiceResult>
 {
     public async Task<UpdateInvoiceResult> Handle(UpdateInvoiceCommand request, CancellationToken cancellationToken)
@@ -33,6 +34,7 @@ public sealed class UpdateInvoiceCommandHandler(IAppDbContext db)
             db, request.OrganizationId, request.Lines.Select(x => x.ProductId), cancellationToken);
 
         var oldLines = invoice.Lines.ToList();
+        var carriedDiscountPct = invoice.DiscountPct;
 
         // Phase 36 -- the contact's Credit Term applied here rather than only in the browser, so a
         // document raised through the API, an import or a conversion gets the same due date the
@@ -76,6 +78,16 @@ public sealed class UpdateInvoiceCommandHandler(IAppDbContext db)
         var units = await DocumentLineUnitResolver.ResolveAsync(
             db, request.OrganizationId,
             [.. request.Lines.Select(x => new DocumentLineUnitResolver.LineUnitInput(x.ProductId, x.UnitId))],
+            cancellationToken);
+
+        // Phase 81 -- a discount or a changed rate needs its key at this invoice's location, unless the
+        // draft already carried it (SalesPriceGate).
+        await SalesPriceGate.EnsureMayPriceAsync(
+            db, request.OrganizationId, currentUser.UserId, invoice.LocationId, SalesPriceGate.IsBase(invoice.CurrencyCode),
+            request.DiscountPct,
+            [.. request.Lines.Select((x, i) => new SalesPriceGate.PricedLine(x.ProductId, units[i].UnitId, x.Rate, x.DiscountPct))],
+            carriedDiscountPct,
+            [.. oldLines.Select(x => new SalesPriceGate.PricedLine(x.ProductId, x.UnitId, x.Rate, x.DiscountPct))],
             cancellationToken);
 
         for (var i = 0; i < request.Lines.Count; i++)

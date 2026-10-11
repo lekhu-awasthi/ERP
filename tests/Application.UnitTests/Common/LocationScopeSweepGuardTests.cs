@@ -167,8 +167,10 @@ public class LocationScopeSweepGuardTests
     [Fact]
     public void The_scopable_key_count_is_the_transaction_matrix()
     {
-        Assert.Equal((17 * 5) + 2 + 3, LocationScopedPermissions.ScopableKeys.Count);
+        Assert.Equal((17 * 5) + 2 + 3 + 2, LocationScopedPermissions.ScopableKeys.Count);
         Assert.Contains("Sales.Invoice.TillDiscount", LocationScopedPermissions.ScopableKeys);
+        Assert.Contains("Sales.Invoice.Discount", LocationScopedPermissions.ScopableKeys);
+        Assert.Contains("Sales.Invoice.ChangeRate", LocationScopedPermissions.ScopableKeys);
         Assert.Contains("Sales.Invoice.TillRemoveServiceCharge", LocationScopedPermissions.ScopableKeys);
         Assert.Contains("Sales.Invoice.TillChangeRate", LocationScopedPermissions.ScopableKeys);
     }

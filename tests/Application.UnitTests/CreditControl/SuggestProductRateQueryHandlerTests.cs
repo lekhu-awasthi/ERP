@@ -123,7 +123,7 @@ public class SuggestProductRateQueryHandlerTests
 
     private static async Task SellAtAsync(IAppDbContext db, CreditSeed seed, decimal rate)
     {
-        var created = await new CreateInvoiceCommandHandler(db).Handle(
+        var created = await new CreateInvoiceCommandHandler(db, await SalesPricing.PricerAsync(db, seed.OrganizationId)).Handle(
             new CreateInvoiceCommand(
                 seed.OrganizationId, seed.CustomerId, seed.WarehouseId, new DateOnly(2026, 1, 10), null,
                 [new InvoiceLineInput(seed.ProductId, 1m, rate, VatRate.NoVat)]),

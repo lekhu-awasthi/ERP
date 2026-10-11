@@ -85,7 +85,7 @@ public class SalesMasterReportQueryHandlerTests
         var db = TestAppDbContext.Create();
         var seed = await SeedAsync(db);
 
-        var created = await new CreateInvoiceCommandHandler(db).Handle(
+        var created = await new CreateInvoiceCommandHandler(db, await SalesPricing.PricerAsync(db, seed.OrganizationId)).Handle(
             new CreateInvoiceCommand(
                 seed.OrganizationId, seed.CustomerId, seed.WarehouseId, new DateOnly(2026, 1, 10), null,
                 [new InvoiceLineInput(seed.ProductId, 10m, 100m, VatRate.ThirteenPercentVat, DiscountPct: 10)],
@@ -121,7 +121,7 @@ public class SalesMasterReportQueryHandlerTests
         var invoiceForSeedCustomer = await CreateAndApproveInvoiceAsync(
             db, seed, new DateOnly(2026, 1, 10), 1m, 100m, VatRate.NoVat);
 
-        var createdForOtherCustomer = await new CreateInvoiceCommandHandler(db).Handle(
+        var createdForOtherCustomer = await new CreateInvoiceCommandHandler(db, await SalesPricing.PricerAsync(db, seed.OrganizationId)).Handle(
             new CreateInvoiceCommand(
                 seed.OrganizationId, otherCustomer.Id, seed.WarehouseId, new DateOnly(2026, 1, 11), null,
                 [new InvoiceLineInput(otherProduct, 1m, 200m, VatRate.NoVat)]),
@@ -262,7 +262,7 @@ public class SalesMasterReportQueryHandlerTests
     private static async Task<CreateInvoiceResult> CreateInvoiceAsync(
         IAppDbContext db, Seed seed, DateOnly date, decimal quantity, decimal rate, VatRate vatRate)
     {
-        return await new CreateInvoiceCommandHandler(db).Handle(
+        return await new CreateInvoiceCommandHandler(db, await SalesPricing.PricerAsync(db, seed.OrganizationId)).Handle(
             new CreateInvoiceCommand(
                 seed.OrganizationId, seed.CustomerId, seed.WarehouseId, date, null,
                 [new InvoiceLineInput(seed.ProductId, quantity, rate, vatRate)]),

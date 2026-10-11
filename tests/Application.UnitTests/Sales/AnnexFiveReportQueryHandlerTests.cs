@@ -170,7 +170,7 @@ public class AnnexFiveReportQueryHandlerTests
         IAppDbContext db, Seed seed, DateOnly date,
         IReadOnlyList<(Guid ProductId, decimal Quantity, decimal Rate, VatRate VatRate)> lines)
     {
-        return await new CreateInvoiceCommandHandler(db).Handle(
+        return await new CreateInvoiceCommandHandler(db, await SalesPricing.PricerAsync(db, seed.OrganizationId)).Handle(
             new CreateInvoiceCommand(
                 seed.OrganizationId, seed.CustomerId, seed.WarehouseId, date, null,
                 lines.Select(l => new InvoiceLineInput(l.ProductId, l.Quantity, l.Rate, l.VatRate)).ToList()),

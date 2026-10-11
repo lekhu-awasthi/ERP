@@ -807,6 +807,12 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
     private static readonly Guid AdminInvoiceTillChangeRateId = Guid.Parse("00000000-0000-0000-0002-0000000001f7");
     private static readonly Guid MemberInvoiceTillChangeRateId = Guid.Parse("00000000-0000-0000-0002-0000000001f8");
 
+    // Phase 81 -- the ERP's two price keys (derived in PermissionKeys.InvoiceDiscount). Admin+Member.
+    private static readonly Guid AdminInvoiceDiscountId = Guid.Parse("00000000-0000-0000-0002-0000000001f9");
+    private static readonly Guid MemberInvoiceDiscountId = Guid.Parse("00000000-0000-0000-0002-0000000001fa");
+    private static readonly Guid AdminInvoiceChangeRateId = Guid.Parse("00000000-0000-0000-0002-0000000001fb");
+    private static readonly Guid MemberInvoiceChangeRateId = Guid.Parse("00000000-0000-0000-0002-0000000001fc");
+
     public void Configure(EntityTypeBuilder<RolePermission> builder)
     {
         builder.ToTable("RolePermissions", schema: "tenancy");
@@ -1424,6 +1430,10 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
             RolePermission.Create(AdminInvoiceTillRemoveServiceChargeId, Role.AdminId, PermissionKeys.InvoiceTillRemoveServiceCharge, true),
             RolePermission.Create(MemberInvoiceTillRemoveServiceChargeId, Role.MemberId, PermissionKeys.InvoiceTillRemoveServiceCharge, false),
             RolePermission.Create(AdminInvoiceTillChangeRateId, Role.AdminId, PermissionKeys.InvoiceTillChangeRate, true),
-            RolePermission.Create(MemberInvoiceTillChangeRateId, Role.MemberId, PermissionKeys.InvoiceTillChangeRate, false));
+            RolePermission.Create(MemberInvoiceTillChangeRateId, Role.MemberId, PermissionKeys.InvoiceTillChangeRate, false),
+            RolePermission.Create(AdminInvoiceDiscountId, Role.AdminId, PermissionKeys.InvoiceDiscount, true),
+            RolePermission.Create(MemberInvoiceDiscountId, Role.MemberId, PermissionKeys.InvoiceDiscount, true),
+            RolePermission.Create(AdminInvoiceChangeRateId, Role.AdminId, PermissionKeys.InvoiceChangeRate, true),
+            RolePermission.Create(MemberInvoiceChangeRateId, Role.MemberId, PermissionKeys.InvoiceChangeRate, true));
     }
 }

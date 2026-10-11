@@ -241,7 +241,7 @@ public class MigratedSalesRegisterQueryHandlerTests
     internal static async Task<(Guid Id, string Code)> CreateAndApproveInvoiceAsync(
         IAppDbContext db, InvoiceSeed seed, DateOnly date, decimal rate)
     {
-        var created = await new CreateInvoiceCommandHandler(db).Handle(
+        var created = await new CreateInvoiceCommandHandler(db, await SalesPricing.PricerAsync(db, seed.OrganizationId)).Handle(
             new CreateInvoiceCommand(
                 seed.OrganizationId, seed.CustomerId, seed.WarehouseId, date, null,
                 [new InvoiceLineInput(seed.ProductId, 1m, rate, VatRate.ThirteenPercentVat)]),

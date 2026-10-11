@@ -221,7 +221,7 @@ public class VatSummaryReportQueryHandlerTests
         IAppDbContext db, Seed seed, DateOnly date, decimal quantity, decimal rate, VatRate vatRate,
         string currencyCode, decimal exchangeRate)
     {
-        var created = await new CreateInvoiceCommandHandler(db).Handle(
+        var created = await new CreateInvoiceCommandHandler(db, await SalesPricing.PricerAsync(db, seed.OrganizationId)).Handle(
             new CreateInvoiceCommand(
                 seed.OrganizationId, seed.CustomerId, seed.WarehouseId, date, null,
                 [new InvoiceLineInput(seed.ProductId, quantity, rate, vatRate)])
@@ -301,7 +301,7 @@ public class VatSummaryReportQueryHandlerTests
     private static async Task<CreateInvoiceResult> CreateInvoiceAsync(
         IAppDbContext db, Seed seed, DateOnly date, decimal quantity, decimal rate, VatRate vatRate)
     {
-        return await new CreateInvoiceCommandHandler(db).Handle(
+        return await new CreateInvoiceCommandHandler(db, await SalesPricing.PricerAsync(db, seed.OrganizationId)).Handle(
             new CreateInvoiceCommand(
                 seed.OrganizationId, seed.CustomerId, seed.WarehouseId, date, null,
                 [new InvoiceLineInput(seed.ProductId, quantity, rate, vatRate)]),

@@ -112,6 +112,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 78: the export finished (Purchase Documents carry expenses, TDS and additional costs as rows of their own and a debit note's bill and inherited classification; Unit, Exchange Rate and Location on every sheet; a drawer's Cash In/Out on Payments) + the export screen sending only what is ticked. Before adding a row kind or column to an export sheet, or a "select some" control whose empty state means all — `docs/phase-78-status.md`
 - Phase 79: print layouts finished (Modern, Classic, an 80 mm roll for Invoice/Credit Note/Sales Order that stacks each line and keeps both statutory dates; `PrintLayouts` says who is offered what and what each omits; the total in words in any catalogue currency; the vendor's block ordering retired as no control). Before adding a print layout, printing on a narrow page, or an amount in words — `docs/phase-79-status.md`
 - Phase 80: the export's remaining documents (four new sheets: Bills of Materials, Orders, Goods Notes, Production; Document No and Reference on both ledger sheets via `GlSourceDocumentResolver.LoadEveryAsync`; an additional cost's Allocation Method). Before adding an export category, or naming the document behind a ledger row — `docs/phase-80-status.md`
+- Phase 81: the ERP's price keys (`Sales.Invoice.Discount` / `.ChangeRate` on Quotation, Sales Order and Invoice drafts at the location, Admin+Member and backfilled; what the draft or its source quotation carried needs neither; the vendor's ERP has no such key; a picked unit's rate through the price basis). Before gating a value on a document, or judging what an edit changed — `docs/phase-81-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -294,6 +295,8 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A tab's terms travel with its food: a transfer's empty target takes the source's discount and waiver, and a target on other terms is a 409 naming both (phase-72).
 - Gating a till discount alone is a price edit away from useless: a Retail line below `ProductPrices.CatalogueRate` needs the same `Sales.Invoice.Approve` (phase-72).
 - A key borrowed for a second power grants everything the first one does: till discounts on Approve also approved every ERP draft. Split it and backfill at the old scope (phase-76).
+- "Unchanged" is one question per power: carry a discount by (product, unit, discount) and a rate by (product, unit, rate), or removing a discount asks for the rate key (phase-81).
+- A gate keeps what the form suggests, so both read one source (`ProductRateReferences`); the unit pick had dropped a raw, VAT-inclusive price into Rate on five forms (phase-81).
 - A share moved off a part-billed line is the quantity's part of what its bills left (frozen − billed share), all of it with the last of the food; prorating the whole line drifts a paisa (phase-77).
 - A till refund names its sale by `ReferrerType`/`ReferrerId`, not `AgainstInvoiceId`; "the note's invoice" joins on the coalesce of both (phase-77).
 
@@ -315,6 +318,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A permission that depends on the requested value as well as the loaded row is the `AttachmentAccess` pattern; the E2E must show 404 on a missing row and 403 on a real one (phase-31's cheque bounce).
 - Never weaken a Domain invariant so a test can reach a state only time produces; reach through EF's change tracker (phase-31's expired `TenantSubscription`).
 - …and read **past** it when the claim is about the stored row: a void handler mutates before it reverses, so a refusal leaves the tracked entity dirty and the database clean (phase-57).
+- …and a test calling again on that context reads the dirt as saved: a refused Update had cleared its lines. One context per request, `TestAppDbContext.Create(name)` (phase-81).
 - When NULL in a unique-indexed column is an at-most-one sentinel, the unfiltered index is the enforcement and EF's automatic `IS NOT NULL` filter destroys it; `HasFilter(null)` is load-bearing (phase-32's numbering counter).
 - When a tenant setting selects among sets of document types, the schema owes the widest set, or flipping the setting is a lie until later columns ship (phase-32's `LocationScopeMode`).
 - Once missing one per-handler re-check is an open door, the check moves into `AuthorizationBehavior` (not a sixth behavior; a nested `ISender.Send` corrupts a scoped context) behind marker interfaces and a build-failing sweep guard (phase-32b).
@@ -548,24 +552,25 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 
 ## Current status
 
-**Phases 0-80 are complete. Next: not yet scheduled** (the user picks; candidates in `docs/roadmap.md`).
+**Phases 0-81 are complete. Next: not yet scheduled** (the user picks; candidates in `docs/roadmap.md`).
 Each phase's story is in its `docs/phase-N-status.md`, and finished planning entries are archived in
 `docs/roadmap-history.md`.
 
-**Phase 80 finished the export's documents.**
+**Phase 81 gave the ERP its own price keys.**
 
-- A census of every document type found eight on no sheet and four named only by a GUID.
-- Four new sheets: *Bills of Materials* (master data), *Orders* (Quotation, Sales Order, Purchase Order), *Goods Notes*
-  (Delivery Note, GRN) and *Production* (Production Order and Journal, a row per part with the journal's costs).
-- *Ledger Transactions* and *Stock Movements* now print each row's Document No and Reference
-  (`GlSourceDocumentResolver.LoadEveryAsync`); *Purchase Documents* gains an additional cost's Allocation Method.
+- A discount, or a rate the form would not suggest, on a Quotation, Sales Order or Invoice draft needs
+  `Sales.Invoice.Discount` / `.ChangeRate` at the document's location (`SalesPriceGate`); what the saved draft or its
+  source quotation already carried needs neither. Admin+Member, backfilled to every role that drafts these documents.
+- The vendor's ERP has no such key (168 read in its bundle), so this is our divergence; a maximum discount per role was
+  closed (neither vendor app has one).
+- The forms disable what Save would refuse (`GET /sales/price-powers`), and a picked unit's rate now goes through the
+  price basis (it had dropped the raw, VAT-inclusive unit price into Rate on five forms).
 
-**Next:** not yet scheduled. Candidates: phase 76 § 5 (a discount ceiling per role, the ERP invoice form's
-discount/rate gating), phase 77 § 5 (discard with a share), phase 79 § 5 (positioning, renames, the vendor's DN/GRN/WT
-HTML templates), phase 71 § 5.
+**Next:** not yet scheduled. Candidates: phase 77 § 5 (discard with a share), phase 79 § 5 (positioning, renames, the
+vendor's DN/GRN/WT HTML templates, lakh grouping, the money receipt on the roll), phase 71 § 5.
 
-Tests: Domain 1014, Application.UnitTests **1739**, Infrastructure.UnitTests **14**,
-Api.IntegrationTests 71, Angular **839**. Everything was green at phase 80's close with Docker up.
+Tests: Domain 1014, Application.UnitTests **1759**, Infrastructure.UnitTests **14**,
+Api.IntegrationTests 71, Angular **842**. Everything was green at phase 81's close with Docker up.
 The bundle sits at **652.58 kB** against `build-budget.spec.ts`'s 680 kB; every POS screen is lazy.
 
 - `Api.IntegrationTests` needs Docker Desktop running. Without it the Testcontainers-backed tests

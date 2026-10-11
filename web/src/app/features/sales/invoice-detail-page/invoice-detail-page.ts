@@ -34,6 +34,7 @@ import { SendEmailDialog } from '../../../shared/send-email/send-email-dialog';
 import { DocumentLocationPicker } from '../../../shared/locations/document-location-picker';
 import { defaultWarehouseSeed } from '../../../shared/locations/default-warehouse-seed';
 import { locationAwareProducts } from '../../../shared/catalog/location-aware-products';
+import { SalesPriceNote, SalesPricePowers, rateIsLocked, salesPricePowers } from '../../../shared/sales/sales-price-powers';
 import { LineUnitControl, LineUnitOption } from '../../../shared/catalog/line-unit-control';
 import { UnitOfMeasurementStore } from '../../../shared/catalog/unit-of-measurement-store';
 import { FieldError, FieldErrorMessage } from '../../../shared/a11y/field-error';
@@ -84,7 +85,7 @@ let nextLineKey = 1;
  * own lines the way JournalVoucher's is. */
 @Component({
   selector: 'app-invoice-detail-page',
-  imports: [RouterLink, ReportingTagsEditor, CustomFieldsEditor, InboxConversionPanel, SourceDocumentPanel, AmountPipe, BsDateInput, DocumentTabs, TermsEditor, CurrencyRateFields, SendEmailDialog, DocumentLocationPicker, StatusBanner, FieldErrorMessage, NepaliDatePipe, LineUnitControl],
+  imports: [RouterLink, ReportingTagsEditor, CustomFieldsEditor, InboxConversionPanel, SourceDocumentPanel, AmountPipe, BsDateInput, DocumentTabs, TermsEditor, CurrencyRateFields, SendEmailDialog, DocumentLocationPicker, StatusBanner, FieldErrorMessage, NepaliDatePipe, LineUnitControl, SalesPriceNote],
   templateUrl: './invoice-detail-page.html',
 })
 export class InvoiceDetailPage {
@@ -132,6 +133,9 @@ export class InvoiceDetailPage {
    *  without a round trip. Empty on failure; the Due Date simply stays at the document date. */
   protected readonly creditTerms = signal<CreditTerm[]>([]);
   protected readonly products = signal<Product[]>([]);
+  /** Phase 81 -- what this user may price at the header location; null until it arrives. */
+  protected readonly pricePowers = signal<SalesPricePowers | null>(null);
+  protected readonly discountLocked = computed(() => this.pricePowers()?.canDiscount === false);
   protected readonly accounts = signal<Account[]>([]);
   protected readonly warehouses = signal<Warehouse[]>([]);
   protected readonly isNew = signal(false);
@@ -260,6 +264,7 @@ export class InvoiceDetailPage {
     // Phase 36 -- the picker lists the products available at THIS document's billing location,
     // and re-reads when the header location changes. See shared/catalog/location-aware-products.
     locationAwareProducts(this.organizationId, this.locationId, this.products);
+    salesPricePowers(this.organizationId, 'Invoice', this.locationId, this.pricePowers);
     this.accountingService.listAllAccounts(this.organizationId).subscribe({ next: (a) => this.accounts.set(a) });
     this.organizationsService.listWarehouses(this.organizationId).subscribe({
       next: (w) => {
@@ -532,7 +537,25 @@ export class InvoiceDetailPage {
   }
 
   protected onUnitChange(key: number, option: LineUnitOption): void {
-    this.updateLine(key, { unitId: option.unitId, rate: option.sellingPrice });
+    const productId = this.lines().find((l) => l.key === key)?.productId;
+    this.updateLine(key, { unitId: option.unitId });
+    if (!productId) {
+      return;
+    }
+
+    // Phase 81 -- the unit's rate as the server suggests it: its own price through the tenant's price
+    // basis, or its last sale in that unit. The raw unit price was VAT-inclusive on an inclusive tenant,
+    // and is now what the ERP's price gate would refuse as a changed rate.
+    this.catalogService.suggestProductRate(this.organizationId, productId, option.unitId).subscribe({
+      next: (suggestion) => this.updateLine(key, { rate: suggestion.rate }),
+      error: () => undefined,
+    });
+  }
+
+  /** Phase 81 -- the line's Rate is the catalogue's while the user may not change a rate. */
+  protected rateLocked(line: EditableLine): boolean {
+    return rateIsLocked(
+      this.pricePowers(), this.currencyCode(), this.products().find((p) => p.id === line.productId), line.unitId);
   }
 
   protected onRateChange(key: number, event: Event): void {

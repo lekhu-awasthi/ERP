@@ -594,7 +594,19 @@ export class CreditNoteDetailPage {
    * the stock ledger.
    */
   protected onUnitChange(key: number, option: LineUnitOption): void {
-    this.updateLine(key, { unitId: option.unitId, rate: option.sellingPrice });
+    const productId = this.lines().find((l) => l.key === key)?.productId;
+    this.updateLine(key, { unitId: option.unitId });
+    if (!productId) {
+      return;
+    }
+
+    // Phase 81 -- the unit's rate as the server suggests it: its own price through the tenant's price
+    // basis, or its last sale in that unit. The raw unit price was VAT-inclusive on an inclusive tenant,
+    // and is now what the ERP's price gate would refuse as a changed rate.
+    this.catalogService.suggestProductRate(this.organizationId, productId, option.unitId).subscribe({
+      next: (suggestion) => this.updateLine(key, { rate: suggestion.rate }),
+      error: () => undefined,
+    });
   }
 
   /** Phase 52 -- the unit's short name for the read-only branch of the Qty cell. */

@@ -226,7 +226,7 @@ public class SetCustomStatusCommandHandlerTests
             new CreateContactCommand(organizationId, ContactType.Supplier, "Acme Supplies", null, null, null, null, null, 0m),
             CancellationToken.None);
 
-        var quotation = await new CreateQuotationCommandHandler(db).Handle(
+        var quotation = await new CreateQuotationCommandHandler(db, await SalesPricing.PricerAsync(db, organizationId)).Handle(
             new CreateQuotationCommand(organizationId, customer.Id, new DateOnly(2026, 1, 1), null, null, []),
             CancellationToken.None);
 
@@ -234,7 +234,7 @@ public class SetCustomStatusCommandHandlerTests
             new CreatePurchaseOrderCommand(organizationId, supplier.Id, new DateOnly(2026, 1, 1), null, []),
             CancellationToken.None);
 
-        var salesOrder = await new CreateSalesOrderCommandHandler(db).Handle(
+        var salesOrder = await new CreateSalesOrderCommandHandler(db, await SalesPricing.PricerAsync(db, organizationId)).Handle(
             new CreateSalesOrderCommand(organizationId, customer.Id, new DateOnly(2026, 1, 1), null, null, []),
             CancellationToken.None);
 

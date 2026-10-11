@@ -151,7 +151,7 @@ internal static class InventoryReportSeed
         IAppDbContext db, Seed seed, DateOnly date, decimal quantity, decimal rate,
         Guid? productId = null, VatRate vatRate = VatRate.NoVat)
     {
-        var created = await new CreateInvoiceCommandHandler(db).Handle(
+        var created = await new CreateInvoiceCommandHandler(db, await SalesPricing.PricerAsync(db, seed.OrganizationId)).Handle(
             new CreateInvoiceCommand(
                 seed.OrganizationId, seed.CustomerId, seed.WarehouseId, date, null,
                 [new InvoiceLineInput(productId ?? seed.ProductId, quantity, rate, vatRate)]),
@@ -177,7 +177,7 @@ internal static class InventoryReportSeed
         IAppDbContext db, Seed seed, DateOnly date, decimal quantity, decimal rate,
         Guid? productId = null, VatRate vatRate = VatRate.NoVat, Guid? unitId = null)
     {
-        var created = await new CreateInvoiceCommandHandler(db).Handle(
+        var created = await new CreateInvoiceCommandHandler(db, await SalesPricing.PricerAsync(db, seed.OrganizationId)).Handle(
             new CreateInvoiceCommand(
                 seed.OrganizationId, seed.CustomerId, seed.WarehouseId, date, null,
                 [new InvoiceLineInput(productId ?? seed.ProductId, quantity, rate, vatRate, UnitId: unitId)]),

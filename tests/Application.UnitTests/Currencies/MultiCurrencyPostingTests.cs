@@ -529,7 +529,7 @@ public class MultiCurrencyPostingTests
     private static async Task<Guid> CreateAndApproveInvoiceAsync(
         IAppDbContext db, Seed seed, decimal amount, string? currencyCode, decimal? exchangeRate)
     {
-        var created = await new CreateInvoiceCommandHandler(db).Handle(
+        var created = await new CreateInvoiceCommandHandler(db, await SalesPricing.PricerAsync(db, seed.OrganizationId)).Handle(
             new CreateInvoiceCommand(
                 seed.OrganizationId, seed.CustomerId, seed.WarehouseId, new DateOnly(2026, 1, 1), null,
                 [new InvoiceLineInput(seed.ProductId, 1m, amount, VatRate.NoVat)])

@@ -110,7 +110,7 @@ public class IncomeStatementQueryHandlerTests
             .Handle(new ApprovePurchaseBillCommand(organizationId, bill.Id), CancellationToken.None);
 
         // Sell 5 of those units for 500 -- FIFO COGS relief of 5 * 40 = 200.
-        var invoice = await new CreateInvoiceCommandHandler(db).Handle(
+        var invoice = await new CreateInvoiceCommandHandler(db, await SalesPricing.PricerAsync(db, organizationId)).Handle(
             new CreateInvoiceCommand(
                 organizationId, customer.Id, warehouse.Id, today, null,
                 [new InvoiceLineInput(product.Id, 5m, 100m, VatRate.NoVat)]),

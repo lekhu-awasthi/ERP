@@ -297,7 +297,7 @@ public sealed class PhysicalMovementTests
         var db = TestAppDbContext.Create();
         var seed = await InventoryReportSeed.CreateAsync(db);
 
-        var created = await new CreateSalesOrderCommandHandler(db).Handle(
+        var created = await new CreateSalesOrderCommandHandler(db, await SalesPricing.PricerAsync(db, seed.OrganizationId)).Handle(
             new CreateSalesOrderCommand(
                 seed.OrganizationId, seed.CustomerId, Day, null, null,
                 [new SalesOrderLineInput(seed.ProductId, 2m, 150m, VatRate.NoVat)]),

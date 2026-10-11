@@ -397,3 +397,13 @@ beside a 200 from the same user, and create a fresh Organization per phase.
   `manufacturing.BillsOfMaterials`, `inventory.PhysicalStockMovements`, `purchasing.GoodsReceivedNotes`,
   `sales.DeliveryNotes`. An invalid `categories` value on `POST /export-jobs` is a 400 from binding, before
   authorization, so the 403 probe sends valid ones.
+
+- Phase 81. The ERP price keys: `GET /sales/price-powers?documentType=Invoice|Quotation|SalesOrder&locationId=` returns
+  `{canDiscount, canChangeRate}` (the type's View key; any other type is a 400). A refusal on `POST`/`PUT /invoices`,
+  `/quotations` or `/sales-orders` names `<CODE>.Sales.Invoice.Discount` or `.ChangeRate`, or the bare key for a
+  quotation, which carries no location on the default *Sales Transactions Only* scope. A clerk role for the proof: copy
+  every key Member holds organization-wide from SQL (`tenancy.RolePermissions` where `RoleId` is
+  `…-0001-000000000002`), drop the two, and grant one at a location with `locationGrants`. `PUT /general-settings` takes
+  `suggestSellingPriceMode` `FixedSellingPrice|RecentSellingPrice` and `productPriceBasis`; read it, change, and `PUT`
+  it back whole. `GET /products/{id}/suggested-rate?unitId=` answers in that unit. Conversion is `POST /invoices` with
+  `referrerType: "Quotation"` and `referrerId` of an **approved** quotation.

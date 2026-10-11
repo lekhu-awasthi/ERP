@@ -252,7 +252,7 @@ public class ContactStatementQueryHandlerTests
 
     private static async Task<CreateInvoiceResult> CreateInvoiceAsync(IAppDbContext db, Seed seed, DateOnly date, decimal rate, Guid contactId)
     {
-        return await new CreateInvoiceCommandHandler(db).Handle(
+        return await new CreateInvoiceCommandHandler(db, await SalesPricing.PricerAsync(db, seed.OrganizationId)).Handle(
             new CreateInvoiceCommand(
                 seed.OrganizationId, contactId, seed.WarehouseId, date, null,
                 [new InvoiceLineInput(seed.ProductId, 1m, rate, VatRate.NoVat)]),

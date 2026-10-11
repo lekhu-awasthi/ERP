@@ -64,7 +64,7 @@ public class VariantConversionCapTests
     /// is real.</summary>
     private static async Task<Guid> InvoiceThreeBlueAndFiveRedAsync(Fixture f)
     {
-        var result = await new CreateInvoiceCommandHandler(f.Db).Handle(
+        var result = await new CreateInvoiceCommandHandler(f.Db, await SalesPricing.PricerAsync(f.Db, f.OrganizationId)).Handle(
             new CreateInvoiceCommand(
                 f.OrganizationId, f.CustomerId, f.WarehouseId, new DateOnly(2026, 1, 1), null,
                 [

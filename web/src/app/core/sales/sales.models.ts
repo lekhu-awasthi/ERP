@@ -862,3 +862,16 @@ export interface CustomFieldValueInput {
   fieldDefinitionId: string;
   value: string;
 }
+
+/** Phase 81 -- the three ERP sales documents a price is gated on. */
+export type PricedSalesDocumentType = 'Quotation' | 'SalesOrder' | 'Invoice';
+
+/**
+ * Phase 81 -- whether the caller may discount (`Sales.Invoice.Discount`) and change a rate
+ * (`Sales.Invoice.ChangeRate`) on that document at that location. The form disables what Save would
+ * refuse; the server decides on Save regardless.
+ */
+export interface SalesPricePowers {
+  canDiscount: boolean;
+  canChangeRate: boolean;
+}

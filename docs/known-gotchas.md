@@ -4535,3 +4535,29 @@ width is Infrastructure's and the names are the Domain's, so neither suite could
 only on SQL Server, as a truncation error on the job's insert, with every InMemory test green.
 `Infrastructure.UnitTests/Persistence/ExportJobModelTests` now reads the column's max length from the real model and
 compares it with every name joined (phase 50's rule for a cross-assembly invariant).
+
+## "Unchanged" is a question per power, not per line (phase 81)
+
+The ERP price gate first treated a line as carried from the saved draft when its whole (product, unit, rate, discount)
+matched a saved line. That reads well and is wrong: a clerk taking a manager's discount off a line the manager had also
+repriced changed the tuple, so the rate counted as new and the clerk needed `ChangeRate` to charge *more*. Each power
+asks its own question over its own multiset: the discount is carried by (product, unit, discount), the rate by
+(product, unit, rate), and each carried line vouches for one request line, so a clerk cannot copy one discounted line
+into two.
+
+## A gate must accept the suggestion it sits beside (phase 81)
+
+The gate keeps a rate when it is what the form would suggest. Writing that down as code exposed that the form never
+suggested it for a unit: phase 52's `onUnitChange` dropped the unit row's raw selling price into Rate, ignoring
+`ProductPriceBasis`, on all five sales forms. On an Inclusive-of-VAT tenant that is a VAT-inclusive figure in a
+VAT-exclusive field, so the customer paid the VAT twice, and the new gate would have refused the clerk's own untouched
+line. The suggestion and the gate now read one source (`ProductRateReferences`, `SuggestProductRateQuery` with a
+`unitId`). The same read found Recent mode suggesting a box's last price for a line in pieces.
+
+## A refused handler's dirt reads as saved to the next call on the same context (phase 81)
+
+`UpdateInvoiceCommandHandler` clears the draft's lines before the gate refuses; nothing is saved, but the tracked
+invoice now has no lines. A test that called Update again on the same `IAppDbContext` read that as the saved draft,
+found nothing carried, and refused the wrong thing. A refused conversion had likewise marked its quotation converted
+in memory. The Api opens one context per request; a test that makes several calls after a refusal should too
+(`TestAppDbContext.Create(name)` on a shared name). Phase 57's "read past it" is the same fact seen from the database.

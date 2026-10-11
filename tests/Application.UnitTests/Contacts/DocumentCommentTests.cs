@@ -122,7 +122,7 @@ public class DocumentCommentTests
     private static async Task<Guid> CreateQuotationAsync(IAppDbContext db, Guid organizationId)
     {
         var customerId = await CreateContactAsync(db, organizationId);
-        var quotation = await new CreateQuotationCommandHandler(db).Handle(
+        var quotation = await new CreateQuotationCommandHandler(db, await SalesPricing.PricerAsync(db, organizationId)).Handle(
             new CreateQuotationCommand(organizationId, customerId, new DateOnly(2026, 1, 1), null, null, []),
             CancellationToken.None);
         return quotation.Id;

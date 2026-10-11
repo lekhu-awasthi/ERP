@@ -172,6 +172,11 @@
              The control it names is the button that adds one. -->
         <app-field-error [state]="fieldError" control="sales-order-detail-page-add-line" />
 
+        <!-- Phase 81 -- why a discount or a rate cannot be changed here, naming the key. -->
+        @if (isDraft()) {
+          <app-sales-price-note [powers]="pricePowers()" [currencyCode]="currencyCode()" />
+        }
+
         <div class="table-responsive">
           <table class="table align-middle">
             <thead>
@@ -236,6 +241,7 @@
                         min="0"
                         step="0.01"
                         [value]="line.rate || ''"
+                        [disabled]="rateLocked(line)"
                         (input)="onRateChange(line.key, $event)"
                       />
                     } @else {
@@ -251,6 +257,7 @@
                         max="100"
                         step="0.01"
                         [value]="line.discountPct || ''"
+                        [disabled]="discountLocked()"
                         (input)="onDiscountPctChange(line.key, $event)"
                       />
                     } @else {
@@ -301,6 +308,7 @@
                       max="100"
                       step="0.01"
                       [value]="discountPct() || ''"
+                      [disabled]="discountLocked()"
                       (input)="onHeaderDiscountPctChange($event)"
                     />
                   }

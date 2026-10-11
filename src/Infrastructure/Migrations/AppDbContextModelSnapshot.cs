@@ -10548,6 +10548,34 @@ namespace ErpApp.Infrastructure.Migrations
                             IsGranted = false,
                             PermissionKey = "Sales.Invoice.TillChangeRate",
                             RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000001f9"),
+                            IsGranted = true,
+                            PermissionKey = "Sales.Invoice.Discount",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000001fa"),
+                            IsGranted = true,
+                            PermissionKey = "Sales.Invoice.Discount",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000001fb"),
+                            IsGranted = true,
+                            PermissionKey = "Sales.Invoice.ChangeRate",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000001fc"),
+                            IsGranted = true,
+                            PermissionKey = "Sales.Invoice.ChangeRate",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
                         });
                 });
 

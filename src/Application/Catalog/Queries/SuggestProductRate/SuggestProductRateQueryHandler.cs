@@ -1,7 +1,6 @@
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Domain.Catalog;
-using ErpApp.Domain.Sales;
 using ErpApp.Domain.Tenancy;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -17,11 +16,9 @@ namespace ErpApp.Application.Catalog.Queries.SuggestProductRate;
 /// already keeps VAT-exclusive, so back-calculating it again would strip 13% from a figure that
 /// never carried it.</para>
 ///
-/// <para><b>"Recent" means the most recent approved Invoice line</b>, ordered by the invoice's own
-/// date and then by code so two invoices dated the same day resolve deterministically. Quotations
-/// and Sales Orders are excluded: neither is a sale, and a quoted price that was never accepted is
-/// the wrong thing to propagate. A Credit Note is excluded for the mirror reason -- it is a return,
-/// not a price.</para>
+/// <para><b>"Recent"</b> is <see cref="ProductRateReferences.RecentRateAsync"/>: the most recent approved
+/// Invoice line for this product in this unit. Phase 81 moved it there, because the ERP's price gate
+/// must accept exactly what this suggests.</para>
 /// </summary>
 public sealed class SuggestProductRateQueryHandler(IAppDbContext db)
     : IRequestHandler<SuggestProductRateQuery, SuggestedProductRateDto>
@@ -31,9 +28,9 @@ public sealed class SuggestProductRateQueryHandler(IAppDbContext db)
     {
         var product = await db.Products
             .AsNoTracking()
-            .Where(x => x.Id == request.ProductId && x.OrganizationId == request.OrganizationId)
-            .Select(x => new { x.SellingPrice, x.VatRate })
-            .SingleOrDefaultAsync(cancellationToken)
+            .Include(x => x.SecondaryUnits)
+            .SingleOrDefaultAsync(
+                x => x.Id == request.ProductId && x.OrganizationId == request.OrganizationId, cancellationToken)
             ?? throw new NotFoundException("Product not found.");
 
         var settings = await db.TenantSettings
@@ -41,27 +38,18 @@ public sealed class SuggestProductRateQueryHandler(IAppDbContext db)
             .SingleOrDefaultAsync(x => x.OrganizationId == request.OrganizationId, cancellationToken)
             ?? throw new NotFoundException("Tenant settings not found.");
 
-        if (settings.SuggestSellingPriceMode == SuggestSellingPriceMode.RecentSellingPrice)
-        {
-            var recentRate = await (
-                    from line in db.InvoiceLines
-                    join invoice in db.Invoices on line.InvoiceId equals invoice.Id
-                    where invoice.OrganizationId == request.OrganizationId
-                        && invoice.Status == InvoiceStatus.Approved
-                        && line.ProductId == request.ProductId
-                    orderby invoice.Date descending, invoice.Code descending
-                    select (decimal?)line.Rate)
-                .FirstOrDefaultAsync(cancellationToken);
+        // Null is the primary unit on every stored line, so naming the primary is the same question.
+        var unitId = request.UnitId == product.PrimaryUnitId ? null : request.UnitId;
+        var catalogueRate = ProductPrices.CatalogueRate(product, unitId, settings.ProductPriceBasis)
+            ?? throw new NotFoundException("This product is not sold in that unit.");
 
-            if (recentRate is { } rate)
-            {
-                return new SuggestedProductRateDto(rate, product.VatRate, ProductRateSource.RecentSale);
-            }
+        if (settings.SuggestSellingPriceMode == SuggestSellingPriceMode.RecentSellingPrice
+            && await ProductRateReferences.RecentRateAsync(
+                db, request.OrganizationId, request.ProductId, unitId, cancellationToken) is { } rate)
+        {
+            return new SuggestedProductRateDto(rate, product.VatRate, ProductRateSource.RecentSale);
         }
 
-        return new SuggestedProductRateDto(
-            ProductPrices.ToExclusiveRate(product.SellingPrice, product.VatRate, settings.ProductPriceBasis),
-            product.VatRate,
-            ProductRateSource.ProductSellingPrice);
+        return new SuggestedProductRateDto(catalogueRate, product.VatRate, ProductRateSource.ProductSellingPrice);
     }
 }

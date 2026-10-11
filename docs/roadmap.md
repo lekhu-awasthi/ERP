@@ -6,7 +6,7 @@ Guiding rule for phase sizing: each phase ends with something *runnable and demo
 
 ---
 
-## Completed phases (0–80)
+## Completed phases (0–81)
 
 One line each; phase *N*'s full story is `docs/phase-N-status.md`. The verbose index as it stood on
 2026-09-28 is archived verbatim in `roadmap-history.md` ("Completed-phases index, verbose form").
@@ -66,6 +66,7 @@ One line each; phase *N*'s full story is `docs/phase-N-status.md`. The verbose i
 | 78 | The export finished: Purchase Documents carry expenses, TDS and additional costs as rows of their own, a debit note's bill and the classification it inherits; Unit, Exchange Rate and Location on every sheet; a drawer's Cash In / Cash Out on Payments; the export screen's unticked categories are no longer exported anyway |
 | 79 | Print layouts finished: Modern and Classic on A4 for every printable type; an 80 mm roll (*Retail*) for Invoice, Credit Note and Sales Order that stacks each line and keeps both statutory dates; the total in words in any catalogue currency; the vendor's block ordering retired as no control |
 | 80 | The export's remaining documents: four new sheets (Bills of Materials; Orders for Quotation, Sales Order and Purchase Order; Goods Notes for Delivery Note and GRN; Production for Production Order and Journal), Document No and Reference on Ledger Transactions and Stock Movements, an additional cost's Allocation Method |
+| 81 | The ERP's price keys: a discount or a rate the form would not suggest on a Quotation, Sales Order or Invoice draft needs `Sales.Invoice.Discount` / `.ChangeRate` at its location (Admin+Member, backfilled to every role that drafts them; what a draft or its source quotation already carried needs neither); the forms disable what Save would refuse; a picked unit's rate goes through the price basis |
 
 ---
 
@@ -164,9 +165,13 @@ everything a tax invoice must carry (each line stacked, so its figures still add
 document's own currency; the vendor's block ordering was found to be no control at all and retired. Phase 80 finished
 the export's documents (`phase-80-status.md`): a census of every document type found eight on no sheet and four named
 only by a GUID, so the export gained Bills of Materials, Orders, Goods Notes and Production sheets, and both ledger
-sheets now print each row's Document No and Reference. **Next: not yet scheduled**; the candidates are phase 76 § 5's,
-phase 77 § 5's discard-with-a-share, phase 79 § 5's (positioning and renames, the custom HTML templates) and phase 71
-§ 5's.
+sheets now print each row's Document No and Reference. Phase 81 gave the ERP its own price keys
+(`phase-81-status.md`): the vendor's ERP has none (168 keys read in its bundle, none about price), so a clerk who may
+draft but not price is our divergence. A discount, or a rate the form would not suggest, on a Quotation, Sales Order or
+Invoice needs `Sales.Invoice.Discount` / `.ChangeRate` at the document's location; what the draft or its source
+quotation already carried needs neither, and the forms disable what Save would refuse. **Next: not yet scheduled**;
+the candidates are phase 77 § 5's discard-with-a-share, phase 79 § 5's (positioning and renames, the custom HTML
+templates, lakh grouping, the money receipt on the roll) and phase 71 § 5's.
 
 Open question for the tax advisor, not to be guessed (carried from the PAN fix): whether IRD expects a buyer PAN
 on a high-value sale to an unregistered buyer. If it does, it would be a warning on approve, never a block.
@@ -219,9 +224,12 @@ in phase 74.
 transfers and parcels, and the export's per-unit discount and bill amount, were done in phase 77; its third item, the
 vendor's three role switches as one key, in phase 76.
 
-**Carried from phase 76** (§ 5 there): the ERP invoice form's discount and rate are still reviewed only at Approve; a
-maximum discount per role (the vendor's `discount_limit` is a switch despite its name) has no live evidence; the
-vendor's server-side enforcement of its switches is unread; its POS-channel role sets are not modelled.
+**Carried from phase 76** (§ 5 there): the ERP form's discount and rate were gated in phase 81, and a maximum discount
+per role was closed there (neither vendor app has one); the vendor's server-side enforcement of its switches is unread;
+its POS-channel role sets are not modelled.
+
+**Carried from phase 81** (§ 5 there): the form does not offer a clerk the removal of a discount the API allows; the
+note's "at this location" is loose on a quotation outside the location scope.
 
 **Carried from phase 78** (§ 5 there): done in phase 80 (four new sheets, an additional cost's Allocation Method, and
 the ledger sheets naming each document). Cash Transfers and the drawer's over/short stay on Ledger Transactions by

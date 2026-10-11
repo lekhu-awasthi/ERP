@@ -116,7 +116,7 @@ public class RatioAnalysisQueryHandlerTests
             .Handle(new ApproveJournalVoucherCommand(organizationId, jv2.Id), CancellationToken.None);
 
         // A 3,000 Service Invoice -- no COGS (a Service line never gets a CogsUnitCost).
-        var invoice = await new CreateInvoiceCommandHandler(db).Handle(
+        var invoice = await new CreateInvoiceCommandHandler(db, await SalesPricing.PricerAsync(db, organizationId)).Handle(
             new CreateInvoiceCommand(
                 organizationId, customer.Id, warehouse.Id, today, null,
                 [new InvoiceLineInput(product.Id, 1m, 3000m, VatRate.NoVat)]),

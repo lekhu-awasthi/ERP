@@ -45,7 +45,7 @@ public class InvoiceDiscountTests
         // Qty 10 * Rate 1000 = 10,000 gross, 10% line discount -> 9,000 sub total, 5% header
         // discount -> 8,550 taxable, VAT 13% of 8,550 = 1,111.50, Grand Total 9,661.50 -- the same
         // worked example confirmed live against the reference product's Totals panel.
-        var created = await new CreateInvoiceCommandHandler(db).Handle(
+        var created = await new CreateInvoiceCommandHandler(db, await SalesPricing.PricerAsync(db, seed.OrganizationId)).Handle(
             new CreateInvoiceCommand(
                 seed.OrganizationId, seed.CustomerId, seed.WarehouseId, new DateOnly(2026, 1, 10), null,
                 [new InvoiceLineInput(seed.ProductId, 10m, 1000m, VatRate.ThirteenPercentVat, DiscountPct: 10)],
@@ -71,7 +71,7 @@ public class InvoiceDiscountTests
         var db = TestAppDbContext.Create();
         var seed = await SeedAsync(db);
 
-        var created = await new CreateInvoiceCommandHandler(db).Handle(
+        var created = await new CreateInvoiceCommandHandler(db, await SalesPricing.PricerAsync(db, seed.OrganizationId)).Handle(
             new CreateInvoiceCommand(
                 seed.OrganizationId, seed.CustomerId, seed.WarehouseId, new DateOnly(2026, 1, 10), null,
                 [new InvoiceLineInput(seed.ProductId, 10m, 1000m, VatRate.ThirteenPercentVat, DiscountPct: 10)],
@@ -111,7 +111,7 @@ public class InvoiceDiscountTests
         var db = TestAppDbContext.Create();
         var seed = await SeedAsync(db);
 
-        var created = await new CreateInvoiceCommandHandler(db).Handle(
+        var created = await new CreateInvoiceCommandHandler(db, await SalesPricing.PricerAsync(db, seed.OrganizationId)).Handle(
             new CreateInvoiceCommand(
                 seed.OrganizationId, seed.CustomerId, seed.WarehouseId, new DateOnly(2026, 1, 10), null,
                 [new InvoiceLineInput(seed.ProductId, 10m, 1000m, VatRate.ThirteenPercentVat, DiscountPct: 10)],
@@ -133,7 +133,7 @@ public class InvoiceDiscountTests
         var db = TestAppDbContext.Create();
         var seed = await SeedAsync(db);
 
-        var created = await new CreateInvoiceCommandHandler(db).Handle(
+        var created = await new CreateInvoiceCommandHandler(db, await SalesPricing.PricerAsync(db, seed.OrganizationId)).Handle(
             new CreateInvoiceCommand(
                 seed.OrganizationId, seed.CustomerId, seed.WarehouseId, new DateOnly(2026, 1, 10), null,
                 [new InvoiceLineInput(seed.ProductId, 10m, 1000m, VatRate.ThirteenPercentVat, DiscountPct: 10)],

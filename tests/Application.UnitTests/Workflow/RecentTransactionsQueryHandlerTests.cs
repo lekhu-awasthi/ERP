@@ -289,9 +289,9 @@ public class RecentTransactionsQueryHandlerTests
         await db.SaveChangesAsync(CancellationToken.None);
     }
 
-    private static Task<CreateInvoiceResult> CreateInvoiceAsync(
+    private static async Task<CreateInvoiceResult> CreateInvoiceAsync(
         IAppDbContext db, Seed seed, DateOnly date, decimal rate) =>
-        new CreateInvoiceCommandHandler(db).Handle(
+        await new CreateInvoiceCommandHandler(db, await SalesPricing.PricerAsync(db, seed.OrganizationId)).Handle(
             new CreateInvoiceCommand(
                 seed.OrganizationId, seed.CustomerId, seed.WarehouseId, date, null,
                 [new InvoiceLineInput(seed.ProductId, 1m, rate, VatRate.ThirteenPercentVat)]),

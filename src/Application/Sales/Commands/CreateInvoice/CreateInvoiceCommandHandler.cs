@@ -2,6 +2,7 @@ using ErpApp.Application.Common.Documents;
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Application.Common.Security;
 using ErpApp.Application.Inventory.Stock;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Inventory;
@@ -12,7 +13,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ErpApp.Application.Sales.Commands.CreateInvoice;
 
-public sealed class CreateInvoiceCommandHandler(IAppDbContext db)
+public sealed class CreateInvoiceCommandHandler(IAppDbContext db, ICurrentUserService currentUser)
     : IRequestHandler<CreateInvoiceCommand, CreateInvoiceResult>
 {
     public async Task<CreateInvoiceResult> Handle(CreateInvoiceCommand request, CancellationToken cancellationToken)
@@ -22,9 +23,10 @@ public sealed class CreateInvoiceCommandHandler(IAppDbContext db)
         await SalesValidation.EnsureProductsExistAsync(
             db, request.OrganizationId, request.Lines.Select(x => x.ProductId), cancellationToken);
 
+        Quotation? quotation = null;
         if (request.ReferrerType == DocumentType.Quotation && request.ReferrerId is { } quotationId)
         {
-            var quotation = await db.Quotations.SingleOrDefaultAsync(
+            quotation = await db.Quotations.Include(x => x.Lines).SingleOrDefaultAsync(
                 x => x.Id == quotationId && x.OrganizationId == request.OrganizationId, cancellationToken)
                 ?? throw new NotFoundException("Quotation not found.");
 
@@ -79,6 +81,18 @@ public sealed class CreateInvoiceCommandHandler(IAppDbContext db)
         var units = await DocumentLineUnitResolver.ResolveAsync(
             db, request.OrganizationId,
             [.. request.Lines.Select(x => new DocumentLineUnitResolver.LineUnitInput(x.ProductId, x.UnitId))],
+            cancellationToken);
+
+        // Phase 81 -- a discount or a changed rate needs its key at this invoice's location, unless the
+        // quotation it was converted from already carried it (SalesPriceGate).
+        await SalesPriceGate.EnsureMayPriceAsync(
+            db, request.OrganizationId, currentUser.UserId, invoice.LocationId, SalesPriceGate.IsBase(invoice.CurrencyCode),
+            request.DiscountPct,
+            [.. request.Lines.Select((x, i) => new SalesPriceGate.PricedLine(x.ProductId, units[i].UnitId, x.Rate, x.DiscountPct))],
+            quotation?.DiscountPct,
+            quotation is null
+                ? []
+                : [.. quotation.Lines.Select(x => new SalesPriceGate.PricedLine(x.ProductId, x.UnitId, x.Rate, x.DiscountPct))],
             cancellationToken);
 
         for (var i = 0; i < request.Lines.Count; i++)

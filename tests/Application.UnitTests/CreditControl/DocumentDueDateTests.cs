@@ -49,7 +49,7 @@ public class DocumentDueDateTests
 
         Assert.Equal(DueDate, (await db.Invoices.SingleAsync(x => x.Id == id)).DueDate);
 
-        await new UpdateInvoiceCommandHandler(db).Handle(
+        await new UpdateInvoiceCommandHandler(db, await SalesPricing.PricerAsync(db, seed.OrganizationId)).Handle(
             new UpdateInvoiceCommand(
                 seed.OrganizationId, id, seed.CustomerId, seed.WarehouseId, InvoiceDate, null,
                 [new InvoiceLineInput(seed.ProductId, 1m, 500m, VatRate.NoVat)],
@@ -147,7 +147,7 @@ public class DocumentDueDateTests
 
     private static async Task<Guid> DraftAsync(IAppDbContext db, CreditSeed seed, DateOnly? dueDate)
     {
-        var created = await new CreateInvoiceCommandHandler(db).Handle(
+        var created = await new CreateInvoiceCommandHandler(db, await SalesPricing.PricerAsync(db, seed.OrganizationId)).Handle(
             new CreateInvoiceCommand(
                 seed.OrganizationId, seed.CustomerId, seed.WarehouseId, InvoiceDate, null,
                 [new InvoiceLineInput(seed.ProductId, 1m, 500m, VatRate.NoVat)],

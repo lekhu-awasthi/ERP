@@ -1,6 +1,7 @@
 using ErpApp.Application.Inventory.Stock;
 using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Contacts;
 using ErpApp.Domain.Sales;
@@ -8,7 +9,7 @@ using MediatR;
 
 namespace ErpApp.Application.Sales.Commands.CreateSalesOrder;
 
-public sealed class CreateSalesOrderCommandHandler(IAppDbContext db)
+public sealed class CreateSalesOrderCommandHandler(IAppDbContext db, ICurrentUserService currentUser)
     : IRequestHandler<CreateSalesOrderCommand, CreateSalesOrderResult>
 {
     public async Task<CreateSalesOrderResult> Handle(CreateSalesOrderCommand request, CancellationToken cancellationToken)
@@ -42,6 +43,15 @@ public sealed class CreateSalesOrderCommandHandler(IAppDbContext db)
         var units = await DocumentLineUnitResolver.ResolveAsync(
             db, request.OrganizationId,
             [.. request.Lines.Select(x => new DocumentLineUnitResolver.LineUnitInput(x.ProductId, x.UnitId))],
+            cancellationToken);
+
+        // Phase 81 -- a discount or a changed rate needs its key at this sales order's location; a fresh
+        // document carries nothing (SalesPriceGate).
+        await SalesPriceGate.EnsureMayPriceAsync(
+            db, request.OrganizationId, currentUser.UserId, salesOrder.LocationId, SalesPriceGate.IsBase(salesOrder.CurrencyCode),
+            request.DiscountPct,
+            [.. request.Lines.Select((x, i) => new SalesPriceGate.PricedLine(x.ProductId, units[i].UnitId, x.Rate, x.DiscountPct))],
+            null, [],
             cancellationToken);
 
         for (var i = 0; i < request.Lines.Count; i++)

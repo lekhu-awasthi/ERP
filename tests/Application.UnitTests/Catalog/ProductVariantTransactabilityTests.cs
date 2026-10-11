@@ -128,7 +128,7 @@ public class ProductVariantTransactabilityTests
     public async Task CreateInvoice_rejects_a_variant_parent_but_accepts_its_variant()
     {
         var f = await SeedAsync();
-        var handler = new CreateInvoiceCommandHandler(f.Db);
+        var handler = new CreateInvoiceCommandHandler(f.Db, await SalesPricing.PricerAsync(f.Db, f.OrganizationId));
 
         await Assert.ThrowsAsync<ConflictException>(
             () => handler.Handle(Invoice(f, f.ParentId), CancellationToken.None));

@@ -140,9 +140,9 @@ public static class CatalogEndpoints
         // TenantSettings.SuggestSellingPriceMode + ProductPriceBasis. Mirrors the reference
         // product's own get_recent_selling_price call.
         group.MapGet("/products/{id:guid}/suggested-rate", async (
-            Guid organizationId, Guid id, ISender sender, CancellationToken ct) =>
+            Guid organizationId, Guid id, Guid? unitId, ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new SuggestProductRateQuery(organizationId, id), ct);
+            var result = await sender.Send(new SuggestProductRateQuery(organizationId, id, unitId), ct);
             return Results.Ok(result);
         });
 

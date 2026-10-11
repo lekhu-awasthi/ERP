@@ -22,8 +22,13 @@ namespace ErpApp.Application.Catalog.Queries.SuggestProductRate;
 /// <para>Gated on <see cref="PermissionKeys.ProductView"/>: it discloses a product's price to
 /// somebody who can already open that product's record, and it is called from document forms whose
 /// own Create key a Member holds.</para>
+///
+/// <para><b>Phase 81 -- in the line's unit.</b> <paramref name="UnitId"/> null is the product's primary
+/// unit. A secondary unit's suggestion is that unit's own price through the same price basis, or the
+/// last sale in that unit; picking a unit used to drop the unit row's raw price into Rate, which on an
+/// Inclusive-of-VAT tenant charged the VAT twice and would now be refused as a changed rate.</para>
 /// </summary>
-public sealed record SuggestProductRateQuery(Guid OrganizationId, Guid ProductId)
+public sealed record SuggestProductRateQuery(Guid OrganizationId, Guid ProductId, Guid? UnitId = null)
     : IRequest<SuggestedProductRateDto>, IRequirePermission, IOrganizationScoped
 {
     public string PermissionKey => PermissionKeys.ProductView;

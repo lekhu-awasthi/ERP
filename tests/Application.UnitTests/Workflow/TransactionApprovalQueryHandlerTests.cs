@@ -206,8 +206,8 @@ public class TransactionApprovalQueryHandlerTests
         await db.SaveChangesAsync(CancellationToken.None);
     }
 
-    private static Task<CreateQuotationResult> CreateQuotationAsync(IAppDbContext db, Seed seed) =>
-        new CreateQuotationCommandHandler(db).Handle(
+    private static async Task<CreateQuotationResult> CreateQuotationAsync(IAppDbContext db, Seed seed) =>
+        await new CreateQuotationCommandHandler(db, await SalesPricing.PricerAsync(db, seed.OrganizationId)).Handle(
             new CreateQuotationCommand(
                 seed.OrganizationId, seed.CustomerId, new DateOnly(2026, 1, 10), null, null,
                 [new QuotationLineInput(seed.ServiceProductId, 1m, 100m, VatRate.NoVat)]),
@@ -220,8 +220,8 @@ public class TransactionApprovalQueryHandlerTests
                 [new PurchaseOrderLineInput(seed.ServiceProductId, 1m, 80m, VatRate.NoVat)]),
             CancellationToken.None);
 
-    private static Task<CreateInvoiceResult> CreateInvoiceAsync(IAppDbContext db, Seed seed) =>
-        new CreateInvoiceCommandHandler(db).Handle(
+    private static async Task<CreateInvoiceResult> CreateInvoiceAsync(IAppDbContext db, Seed seed) =>
+        await new CreateInvoiceCommandHandler(db, await SalesPricing.PricerAsync(db, seed.OrganizationId)).Handle(
             new CreateInvoiceCommand(
                 seed.OrganizationId, seed.CustomerId, seed.Warehouse1Id, new DateOnly(2026, 1, 10), null,
                 [new InvoiceLineInput(seed.ServiceProductId, 1m, 100m, VatRate.NoVat)]),

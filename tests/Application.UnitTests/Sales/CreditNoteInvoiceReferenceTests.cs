@@ -541,7 +541,7 @@ public class CreditNoteInvoiceReferenceTests
             lines.Add(extraLine);
         }
 
-        var created = await new CreateInvoiceCommandHandler(db).Handle(
+        var created = await new CreateInvoiceCommandHandler(db, await SalesPricing.PricerAsync(db, seed.OrganizationId)).Handle(
             new CreateInvoiceCommand(
                 seed.OrganizationId, customerId ?? seed.CustomerId, seed.WarehouseId, date ?? InvoiceDay, null, lines)
             {

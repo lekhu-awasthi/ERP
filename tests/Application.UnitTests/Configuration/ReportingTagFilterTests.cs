@@ -204,7 +204,7 @@ public class ReportingTagFilterTests
     private static async Task<Guid> CreateQuotationAsync(
         IAppDbContext db, Guid organizationId, Guid customerId, DateOnly date)
     {
-        var quotation = await new CreateQuotationCommandHandler(db).Handle(
+        var quotation = await new CreateQuotationCommandHandler(db, await SalesPricing.PricerAsync(db, organizationId)).Handle(
             new CreateQuotationCommand(organizationId, customerId, date, null, null, []),
             CancellationToken.None);
         return quotation.Id;

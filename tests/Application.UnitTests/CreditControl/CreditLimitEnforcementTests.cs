@@ -150,7 +150,7 @@ public class CreditLimitEnforcementTests
 
     private static async Task<Guid> DraftAsync(IAppDbContext db, CreditSeed seed, decimal amount)
     {
-        var created = await new CreateInvoiceCommandHandler(db).Handle(
+        var created = await new CreateInvoiceCommandHandler(db, await SalesPricing.PricerAsync(db, seed.OrganizationId)).Handle(
             new CreateInvoiceCommand(
                 seed.OrganizationId, seed.CustomerId, seed.WarehouseId, new DateOnly(2026, 1, 10), null,
                 [new InvoiceLineInput(seed.ProductId, 1m, amount, VatRate.NoVat)]),

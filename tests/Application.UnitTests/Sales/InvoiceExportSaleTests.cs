@@ -89,7 +89,7 @@ public class InvoiceExportSaleTests
         // in the same place or the invariant is not an invariant.
         var created = await CreateInvoiceAsync(db, seed, VatRate.ThirteenPercentVat, isExport: false);
 
-        await new UpdateInvoiceCommandHandler(db).Handle(
+        await new UpdateInvoiceCommandHandler(db, await SalesPricing.PricerAsync(db, seed.OrganizationId)).Handle(
             new UpdateInvoiceCommand(
                 seed.OrganizationId, created.Id, seed.CustomerId, seed.WarehouseId, Jan10, null,
                 [new InvoiceLineInput(seed.ProductId, 1m, 100m, VatRate.ThirteenPercentVat)],
@@ -117,7 +117,7 @@ public class InvoiceExportSaleTests
 
         var created = await CreateInvoiceAsync(db, seed, VatRate.ZeroVat, isExport: true);
 
-        await new UpdateInvoiceCommandHandler(db).Handle(
+        await new UpdateInvoiceCommandHandler(db, await SalesPricing.PricerAsync(db, seed.OrganizationId)).Handle(
             new UpdateInvoiceCommand(
                 seed.OrganizationId, created.Id, seed.CustomerId, seed.WarehouseId, Jan10, null,
                 [new InvoiceLineInput(seed.ProductId, 1m, 100m, VatRate.ThirteenPercentVat)],
@@ -244,7 +244,7 @@ public class InvoiceExportSaleTests
     private static async Task<CreateInvoiceResult> CreateInvoiceAsync(
         IAppDbContext db, Seed seed, VatRate vatRate, bool isExport, string? country = "India")
     {
-        return await new CreateInvoiceCommandHandler(db).Handle(
+        return await new CreateInvoiceCommandHandler(db, await SalesPricing.PricerAsync(db, seed.OrganizationId)).Handle(
             new CreateInvoiceCommand(
                 seed.OrganizationId, seed.CustomerId, seed.WarehouseId, Jan10, null,
                 [new InvoiceLineInput(seed.ProductId, 1m, 100m, vatRate)],

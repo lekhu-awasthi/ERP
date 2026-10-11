@@ -1170,4 +1170,27 @@ public static class PermissionKeys
     public const string InvoiceTillDiscount = "Sales.Invoice.TillDiscount";
     public const string InvoiceTillRemoveServiceCharge = "Sales.Invoice.TillRemoveServiceCharge";
     public const string InvoiceTillChangeRate = "Sales.Invoice.TillChangeRate";
+
+    // Phase 81 (the ERP's price keys) -- a clerk who may draft a sale but not price it. Until now an
+    // ERP draft's discount and rate were reviewed only at Approve, which is no review at all for a
+    // clerk who also approves. The vendor's ERP has no such key (its 168 keys, read in its bundle on
+    // 2026-10-11, hold invoice-view/add/edit/approve/void and nothing about price), so this is ours.
+    //
+    // - Sales.Invoice.Discount: a discount on a Quotation, Sales Order or Invoice draft -- a line's or
+    //   the document's -- unless the line (or the document) already carried it unchanged: from the
+    //   draft's own saved lines on an edit, or from the Quotation it was converted from.
+    // - Sales.Invoice.ChangeRate: a rate on such a line that is neither the catalogue's price in its
+    //   unit nor, in Recent mode, the last sale's rate in that unit (Application.Catalog's
+    //   ProductRateReferences, which the form's suggestion reads too). Raised or lowered, as at the till.
+    //   A product with no selling price, and a document in another currency, have no price to keep.
+    //
+    // Admin+Member, unlike the till's: an ERP draft is still reviewed at Approve, so this is routine
+    // daily-use working data (CLAUDE.md's derivation), and Member has always discounted ERP drafts.
+    // Seeded true on both so nothing changes on upgrade; the phase 81 migration grants both wherever a
+    // custom role can create or edit any of the three documents, at the same scope. An Admin makes a
+    // clerk who cannot price by revoking them on a custom role. Kept apart from the till keys
+    // (phase 76's lesson: a borrowed key grants everything the first one does). Under Sales.Invoice so
+    // phase 32b's derivation makes them grantable per location.
+    public const string InvoiceDiscount = "Sales.Invoice.Discount";
+    public const string InvoiceChangeRate = "Sales.Invoice.ChangeRate";
 }

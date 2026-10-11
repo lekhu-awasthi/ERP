@@ -281,7 +281,7 @@ public class SalesRegisterQueryHandlerTests
     private static async Task CreateAndApproveLocatedInvoiceAsync(
         IAppDbContext db, Seed seed, DateOnly date, decimal rate, Guid locationId)
     {
-        var created = await new CreateInvoiceCommandHandler(db).Handle(
+        var created = await new CreateInvoiceCommandHandler(db, await SalesPricing.PricerAsync(db, seed.OrganizationId)).Handle(
             new CreateInvoiceCommand(
                 seed.OrganizationId, seed.CustomerId, seed.WarehouseId, date, null,
                 [new InvoiceLineInput(seed.ProductId, 1m, rate, VatRate.NoVat)])
@@ -300,7 +300,7 @@ public class SalesRegisterQueryHandlerTests
     private static async Task<Guid> CreateAndApproveForeignInvoiceAsync(
         IAppDbContext db, Seed seed, DateOnly date, decimal rate, string currencyCode, decimal exchangeRate)
     {
-        var created = await new CreateInvoiceCommandHandler(db).Handle(
+        var created = await new CreateInvoiceCommandHandler(db, await SalesPricing.PricerAsync(db, seed.OrganizationId)).Handle(
             new CreateInvoiceCommand(
                 seed.OrganizationId, seed.CustomerId, seed.WarehouseId, date, null,
                 [new InvoiceLineInput(seed.ProductId, 1m, rate, VatRate.NoVat)])
@@ -389,7 +389,7 @@ public class SalesRegisterQueryHandlerTests
     private static async Task<(Guid Id, string Code)> CreateAndApproveTwoLineInvoiceAsync(
         IAppDbContext db, Seed seed, DateOnly date)
     {
-        var created = await new CreateInvoiceCommandHandler(db).Handle(
+        var created = await new CreateInvoiceCommandHandler(db, await SalesPricing.PricerAsync(db, seed.OrganizationId)).Handle(
             new CreateInvoiceCommand(
                 seed.OrganizationId, seed.CustomerId, seed.WarehouseId, date, null,
                 [
@@ -410,7 +410,7 @@ public class SalesRegisterQueryHandlerTests
     private static async Task<CreateInvoiceResult> CreateInvoiceAsync(
         IAppDbContext db, Seed seed, DateOnly date, decimal rate, VatRate vatRate)
     {
-        return await new CreateInvoiceCommandHandler(db).Handle(
+        return await new CreateInvoiceCommandHandler(db, await SalesPricing.PricerAsync(db, seed.OrganizationId)).Handle(
             new CreateInvoiceCommand(
                 seed.OrganizationId, seed.CustomerId, seed.WarehouseId, date, null,
                 [new InvoiceLineInput(seed.ProductId, 1m, rate, vatRate)]),

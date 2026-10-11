@@ -31,6 +31,7 @@ using ErpApp.Application.Sales.Queries.ListSalesOrders;
 using ErpApp.Application.Sales.Queries.PreviewInvoiceGlPosting;
 using ErpApp.Application.Sales.Queries.AnnexFiveReport;
 using ErpApp.Application.Sales.Queries.SalesMasterReport;
+using ErpApp.Application.Sales.Queries.GetSalesPricePowers;
 using ErpApp.Application.Sales.Queries.MigratedSalesRegister;
 using ErpApp.Application.Sales.Queries.SalesRegister;
 using ErpApp.Domain.Common;
@@ -52,6 +53,16 @@ public static class SalesEndpoints
         MapSalesOrderEndpoints(group);
         MapCreditNoteEndpoints(group);
         MapReportEndpoints(group);
+
+        // Phase 81 -- whether the caller may discount, and change a rate, on a Quotation, Sales Order or
+        // Invoice raised at this location (null: the tenant's default). The form disables what Save
+        // would refuse.
+        group.MapGet("/sales/price-powers", async (
+            Guid organizationId, DocumentType documentType, Guid? locationId, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new GetSalesPricePowersQuery(organizationId, documentType, locationId), ct);
+            return Results.Ok(result);
+        });
     }
 
     private static void MapQuotationEndpoints(RouteGroupBuilder group)

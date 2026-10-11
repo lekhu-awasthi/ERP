@@ -169,7 +169,7 @@ public class SetCustomFieldValuesCommandHandlerTests
             new CreateContactCommand(organizationId, ContactType.Customer, "Acme Traders", null, null, null, null, null, 0m),
             CancellationToken.None);
 
-        var quotation = await new CreateQuotationCommandHandler(db).Handle(
+        var quotation = await new CreateQuotationCommandHandler(db, await SalesPricing.PricerAsync(db, organizationId)).Handle(
             new CreateQuotationCommand(organizationId, customer.Id, new DateOnly(2026, 1, 1), null, null, []),
             CancellationToken.None);
 

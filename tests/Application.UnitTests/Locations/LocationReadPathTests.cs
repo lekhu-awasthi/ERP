@@ -149,7 +149,7 @@ public class LocationReadPathTests
     /// </summary>
     private static async Task<Guid> CreateInvoiceAsync(IAppDbContext db, World world, Guid? locationId)
     {
-        var created = await new CreateInvoiceCommandHandler(db).Handle(
+        var created = await new CreateInvoiceCommandHandler(db, await SalesPricing.PricerAsync(db, world.OrganizationId)).Handle(
             new CreateInvoiceCommand(
                 world.OrganizationId, world.Seed.CustomerId, world.Seed.WarehouseId, Day, null,
                 [new InvoiceLineInput(world.Seed.ProductId, 1m, 100m, VatRate.NoVat)])

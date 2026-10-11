@@ -249,7 +249,19 @@ export class DeliveryNoteDetailPage {
 
   /** Phase 52 -- a unit sets the Rate from that unit row's selling price, and nothing else. */
   protected onUnitChange(key: number, option: LineUnitOption): void {
-    this.updateLine(key, { unitId: option.unitId, rate: option.sellingPrice });
+    const productId = this.lines().find((l) => l.key === key)?.productId;
+    this.updateLine(key, { unitId: option.unitId });
+    if (!productId) {
+      return;
+    }
+
+    // Phase 81 -- the unit's rate as the server suggests it: its own price through the tenant's price
+    // basis, or its last sale in that unit. The raw unit price was VAT-inclusive on an inclusive tenant,
+    // and is now what the ERP's price gate would refuse as a changed rate.
+    this.catalogService.suggestProductRate(this.organizationId, productId, option.unitId).subscribe({
+      next: (suggestion) => this.updateLine(key, { rate: suggestion.rate }),
+      error: () => undefined,
+    });
   }
 
   protected unitLabel(line: EditableLine): string {
