@@ -34,7 +34,10 @@ namespace ErpApp.Application.Exports.Readers;
 /// Classification</b> and <b>Import</b> are its bill's, matched exactly as the statutory registers match them
 /// (<see cref="Purchasing.Reports.PurchaseReturnReader"/>: bill, product, rate and VAT rate, falling back to Others and
 /// local), so the sheet and Annex 13 cannot disagree about one return.</item>
-/// <item><b>Unit</b>, <b>Exchange Rate</b> and <b>Location</b> close the sheet, as on the sales sheet.</item>
+/// <item><b>Unit</b>, <b>Exchange Rate</b> and <b>Location</b> follow, as on the sales sheet.</item>
+/// <item>Phase 80 -- <b>Allocation Method</b> closes the sheet: how an additional cost row was spread over the bill's
+/// lines (<i>Value</i> or <i>Quantity</i>), empty on every other kind of row. The allocation it produced is derived at
+/// Approve; the method is what a reader needs to re-derive it.</item>
 /// </list>
 ///
 /// <para><b>Seven queries merged in memory, not one <c>Concat</c></b> (phase 77's reason: the kinds of row differ in
@@ -106,6 +109,7 @@ public sealed class PurchaseDocumentExportReader(IAppDbContext db) : IExportCate
         "Unit",
         "Exchange Rate",
         "Location",
+        "Allocation Method",
     ];
 
     public async Task<ExportCategoryResult> ReadAsync(
@@ -130,7 +134,7 @@ public sealed class PurchaseDocumentExportReader(IAppDbContext db) : IExportCate
                 null, doc.SupplierInvoiceReference, null, line.ExpenditureClassification, doc.IsImport,
                 doc.DiscountPct, 0m, null, 0m,
                 line.UnitId ?? (product == null ? null : (Guid?)product.PrimaryUnitId), doc.ExchangeRate, doc.LocationId,
-                RowKind.Line);
+                null, RowKind.Line);
 
         // A Debit Note's figures are negated so the columns sum to net purchases; its rates and percentages are not.
         // Its bill is phase 6's referrer; a standalone note has none, and classifies as Others and local, as the
@@ -165,7 +169,7 @@ public sealed class PurchaseDocumentExportReader(IAppDbContext db) : IExportCate
                 bill != null && bill.IsImport,
                 doc.DiscountPct, 0m, null, 0m,
                 line.UnitId ?? (product == null ? null : (Guid?)product.PrimaryUnitId), doc.ExchangeRate, doc.LocationId,
-                RowKind.Line);
+                null, RowKind.Line);
 
         var expenseLines =
             from line in db.ExpenseLines
@@ -183,7 +187,7 @@ public sealed class PurchaseDocumentExportReader(IAppDbContext db) : IExportCate
                 null, doc.SupplierInvoiceReference, line.AccountId, null, null,
                 0m, 0m, null, 0m,
                 null, doc.ExchangeRate, doc.LocationId,
-                RowKind.Line);
+                null, RowKind.Line);
 
         var additionalCosts =
             from cost in db.PurchaseBillAdditionalCosts
@@ -204,7 +208,7 @@ public sealed class PurchaseDocumentExportReader(IAppDbContext db) : IExportCate
                 null, doc.SupplierInvoiceReference, null, null, doc.IsImport,
                 doc.DiscountPct, 0m, cost.CostTermId, cost.Amount,
                 null, doc.ExchangeRate, doc.LocationId,
-                RowKind.AdditionalCost);
+                (AdditionalCostMethod?)cost.Method, RowKind.AdditionalCost);
 
         var billTds =
             from doc in db.PurchaseBills
@@ -222,7 +226,7 @@ public sealed class PurchaseDocumentExportReader(IAppDbContext db) : IExportCate
                 null, doc.SupplierInvoiceReference, null, null, doc.IsImport,
                 doc.DiscountPct, doc.TdsAmount, null, 0m,
                 null, doc.ExchangeRate, doc.LocationId,
-                RowKind.Tds);
+                null, RowKind.Tds);
 
         var debitNoteTds =
             from doc in db.DebitNotes
@@ -243,7 +247,7 @@ public sealed class PurchaseDocumentExportReader(IAppDbContext db) : IExportCate
                 bill == null ? null : bill.Code, null, null, null, bill != null && bill.IsImport,
                 doc.DiscountPct, -doc.TdsAmount, null, 0m,
                 null, doc.ExchangeRate, doc.LocationId,
-                RowKind.Tds);
+                null, RowKind.Tds);
 
         var expenseTds =
             from doc in db.Expenses
@@ -261,7 +265,7 @@ public sealed class PurchaseDocumentExportReader(IAppDbContext db) : IExportCate
                 null, doc.SupplierInvoiceReference, null, null, null,
                 0m, doc.TdsAmount, null, 0m,
                 null, doc.ExchangeRate, doc.LocationId,
-                RowKind.Tds);
+                null, RowKind.Tds);
 
         var totalRowCount = 0;
         var merged = new List<PurchaseRow>();
@@ -334,6 +338,7 @@ public sealed class PurchaseDocumentExportReader(IAppDbContext db) : IExportCate
         Guid? UnitId,
         decimal ExchangeRate,
         Guid? LocationId,
+        AdditionalCostMethod? Method,
         RowKind Kind)
     {
         public object?[] ToCells(Names names) =>
@@ -353,6 +358,7 @@ public sealed class PurchaseDocumentExportReader(IAppDbContext db) : IExportCate
             names.Units.NameOf(UnitId),
             ExchangeRate,
             names.Locations.NameOf(LocationId),
+            Method?.ToString(),
         ];
     }
 }

@@ -235,6 +235,12 @@ public static class DependencyInjection
         services.AddScoped<IExportCategoryReader, SalesDocumentExportReader>();
         services.AddScoped<IExportCategoryReader, PurchaseDocumentExportReader>();
         services.AddScoped<IExportCategoryReader, PaymentExportReader>();
+
+        // Phase 80 -- four more by the same rule, after a census of every document type found eight on no sheet.
+        services.AddScoped<IExportCategoryReader, BillOfMaterialsExportReader>();
+        services.AddScoped<IExportCategoryReader, OrderExportReader>();
+        services.AddScoped<IExportCategoryReader, GoodsNoteExportReader>();
+        services.AddScoped<IExportCategoryReader, ProductionExportReader>();
         services.AddScoped<IExportJobProcessor, ExportJobProcessor>();
 
         // Phase 30 -- Communications. IDocumentPdfRenderer is deliberately NOT registered here:

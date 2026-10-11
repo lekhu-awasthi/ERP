@@ -19,6 +19,11 @@ namespace ErpApp.Application.Exports.Readers;
 /// <para><c>PostedAt</c> is stamped from the real clock at Approve time, never the document's own
 /// business date (see <c>GlDateBoundary</c>) -- so this column is "when it hit the ledger", which is
 /// exactly what a ledger export should say.</para>
+///
+/// <para><b>Phase 80 -- Document No and Reference, appended.</b> The id alone named nothing a person can read, and this
+/// sheet is where a Journal Voucher or a Cash Transfer reaches the export at all. They come from
+/// <see cref="GlSourceDocumentResolver"/> loaded for the whole tenant, for the types the page contains: a page of
+/// 50,000 rows is too long to send back to SQL as ids (phase 42).</para>
 /// </summary>
 public sealed class LedgerTransactionExportReader(IAppDbContext db) : IExportCategoryReader
 {
@@ -39,6 +44,8 @@ public sealed class LedgerTransactionExportReader(IAppDbContext db) : IExportCat
         "Account Name",
         "Debit",
         "Credit",
+        "Document No",
+        "Reference",
     ];
 
     public async Task<ExportCategoryResult> ReadAsync(
@@ -72,6 +79,8 @@ public sealed class LedgerTransactionExportReader(IAppDbContext db) : IExportCat
 
         var totalRowCount = await query.CountAsync(cancellationToken);
         var page = await query.Take(maxRows).ToListAsync(cancellationToken);
+        var documents = await GlSourceDocumentResolver.LoadEveryAsync(
+            db, organizationId, page.Select(l => l.SourceDocumentType).ToHashSet(), cancellationToken);
 
         var rows = page
             .Select(l => new object?[]
@@ -83,6 +92,8 @@ public sealed class LedgerTransactionExportReader(IAppDbContext db) : IExportCat
                 l.AccountName,
                 l.Debit,
                 l.Credit,
+                documents.For(l.SourceDocumentType, l.SourceDocumentId)?.Code,
+                documents.For(l.SourceDocumentType, l.SourceDocumentId)?.Reference,
             })
             .ToList();
 

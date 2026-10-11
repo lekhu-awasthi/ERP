@@ -49,25 +49,63 @@ public sealed class GlSourceDocumentResolver
     /// A document that has been deleted, or whose type is not one this resolver knows, degrades to
     /// a null Code rather than throwing -- a ledger that refuses to render because one document is
     /// missing is worse than one that says so in a cell.
+    ///
+    /// <para>An Opening Balance or Opening Stock line is not a numbered document (an Opening Stock line is keyed by
+    /// organization, product and warehouse, exactly like an Opening Balance line by account), so either reports its
+    /// literal label without a lookup.</para>
     /// </summary>
-    public SourceDocument? For(DocumentType type, Guid id) => _documents.GetValueOrDefault((type, id));
+    public SourceDocument? For(DocumentType type, Guid id) => type switch
+    {
+        DocumentType.OpeningBalance => new SourceDocument(OpeningBalanceLabel, null),
+        DocumentType.OpeningStock => new SourceDocument(OpeningStockLabel, null),
+        _ => _documents.GetValueOrDefault((type, id)),
+    };
 
-    public static async Task<GlSourceDocumentResolver> LoadAsync(
+    public static Task<GlSourceDocumentResolver> LoadAsync(
         IAppDbContext db,
         Guid organizationId,
         IReadOnlyCollection<(DocumentType Type, Guid Id)> keys,
+        CancellationToken cancellationToken) =>
+        LoadCoreAsync(
+            db,
+            organizationId,
+            type => [.. keys.Where(k => k.Type == type).Select(k => k.Id).Distinct()],
+            cancellationToken);
+
+    /// <summary>
+    /// Phase 80 -- every document of the named types in the organization, for a reader whose page is too long to hand
+    /// back to SQL as a list of ids: the export's two ledger sheets run to 50,000 rows, and an id list that long is
+    /// phase 42's <c>OPENJSON</c> parameter costing more than the scan it was meant to narrow. A type's whole list is a
+    /// (Id, Code, Reference) row per document, bounded by the tenant and read once per sheet.
+    /// </summary>
+    public static Task<GlSourceDocumentResolver> LoadEveryAsync(
+        IAppDbContext db,
+        Guid organizationId,
+        IReadOnlySet<DocumentType> types,
+        CancellationToken cancellationToken) =>
+        LoadCoreAsync(db, organizationId, type => types.Contains(type) ? null : [], cancellationToken);
+
+    /// <param name="idsOf">The ids to load for a type: an empty list skips the type, and <c>null</c> loads all of it.
+    /// Each type composes its id filter as a second <c>Where</c> only when it has one (phase 33's rule: never hand EF a
+    /// null list inside an <c>||</c>).</param>
+    private static async Task<GlSourceDocumentResolver> LoadCoreAsync(
+        IAppDbContext db,
+        Guid organizationId,
+        Func<DocumentType, List<Guid>?> idsOf,
         CancellationToken cancellationToken)
     {
         var documents = new Dictionary<(DocumentType, Guid), SourceDocument>();
 
-        List<Guid> IdsOf(DocumentType type) =>
-            [.. keys.Where(k => k.Type == type).Select(k => k.Id).Distinct()];
-
-        var invoiceIds = IdsOf(DocumentType.Invoice);
-        if (invoiceIds.Count > 0)
+        var invoiceIds = idsOf(DocumentType.Invoice);
+        if (invoiceIds is not { Count: 0 })
         {
-            var items = await db.Invoices
-                .Where(x => x.OrganizationId == organizationId && invoiceIds.Contains(x.Id))
+            var query = db.Invoices.Where(x => x.OrganizationId == organizationId);
+            if (invoiceIds is not null)
+            {
+                query = query.Where(x => invoiceIds.Contains(x.Id));
+            }
+
+            var items = await query
                 .Select(x => new { x.Id, x.Code, x.Reference })
                 .ToListAsync(cancellationToken);
             foreach (var x in items)
@@ -76,11 +114,16 @@ public sealed class GlSourceDocumentResolver
             }
         }
 
-        var creditNoteIds = IdsOf(DocumentType.CreditNote);
-        if (creditNoteIds.Count > 0)
+        var creditNoteIds = idsOf(DocumentType.CreditNote);
+        if (creditNoteIds is not { Count: 0 })
         {
-            var items = await db.CreditNotes
-                .Where(x => x.OrganizationId == organizationId && creditNoteIds.Contains(x.Id))
+            var query = db.CreditNotes.Where(x => x.OrganizationId == organizationId);
+            if (creditNoteIds is not null)
+            {
+                query = query.Where(x => creditNoteIds.Contains(x.Id));
+            }
+
+            var items = await query
                 .Select(x => new { x.Id, x.Code, x.Reference })
                 .ToListAsync(cancellationToken);
             foreach (var x in items)
@@ -89,11 +132,16 @@ public sealed class GlSourceDocumentResolver
             }
         }
 
-        var purchaseBillIds = IdsOf(DocumentType.PurchaseBill);
-        if (purchaseBillIds.Count > 0)
+        var purchaseBillIds = idsOf(DocumentType.PurchaseBill);
+        if (purchaseBillIds is not { Count: 0 })
         {
-            var items = await db.PurchaseBills
-                .Where(x => x.OrganizationId == organizationId && purchaseBillIds.Contains(x.Id))
+            var query = db.PurchaseBills.Where(x => x.OrganizationId == organizationId);
+            if (purchaseBillIds is not null)
+            {
+                query = query.Where(x => purchaseBillIds.Contains(x.Id));
+            }
+
+            var items = await query
                 .Select(x => new { x.Id, x.Code, x.Reference })
                 .ToListAsync(cancellationToken);
             foreach (var x in items)
@@ -102,13 +150,18 @@ public sealed class GlSourceDocumentResolver
             }
         }
 
-        var expenseIds = IdsOf(DocumentType.Expense);
-        if (expenseIds.Count > 0)
+        var expenseIds = idsOf(DocumentType.Expense);
+        if (expenseIds is not { Count: 0 })
         {
             // Expense has no plain Reference -- SupplierInvoiceReference is its closest equivalent,
             // the same substitution TransactionApprovalQueryHandler and the Transaction list make.
-            var items = await db.Expenses
-                .Where(x => x.OrganizationId == organizationId && expenseIds.Contains(x.Id))
+            var query = db.Expenses.Where(x => x.OrganizationId == organizationId);
+            if (expenseIds is not null)
+            {
+                query = query.Where(x => expenseIds.Contains(x.Id));
+            }
+
+            var items = await query
                 .Select(x => new { x.Id, x.Code, x.SupplierInvoiceReference })
                 .ToListAsync(cancellationToken);
             foreach (var x in items)
@@ -117,11 +170,16 @@ public sealed class GlSourceDocumentResolver
             }
         }
 
-        var debitNoteIds = IdsOf(DocumentType.DebitNote);
-        if (debitNoteIds.Count > 0)
+        var debitNoteIds = idsOf(DocumentType.DebitNote);
+        if (debitNoteIds is not { Count: 0 })
         {
-            var items = await db.DebitNotes
-                .Where(x => x.OrganizationId == organizationId && debitNoteIds.Contains(x.Id))
+            var query = db.DebitNotes.Where(x => x.OrganizationId == organizationId);
+            if (debitNoteIds is not null)
+            {
+                query = query.Where(x => debitNoteIds.Contains(x.Id));
+            }
+
+            var items = await query
                 .Select(x => new { x.Id, x.Code, x.Reference })
                 .ToListAsync(cancellationToken);
             foreach (var x in items)
@@ -130,11 +188,16 @@ public sealed class GlSourceDocumentResolver
             }
         }
 
-        var journalVoucherIds = IdsOf(DocumentType.JournalVoucher);
-        if (journalVoucherIds.Count > 0)
+        var journalVoucherIds = idsOf(DocumentType.JournalVoucher);
+        if (journalVoucherIds is not { Count: 0 })
         {
-            var items = await db.JournalVouchers
-                .Where(x => x.OrganizationId == organizationId && journalVoucherIds.Contains(x.Id))
+            var query = db.JournalVouchers.Where(x => x.OrganizationId == organizationId);
+            if (journalVoucherIds is not null)
+            {
+                query = query.Where(x => journalVoucherIds.Contains(x.Id));
+            }
+
+            var items = await query
                 .Select(x => new { x.Id, x.Code, x.Reference })
                 .ToListAsync(cancellationToken);
             foreach (var x in items)
@@ -143,11 +206,16 @@ public sealed class GlSourceDocumentResolver
             }
         }
 
-        var cashTransferIds = IdsOf(DocumentType.CashTransfer);
-        if (cashTransferIds.Count > 0)
+        var cashTransferIds = idsOf(DocumentType.CashTransfer);
+        if (cashTransferIds is not { Count: 0 })
         {
-            var items = await db.CashTransfers
-                .Where(x => x.OrganizationId == organizationId && cashTransferIds.Contains(x.Id))
+            var query = db.CashTransfers.Where(x => x.OrganizationId == organizationId);
+            if (cashTransferIds is not null)
+            {
+                query = query.Where(x => cashTransferIds.Contains(x.Id));
+            }
+
+            var items = await query
                 .Select(x => new { x.Id, x.Code, x.Reference })
                 .ToListAsync(cancellationToken);
             foreach (var x in items)
@@ -156,11 +224,16 @@ public sealed class GlSourceDocumentResolver
             }
         }
 
-        var inventoryAdjustmentIds = IdsOf(DocumentType.InventoryAdjustment);
-        if (inventoryAdjustmentIds.Count > 0)
+        var inventoryAdjustmentIds = idsOf(DocumentType.InventoryAdjustment);
+        if (inventoryAdjustmentIds is not { Count: 0 })
         {
-            var items = await db.InventoryAdjustments
-                .Where(x => x.OrganizationId == organizationId && inventoryAdjustmentIds.Contains(x.Id))
+            var query = db.InventoryAdjustments.Where(x => x.OrganizationId == organizationId);
+            if (inventoryAdjustmentIds is not null)
+            {
+                query = query.Where(x => inventoryAdjustmentIds.Contains(x.Id));
+            }
+
+            var items = await query
                 .Select(x => new { x.Id, x.Code, x.Reference })
                 .ToListAsync(cancellationToken);
             foreach (var x in items)
@@ -169,15 +242,20 @@ public sealed class GlSourceDocumentResolver
             }
         }
 
-        var paymentIds = IdsOf(DocumentType.Payment);
-        if (paymentIds.Count > 0)
+        var paymentIds = idsOf(DocumentType.Payment);
+        if (paymentIds is not { Count: 0 })
         {
             // Direction is carried through because the live product renders the two Directions of
             // the one Payment aggregate as two different Txn Types ("Customer Payment" and
             // "Supplier Payment"), and because it decides which of the two Angular detail routes a
             // row links to.
-            var items = await db.Payments
-                .Where(x => x.OrganizationId == organizationId && paymentIds.Contains(x.Id))
+            var query = db.Payments.Where(x => x.OrganizationId == organizationId);
+            if (paymentIds is not null)
+            {
+                query = query.Where(x => paymentIds.Contains(x.Id));
+            }
+
+            var items = await query
                 .Select(x => new { x.Id, x.Code, x.Reference, x.Direction })
                 .ToListAsync(cancellationToken);
             foreach (var x in items)
@@ -186,11 +264,16 @@ public sealed class GlSourceDocumentResolver
             }
         }
 
-        var productionJournalIds = IdsOf(DocumentType.ProductionJournal);
-        if (productionJournalIds.Count > 0)
+        var productionJournalIds = idsOf(DocumentType.ProductionJournal);
+        if (productionJournalIds is not { Count: 0 })
         {
-            var items = await db.ProductionJournals
-                .Where(x => x.OrganizationId == organizationId && productionJournalIds.Contains(x.Id))
+            var query = db.ProductionJournals.Where(x => x.OrganizationId == organizationId);
+            if (productionJournalIds is not null)
+            {
+                query = query.Where(x => productionJournalIds.Contains(x.Id));
+            }
+
+            var items = await query
                 .Select(x => new { x.Id, x.Code, x.Reference })
                 .ToListAsync(cancellationToken);
             foreach (var x in items)
@@ -206,11 +289,16 @@ public sealed class GlSourceDocumentResolver
         // such a row rendered with an empty Txn No in the Journal report and the two general
         // ledgers -- which the resolver degrades to rather than throwing, so nothing would have
         // told us.
-        var warehouseTransferIds = IdsOf(DocumentType.WarehouseTransfer);
-        if (warehouseTransferIds.Count > 0)
+        var warehouseTransferIds = idsOf(DocumentType.WarehouseTransfer);
+        if (warehouseTransferIds is not { Count: 0 })
         {
-            var items = await db.WarehouseTransfers
-                .Where(x => x.OrganizationId == organizationId && warehouseTransferIds.Contains(x.Id))
+            var query = db.WarehouseTransfers.Where(x => x.OrganizationId == organizationId);
+            if (warehouseTransferIds is not null)
+            {
+                query = query.Where(x => warehouseTransferIds.Contains(x.Id));
+            }
+
+            var items = await query
                 .Select(x => new { x.Id, x.Code, x.Reference })
                 .ToListAsync(cancellationToken);
             foreach (var x in items)
@@ -221,12 +309,17 @@ public sealed class GlSourceDocumentResolver
 
         // Phase 61 -- a till session posts its cash movements and its close's over/short against
         // itself, so a GL row from one names the session (SES0001), with the location as reference.
-        var posSessionIds = IdsOf(DocumentType.PosSession);
-        if (posSessionIds.Count > 0)
+        var posSessionIds = idsOf(DocumentType.PosSession);
+        if (posSessionIds is not { Count: 0 })
         {
+            var sessions = db.PosSessions.Where(x => x.OrganizationId == organizationId);
+            if (posSessionIds is not null)
+            {
+                sessions = sessions.Where(x => posSessionIds.Contains(x.Id));
+            }
+
             var items = await (
-                    from session in db.PosSessions
-                    where session.OrganizationId == organizationId && posSessionIds.Contains(session.Id)
+                    from session in sessions
                     join location in db.BillingLocations on session.BillingLocationId equals location.Id
                     select new { session.Id, session.Code, LocationName = location.Name })
                 .ToListAsync(cancellationToken);
@@ -234,18 +327,6 @@ public sealed class GlSourceDocumentResolver
             {
                 documents[(DocumentType.PosSession, x.Id)] = new SourceDocument(x.Code, x.LocationName);
             }
-        }
-
-        foreach (var id in IdsOf(DocumentType.OpeningBalance))
-        {
-            documents[(DocumentType.OpeningBalance, id)] = new SourceDocument(OpeningBalanceLabel, null);
-        }
-
-        // An Opening Stock line is keyed by (Organization, Product, Warehouse) and, exactly like an
-        // Opening Balance line, is not a numbered document: it reports a literal label.
-        foreach (var id in IdsOf(DocumentType.OpeningStock))
-        {
-            documents[(DocumentType.OpeningStock, id)] = new SourceDocument(OpeningStockLabel, null);
         }
 
         return new GlSourceDocumentResolver(documents);

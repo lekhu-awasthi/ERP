@@ -214,6 +214,23 @@ describe('ImportPage (export half)', () => {
       ]);
     });
 
+    it("offers phase 80's four sheets in the workbook's order and sends only the ones left ticked", () => {
+      const { fixture, exportService } = page([]);
+      const boxes = categories(fixture);
+
+      expect(boxes.map((b) => b.id.replace('exportCategory-', ''))).toEqual([
+        'Products', 'Contacts', 'ChartOfAccounts', 'BillsOfMaterials', 'LedgerTransactions', 'StockMovements',
+        'SalesDocuments', 'PurchaseDocuments', 'Payments', 'Orders', 'GoodsNotes', 'Production',
+      ]);
+
+      boxes
+        .filter((b) => !['exportCategory-GoodsNotes', 'exportCategory-BillsOfMaterials'].includes(b.id))
+        .forEach((b) => untick(fixture, b));
+      startButton(fixture).click();
+
+      expect(exportService.requestedCategories).toEqual([['BillsOfMaterials', 'GoodsNotes']]);
+    });
+
     it('asks for every category by naming none when every box stays ticked', () => {
       const { fixture, exportService } = page([]);
 

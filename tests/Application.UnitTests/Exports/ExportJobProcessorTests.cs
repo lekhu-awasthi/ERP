@@ -45,13 +45,15 @@ public class ExportJobProcessorTests
         Assert.NotNull(workbook);
 
         // Summary first, then FR-2.8's five categories in the order the requirement names them,
-        // then phase 38's three. The order is asserted, not just the set: a workbook's row budget is
+        // then phase 38's three, with phase 80's Bills of Materials among the master data and its
+        // other three last. The order is asserted, not just the set: a workbook's row budget is
         // consumed in it, so the bounded master-data sheets must stay ahead of the transactional
         // ones (ExportJobProcessor.CategoryOrder).
         Assert.Equal(
             [
-                "Summary", "Products", "Contacts", "Chart of Accounts", "Ledger Transactions",
-                "Stock Movements", "Sales Documents", "Purchase Documents", "Payments",
+                "Summary", "Products", "Contacts", "Chart of Accounts", "Bills of Materials",
+                "Ledger Transactions", "Stock Movements", "Sales Documents", "Purchase Documents",
+                "Payments", "Orders", "Goods Notes", "Production",
             ],
             workbook.Sheets.Select(s => s.Name));
 
@@ -89,6 +91,16 @@ public class ExportJobProcessorTests
         Assert.Equal("Received", paymentRow[2]);
         Assert.Equal(339m, paymentRow[7]);
 
+        // Phase 80's four, one seeded row each.
+        Assert.Equal(("Quotation", 2m), ((string)Assert.Single(host.WorkbookWriter.Sheet("Orders").Rows)[0]!,
+            (decimal)host.WorkbookWriter.Sheet("Orders").Rows[0][9]!));
+        Assert.Equal(("Delivery Note", "Out"), ((string)Assert.Single(host.WorkbookWriter.Sheet("Goods Notes").Rows)[0]!,
+            (string)host.WorkbookWriter.Sheet("Goods Notes").Rows[0][14]!));
+        Assert.Equal((tenant.ProductCode, "Output"), ((string)Assert.Single(host.WorkbookWriter.Sheet("Bills of Materials").Rows)[0]!,
+            (string)host.WorkbookWriter.Sheet("Bills of Materials").Rows[0][4]!));
+        Assert.Equal(("Production Order", "Output"), ((string)Assert.Single(host.WorkbookWriter.Sheet("Production").Rows)[0]!,
+            (string)host.WorkbookWriter.Sheet("Production").Rows[0][6]!));
+
         var accounts = host.WorkbookWriter.Sheet("Chart of Accounts");
         Assert.Equal(2, accounts.Rows.Count);
         Assert.Contains(accounts.Rows, r => Equals(r[0], tenant.AccountCode));
@@ -109,11 +121,12 @@ public class ExportJobProcessorTests
 
         var job = await LoadJobAsync(host, jobId);
         Assert.Equal(ExportJobStatus.Completed, job.Status);
-        Assert.Equal(8, job.ProcessedCategoryCount);
+        Assert.Equal(12, job.ProcessedCategoryCount);
 
         // 7 before phase 38: the seed gained an invoice line, a bill line, a payment and the
-        // supplier those need, one row each.
-        Assert.Equal(11, job.TotalRowCount);
+        // supplier those need, one row each. 15 since phase 80: a quotation line, a delivery-note
+        // line, and a BOM's and a production order's Output rows.
+        Assert.Equal(15, job.TotalRowCount);
         Assert.Null(job.TruncationNotice);
         Assert.True(job.HasArtifact);
         Assert.True(host.FileStorage.Contains(job.StorageKey!));
@@ -155,7 +168,7 @@ public class ExportJobProcessorTests
         Assert.DoesNotContain(everyCell, c => c.Contains("-B-", StringComparison.Ordinal));
 
         var job = await LoadJobAsync(host, jobId);
-        Assert.Equal(11, job.TotalRowCount);
+        Assert.Equal(15, job.TotalRowCount);
     }
 
     [Fact]
@@ -176,7 +189,7 @@ public class ExportJobProcessorTests
         // Every sheet still exists, with its headers -- an empty tenant gets a usable template of a
         // workbook, not a file that is missing sheets or a job that failed.
         var workbook = host.WorkbookWriter.LastWorkbook!;
-        Assert.Equal(9, workbook.Sheets.Count);
+        Assert.Equal(13, workbook.Sheets.Count);
         Assert.All(workbook.Sheets, s => Assert.NotEmpty(s.Headers));
         Assert.All(
             workbook.Sheets.Where(s => s.Name != "Summary"),
@@ -296,7 +309,7 @@ public class ExportJobProcessorTests
 
         var job = await LoadJobAsync(host, jobId);
         Assert.Equal(ExportJobStatus.Completed, job.Status);
-        Assert.Equal(11, job.TotalRowCount);
+        Assert.Equal(15, job.TotalRowCount);
         Assert.Equal(1, host.WorkbookWriter.WriteCount);
         Assert.True(host.FileStorage.Contains(job.StorageKey!));
     }

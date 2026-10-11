@@ -111,6 +111,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 77: an order's Amount discount moves with its food (a transfer or parcel takes its share, read from the line's bills once billed; discard still refused) + the export carries every part of a sale's money and the till's tenders, change and payouts. Before moving a quantity that carries a share, reading a credit note's invoice, or adding money to a sales line — `docs/phase-77-status.md`
 - Phase 78: the export finished (Purchase Documents carry expenses, TDS and additional costs as rows of their own and a debit note's bill and inherited classification; Unit, Exchange Rate and Location on every sheet; a drawer's Cash In/Out on Payments) + the export screen sending only what is ticked. Before adding a row kind or column to an export sheet, or a "select some" control whose empty state means all — `docs/phase-78-status.md`
 - Phase 79: print layouts finished (Modern, Classic, an 80 mm roll for Invoice/Credit Note/Sales Order that stacks each line and keeps both statutory dates; `PrintLayouts` says who is offered what and what each omits; the total in words in any catalogue currency; the vendor's block ordering retired as no control). Before adding a print layout, printing on a narrow page, or an amount in words — `docs/phase-79-status.md`
+- Phase 80: the export's remaining documents (four new sheets: Bills of Materials, Orders, Goods Notes, Production; Document No and Reference on both ledger sheets via `GlSourceDocumentResolver.LoadEveryAsync`; an additional cost's Allocation Method). Before adding an export category, or naming the document behind a ledger row — `docs/phase-80-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -333,6 +334,8 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A bank statement has no natural key (two identical ATM withdrawals in a day are two real rows), so a duplicate upload cannot be refused; carry the `ImportJobId` on each row and make the whole upload one undo (phase-55).
 - Each phase that adds money to a line owes the export a column; `TillExportTests` holds every `decimal` on a sales line to an exported column or a named reason (phase-77).
 - A document figure true of no line (round-off, TDS, an additional cost) is a row of its own on an export sheet, never a column repeated per line; an additional cost is never in Amount (phase-78).
+- Census where each type lands: on a sheet, as a GUID, or nowhere. The ledger sheets named JVs, cash and warehouse transfers and adjustments only by `Source Document Id` until phase 80 (phase-80).
+- A recorded column width is a claim: `ExportJob.Categories` was "six times" the full selection and is 155 of 200; `ExportJobModelTests` reads it from the model (phase-80).
 
 **Background jobs**
 - A singleton `BackgroundService` cannot inject scoped services; take `IServiceScopeFactory`, read options via `IOptionsMonitor`, and never let a tick's exception escape `ExecuteAsync` (`AlertSchedulerHostedService`).
@@ -545,26 +548,24 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 
 ## Current status
 
-**Phases 0-79 are complete. Next: not yet scheduled** (the user picks; candidates in `docs/roadmap.md`).
+**Phases 0-80 are complete. Next: not yet scheduled** (the user picks; candidates in `docs/roadmap.md`).
 Each phase's story is in its `docs/phase-N-status.md`, and finished planning entries are archived in
 `docs/roadmap-history.md`.
 
-**Phase 79 finished the print layouts.**
+**Phase 80 finished the export's documents.**
 
-- Two more A4 layouts, *Modern* and *Classic*, drawn from the vendor's previews. Each serves every printable type.
-- An 80 mm roll (*Retail*) for Invoice, Credit Note and Sales Order. Each line is stacked so its figures stay on the
-  paper, and it keeps both statutory dates, which the vendor's roll drops.
-- The total in words prints in the document's own currency (millions abroad, lakhs for NPR and INR).
-- The vendor's header "ordering" is written by none of its screens, so it was retired. Positioning and renames wait in
-  phase 79 § 5.
-- `tools/pdf/pdf2png.ps1` renders a PDF to PNG without poppler.
+- A census of every document type found eight on no sheet and four named only by a GUID.
+- Four new sheets: *Bills of Materials* (master data), *Orders* (Quotation, Sales Order, Purchase Order), *Goods Notes*
+  (Delivery Note, GRN) and *Production* (Production Order and Journal, a row per part with the journal's costs).
+- *Ledger Transactions* and *Stock Movements* now print each row's Document No and Reference
+  (`GlSourceDocumentResolver.LoadEveryAsync`); *Purchase Documents* gains an additional cost's Allocation Method.
 
 **Next:** not yet scheduled. Candidates: phase 76 § 5 (a discount ceiling per role, the ERP invoice form's
-discount/rate gating), phase 77 § 5 (discard with a share), phase 78 § 5 (the export's remaining sheets), phase 79 § 5
-(positioning, renames, the vendor's DN/GRN/WT HTML templates), phase 71 § 5.
+discount/rate gating), phase 77 § 5 (discard with a share), phase 79 § 5 (positioning, renames, the vendor's DN/GRN/WT
+HTML templates), phase 71 § 5.
 
-Tests: Domain **1014**, Application.UnitTests **1729**, Infrastructure.UnitTests 13,
-Api.IntegrationTests 71, Angular 838. Everything was green at phase 79's close with Docker up.
+Tests: Domain 1014, Application.UnitTests **1739**, Infrastructure.UnitTests **14**,
+Api.IntegrationTests 71, Angular **839**. Everything was green at phase 80's close with Docker up.
 The bundle sits at **652.58 kB** against `build-budget.spec.ts`'s 680 kB; every POS screen is lazy.
 
 - `Api.IntegrationTests` needs Docker Desktop running. Without it the Testcontainers-backed tests

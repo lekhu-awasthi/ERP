@@ -15,6 +15,8 @@
  * A sheet of the workbook. The first five are FR-2.8's own list; the last three are Phase 38's, by
  * the rule that a category earns its place when its rows cannot be reconstructed from the others --
  * the General Ledger carries what a document did to the accounts, never its quantities or rates.
+ * Phase 80 added four by the same rule: Bills of Materials (master data), and Orders, Goods Notes and
+ * Production, the documents that post nothing to either ledger.
  */
 export type ExportCategory =
   | 'Products'
@@ -24,7 +26,11 @@ export type ExportCategory =
   | 'StockMovements'
   | 'SalesDocuments'
   | 'PurchaseDocuments'
-  | 'Payments';
+  | 'Payments'
+  | 'BillsOfMaterials'
+  | 'Orders'
+  | 'GoodsNotes'
+  | 'Production';
 
 /** Label and ordering for the picker, in the workbook's own sheet order. `dated` says whether a
  * date range narrows it, which the screen shows so a full product list inside a one-month export
@@ -33,11 +39,15 @@ export const EXPORT_CATEGORIES: readonly { value: ExportCategory; label: string;
   { value: 'Products', label: 'Products', dated: false },
   { value: 'Contacts', label: 'Contacts', dated: false },
   { value: 'ChartOfAccounts', label: 'Chart of Accounts', dated: false },
+  { value: 'BillsOfMaterials', label: 'Bills of Materials', dated: false },
   { value: 'LedgerTransactions', label: 'Ledger Transactions', dated: true },
   { value: 'StockMovements', label: 'Stock Movements', dated: true },
   { value: 'SalesDocuments', label: 'Sales Documents', dated: true },
   { value: 'PurchaseDocuments', label: 'Purchase Documents', dated: true },
   { value: 'Payments', label: 'Payments', dated: true },
+  { value: 'Orders', label: 'Orders', dated: true },
+  { value: 'GoodsNotes', label: 'Goods Notes', dated: true },
+  { value: 'Production', label: 'Production', dated: true },
 ];
 
 /** `Completed` means a file exists (possibly with truncated sheets -- see `truncationNotice`);

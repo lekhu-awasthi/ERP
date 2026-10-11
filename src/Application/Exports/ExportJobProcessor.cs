@@ -57,8 +57,6 @@ public sealed class ExportJobProcessor(
         "This file is a human-readable EXPORT of your data, not a restorable backup. "
         + "It cannot be uploaded back into ErpApp to recreate this organization.";
 
-    /// <summary>Fixed sheet order, so two exports of the same tenant differ only where the data
-    /// does. Follows FR-2.8's own listing order.</summary>
     /// <summary>
     /// Fixed sheet order, so two exports of the same tenant differ only where the data does. Follows
     /// FR-2.8's own listing order, with Phase 38's three appended.
@@ -69,17 +67,26 @@ public sealed class ExportJobProcessor(
     /// get to. Master data comes first precisely because it is bounded by the tenant's catalogue,
     /// while the five transactional sheets grow with activity -- so the categories a user cannot
     /// reconstruct any other way are the ones guaranteed to be complete.</para>
+    ///
+    /// <para><b>Phase 80's four by the same law.</b> Bills of Materials is master data, so it joins the bounded
+    /// categories after the Chart of Accounts. Orders, Goods Notes and Production go last: a commitment, a quantity-only
+    /// note and a production record matter less to a tenant taking their data out than the money that moved, so they
+    /// are the ones a workbook over its budget truncates first.</para>
     /// </summary>
     private static readonly ExportCategory[] CategoryOrder =
     [
         ExportCategory.Products,
         ExportCategory.Contacts,
         ExportCategory.ChartOfAccounts,
+        ExportCategory.BillsOfMaterials,
         ExportCategory.LedgerTransactions,
         ExportCategory.StockMovements,
         ExportCategory.SalesDocuments,
         ExportCategory.PurchaseDocuments,
         ExportCategory.Payments,
+        ExportCategory.Orders,
+        ExportCategory.GoodsNotes,
+        ExportCategory.Production,
     ];
 
     /// <summary>Every category this product can export, in sheet order -- what the enqueue command

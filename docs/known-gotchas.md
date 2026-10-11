@@ -4516,3 +4516,22 @@ configuration, and phase 75 carried "ordering of the header blocks" as unbuilt w
 found the string `_sorts` in none of them: no screen ever orders anything, and the arrays are server-side defaults.
 Phase 54's question ("what writes this field?") retired the item outright. Ask it of any key read from a payload before
 scoping the feature it seems to imply.
+
+## A census of where each type lands has three answers, not two (phase 80)
+
+Phase 78 § 5 listed the documents on no export sheet as Purchase Orders, GRNs, Delivery Notes and the manufacturing
+documents. The mirror question added Quotations and Sales Orders: they are uncovered for the same reason (a commitment
+posts nothing and moves no stock). Then a census of every `DocumentType` against every sheet found a third bucket.
+Journal Vouchers, Cash Transfers, Warehouse Transfers and Inventory Adjustments were on a sheet, but only as
+`Source Document Id`, a GUID. Ledger Transactions and Stock Movements had printed no document number since phase 21b,
+and nothing reported it, because a GUID is a non-empty cell. Ask of each type whether a person could find it on the
+sheet, not whether some cell refers to it.
+
+## A recorded capacity is a claim until a test reads it (phase 80)
+
+`ExportJobConfiguration` said the `Categories` column's 200 characters were "roughly six times the longest possible full
+selection". The full selection was 110 characters then, under twice, and phase 80's twelve categories make it 155. The
+width is Infrastructure's and the names are the Domain's, so neither suite could see both. An overflow would surface
+only on SQL Server, as a truncation error on the job's insert, with every InMemory test green.
+`Infrastructure.UnitTests/Persistence/ExportJobModelTests` now reads the column's max length from the real model and
+compares it with every name joined (phase 50's rule for a cross-assembly invariant).

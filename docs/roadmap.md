@@ -6,7 +6,7 @@ Guiding rule for phase sizing: each phase ends with something *runnable and demo
 
 ---
 
-## Completed phases (0–78)
+## Completed phases (0–80)
 
 One line each; phase *N*'s full story is `docs/phase-N-status.md`. The verbose index as it stood on
 2026-09-28 is archived verbatim in `roadmap-history.md` ("Completed-phases index, verbose form").
@@ -64,6 +64,8 @@ One line each; phase *N*'s full story is `docs/phase-N-status.md`. The verbose i
 | 76 | Separate till keys: a discount, a waived service charge and any price but the catalogue's each need their own location-scoped key (`Sales.Invoice.TillDiscount` / `.TillRemoveServiceCharge` / `.TillChangeRate`, the vendor's three POS role switches) instead of `Sales.Invoice.Approve`, which also approved every ERP draft; existing Approve grants backfilled at the same scope; credit stays on Approve |
 | 77 | An order's Amount discount moves with its food (a transferred or parcelled quantity takes its share, read from the line's bills once billed; discard still refused); the export's Sales Documents carry every part of a sale's money and Payments the till's tenders, change and payouts |
 | 78 | The export finished: Purchase Documents carry expenses, TDS and additional costs as rows of their own, a debit note's bill and the classification it inherits; Unit, Exchange Rate and Location on every sheet; a drawer's Cash In / Cash Out on Payments; the export screen's unticked categories are no longer exported anyway |
+| 79 | Print layouts finished: Modern and Classic on A4 for every printable type; an 80 mm roll (*Retail*) for Invoice, Credit Note and Sales Order that stacks each line and keeps both statutory dates; the total in words in any catalogue currency; the vendor's block ordering retired as no control |
+| 80 | The export's remaining documents: four new sheets (Bills of Materials; Orders for Quotation, Sales Order and Purchase Order; Goods Notes for Delivery Note and GRN; Production for Production Order and Journal), Document No and Reference on Ledger Transactions and Stock Movements, an additional cost's Allocation Method |
 
 ---
 
@@ -159,9 +161,12 @@ classification; every sheet names its unit, exchange rate and location; a drawer
 and the export screen sends only the categories left ticked. Phase 79 finished the print layouts
 (`phase-79-status.md`): Modern and Classic on A4, an 80 mm roll for Invoice, Credit Note and Sales Order that keeps
 everything a tax invoice must carry (each line stacked, so its figures still add up), and the total in words in the
-document's own currency; the vendor's block ordering was found to be no control at all and retired. **Next: not yet
-scheduled**; the candidates are phase 76 § 5's, phase 77 § 5's discard-with-a-share, phase 78 § 5's export items, phase
-79 § 5's (positioning and renames, the custom HTML templates) and phase 71 § 5's.
+document's own currency; the vendor's block ordering was found to be no control at all and retired. Phase 80 finished
+the export's documents (`phase-80-status.md`): a census of every document type found eight on no sheet and four named
+only by a GUID, so the export gained Bills of Materials, Orders, Goods Notes and Production sheets, and both ledger
+sheets now print each row's Document No and Reference. **Next: not yet scheduled**; the candidates are phase 76 § 5's,
+phase 77 § 5's discard-with-a-share, phase 79 § 5's (positioning and renames, the custom HTML templates) and phase 71
+§ 5's.
 
 Open question for the tax advisor, not to be guessed (carried from the PAN fix): whether IRD expects a buyer PAN
 on a high-value sale to an unregistered buyer. If it does, it would be a warning on approve, never a block.
@@ -218,8 +223,12 @@ vendor's three role switches as one key, in phase 76.
 maximum discount per role (the vendor's `discount_limit` is a switch despite its name) has no live evidence; the
 vendor's server-side enforcement of its switches is unread; its POS-channel role sets are not modelled.
 
-**Carried from phase 78** (§ 5 there): Cash Transfers and the drawer's over/short are not Payments rows; an additional
-cost's Method is not exported; Purchase Orders, GRNs, Delivery Notes and the manufacturing documents are on no sheet.
+**Carried from phase 78** (§ 5 there): done in phase 80 (four new sheets, an additional cost's Allocation Method, and
+the ledger sheets naming each document). Cash Transfers and the drawer's over/short stay on Ledger Transactions by
+phase 78's Decision C, now named by number.
+
+**Carried from phase 80** (§ 5 there): POS Orders stay off the export (phase 77 Decision D); an Inventory Adjustment's
+entered unit is not on Stock Movements, which is primary-unit by design.
 
 **Carried from phase 77** (§ 5 there): discarding a dish that carries a frozen share is still refused; the vendor's
 server-side handling of an amount on a transfer is unread. The drawer's cash in/out and the Purchase Documents sheet's

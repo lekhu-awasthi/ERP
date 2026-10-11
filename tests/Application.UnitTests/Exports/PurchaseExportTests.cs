@@ -20,12 +20,12 @@ namespace ErpApp.Application.UnitTests.Exports;
 /// </summary>
 public sealed class PurchaseExportTests
 {
-    // Column positions: phase 38's fourteen, then phase 78's twelve.
+    // Column positions: phase 38's fourteen, then phase 78's twelve, then phase 80's Allocation Method.
     private static class Col
     {
         public const int Type = 0, ProductCode = 7, Quantity = 9, Amount = 12, Vat = 13, AgainstBill = 14,
         SupplierInvoiceRef = 15, Account = 16, Classification = 17, Import = 18, DocumentDiscount = 19, Tds = 20,
-        CostTerm = 21, AdditionalCost = 22, Unit = 23, ExchangeRate = 24, Location = 25;
+        CostTerm = 21, AdditionalCost = 22, Unit = 23, ExchangeRate = 24, Location = 25, AllocationMethod = 26;
     }
 
     private sealed record Seeded(
@@ -109,6 +109,10 @@ public sealed class PurchaseExportTests
         Assert.Null(cost[Col.ProductCode]);
         Assert.Equal(("Freight", 50m, 0m), ((string)cost[Col.CostTerm]!, D(cost[Col.AdditionalCost]), D(cost[Col.Amount])));
         Assert.Null(cost[Col.Unit]);
+
+        // Phase 80 -- how the freight was spread over the lines, on its own row and no other.
+        Assert.Equal("Value", cost[Col.AllocationMethod]);
+        Assert.Null(line[Col.AllocationMethod]);
 
         var tds = bill[2];
         Assert.Equal((15m, 0m, 0m), (D(tds[Col.Tds]), D(tds[Col.Amount]), D(tds[Col.Vat])));

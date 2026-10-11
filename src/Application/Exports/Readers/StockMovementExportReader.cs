@@ -1,3 +1,4 @@
+using ErpApp.Application.Accounting.Reports;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Domain.Exports;
 using Microsoft.EntityFrameworkCore;
@@ -9,6 +10,9 @@ namespace ErpApp.Application.Exports.Readers;
 /// the movement table is the tenant-visible record of what went in and out, where the ledger
 /// entries are FIFO cost layers -- an internal valuation mechanism whose <c>QuantityRemaining</c>
 /// only makes sense to the costing engine that maintains it.
+///
+/// <para><b>Phase 80 -- Document No and Reference, appended</b>, as on Ledger Transactions and through the same resolver:
+/// a Warehouse Transfer or an Inventory Adjustment is on no other sheet, and was named here only by its id.</para>
 /// </summary>
 public sealed class StockMovementExportReader(IAppDbContext db) : IExportCategoryReader
 {
@@ -32,6 +36,8 @@ public sealed class StockMovementExportReader(IAppDbContext db) : IExportCategor
         "Source Document Type",
         "Source Document Id",
         "Created At",
+        "Document No",
+        "Reference",
     ];
 
     public async Task<ExportCategoryResult> ReadAsync(
@@ -63,6 +69,8 @@ public sealed class StockMovementExportReader(IAppDbContext db) : IExportCategor
 
         var totalRowCount = await query.CountAsync(cancellationToken);
         var page = await query.Take(maxRows).ToListAsync(cancellationToken);
+        var documents = await GlSourceDocumentResolver.LoadEveryAsync(
+            db, organizationId, page.Select(m => m.SourceDocumentType).ToHashSet(), cancellationToken);
 
         var rows = page
             .Select(m => new object?[]
@@ -78,6 +86,8 @@ public sealed class StockMovementExportReader(IAppDbContext db) : IExportCategor
                 m.SourceDocumentType.ToString(),
                 m.SourceDocumentId.ToString(),
                 ExportCell.LocalTimestamp(m.CreatedAt),
+                documents.For(m.SourceDocumentType, m.SourceDocumentId)?.Code,
+                documents.For(m.SourceDocumentType, m.SourceDocumentId)?.Reference,
             })
             .ToList();
 

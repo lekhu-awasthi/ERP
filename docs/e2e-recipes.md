@@ -382,3 +382,18 @@ beside a 200 from the same user, and create a fresh Organization per phase.
   `Configuration.PrintingTemplate.Manage`** from a role holding only `.View`, beside its 200 on `GET .../elements`.
   `POST /currencies {code: "USD"}` is 201. Render a PDF without poppler with `powershell -File tools/pdf/pdf2png.ps1 -Dir <folder>`
   (`Windows.Data.Pdf`, every `*.pdf` there to `<name>-p<N>.png`); the sizes it prints are DIPs (302.33 = 80 mm).
+- Phase 80. The physical-movement and order documents: `POST /quotations {contactId, date, expiryDate, reference, lines,
+  discountPct}`, `POST /sales-orders {…, deliveryDate, …}`, `POST /purchase-orders {contactId, date, reference, lines}`,
+  `POST /goods-received-notes {contactId, warehouseId, date, reference, trackingNo, lines, referrerType:
+  "PurchaseOrder", referrerId}` and `POST /delivery-notes {contactId, warehouseId, date, expectedDeliveryDate, reference,
+  trackingNo, shippingAddress, lines, referrerType: "SalesOrder", referrerId}`; a line is `{productId, quantity, rate,
+  vatRate, discountPct, unitId}`; each approves with a bodiless POST (200). Creating the note marks its order
+  delivered / received. Manufacturing: `POST /bills-of-materials {productId, outputQuantity, manufactureOnEverySale,
+  notes, isActive, rawMaterials: [{productId, quantity}], byProducts: [{productId, costAllocationPct, quantity}],
+  expenses: [{costTermId, amount}]}`, a cost term with `category: "ProductionCost"`, and production orders / journals
+  with the same three lists (a journal takes `warehouseId`, `referrerType: "ProductionOrder"`, `referrerId`, and needs
+  its raw material in stock). A cash transfer from an empty cash account is refused, so fund it with a journal voucher
+  first (`lines: [{accountId, debit, credit}]`). Tables: `manufacturing.ProductionJournals` (its cost columns),
+  `manufacturing.BillsOfMaterials`, `inventory.PhysicalStockMovements`, `purchasing.GoodsReceivedNotes`,
+  `sales.DeliveryNotes`. An invalid `categories` value on `POST /export-jobs` is a 400 from binding, before
+  authorization, so the 403 probe sends valid ones.

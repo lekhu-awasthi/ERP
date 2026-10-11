@@ -2168,3 +2168,18 @@ both statutory dates the vendor's Retail omits. Modern and Classic share the Sta
 block, title, party, summary row, notes and terms) and print the details as a label/value list with a fixed label
 column. `AmountInWords.For(amount, currency)` reads every catalogue currency: NPR exactly as before, millions abroad,
 lakhs for INR, no words for a fraction of a currency without a minor unit.
+
+## Phase 80 — The export's remaining documents: four new sheets, and a document number on both ledger sheets
+
+**Read `phase-80-status.md` before adding an export category, or a column naming the document behind a ledger row.**
+
+**Census where each type lands: on a sheet, as a GUID, or nowhere.** Phase 78 § 5 named Purchase Orders; the census of
+every `DocumentType` found eight types on no sheet (Quotation, Sales Order and Purchase Order; Delivery Note and GRN; BOM,
+Production Order and Production Journal), and four more (JV, Cash Transfer, Warehouse Transfer, Inventory Adjustment)
+named only by `Source Document Id`. The new sheets are grouped by what a column means when summed: *Orders* (positive,
+never on the sheets that sum to net sales), *Goods Notes* (positive with a Direction column, as Stock Movements prints),
+*Production* and *Bills of Materials* (a row per part, Output first; a plan's costs empty, never zero). The ledger sheets
+take Document No and Reference from `GlSourceDocumentResolver.LoadEveryAsync`, the whole tenant's documents per type on
+the page, because a 50,000-row page is too long to send back as ids. Each new reader's every `decimal` is exported or
+named (the guards found two computed getters on `ProductionJournal`). `ExportJobModelTests` holds the stored selection
+(155 characters) under its column's 200.

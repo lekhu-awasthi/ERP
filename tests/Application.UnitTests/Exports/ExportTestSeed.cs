@@ -7,6 +7,7 @@ using ErpApp.Domain.Contacts;
 using ErpApp.Domain.Exports;
 using ErpApp.Domain.Identity;
 using ErpApp.Domain.Inventory;
+using ErpApp.Domain.Manufacturing;
 using ErpApp.Domain.Payments;
 using ErpApp.Domain.Purchasing;
 using ErpApp.Domain.Sales;
@@ -16,7 +17,7 @@ using Microsoft.EntityFrameworkCore;
 namespace ErpApp.Application.UnitTests.Exports;
 
 /// <summary>
-/// One tenant with at least one row in every one of the eight export categories, plus a real Admin user
+/// One tenant with at least one row in every one of the twelve export categories, plus a real Admin user
 /// with real role grants. The grants are real <c>RolePermission</c> rows rather than a bypassed
 /// check, because "only an Admin of this organization can download a full-tenant dump" is one of
 /// this phase's load-bearing claims and a test that stubbed it would prove nothing.
@@ -131,6 +132,23 @@ internal static class ExportTestSeed
         db.Payments.Add(Payment.Create(
             organization.Id, customer.Id, PaymentDirection.Received, new DateOnly(2026, 8, 23),
             null, cash.Id, 339m, $"REF-{marker}-PAY"));
+
+        // Phase 80's four, for the same reason: the isolation test only covers sheets that have rows. A BOM and a
+        // production order with no lines still print their Output row, which names the product (and so the marker).
+        var quotation = Quotation.Create(
+            organization.Id, customer.Id, new DateOnly(2026, 8, 24), new DateOnly(2026, 9, 24), $"REF-{marker}-QT");
+        quotation.AddLine(product.Id, 2m, 110m, VatRate.ThirteenPercentVat, 0m, null, 1m);
+        db.Quotations.Add(quotation);
+
+        var deliveryNote = DeliveryNote.Create(
+            organization.Id, customer.Id, warehouse.Id, new DateOnly(2026, 8, 24), new DateOnly(2026, 8, 26),
+            $"REF-{marker}-DN", null, null, null, null);
+        deliveryNote.AddLine(product.Id, 3m, 100m, VatRate.ThirteenPercentVat, 0m, null, 1m);
+        db.DeliveryNotes.Add(deliveryNote);
+
+        db.BillsOfMaterials.Add(BillOfMaterials.Create(organization.Id, product.Id, 10m, false, null));
+        db.ProductionOrders.Add(ProductionOrder.Create(
+            organization.Id, new DateOnly(2026, 8, 24), $"REF-{marker}-PO", product.Id, 10m, null, null));
 
         await db.SaveChangesAsync();
 

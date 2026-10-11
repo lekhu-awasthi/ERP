@@ -28,6 +28,10 @@ internal static class ExportLookups
     public static Task<Dictionary<Guid, string>> CostTermsAsync(IAppDbContext db, Guid organizationId, CancellationToken ct) =>
         db.CostTerms.Where(x => x.OrganizationId == organizationId).ToDictionaryAsync(x => x.Id, x => x.Name, ct);
 
+    /// <summary>Phase 80 -- a warehouse's name, for the goods-note and production sheets.</summary>
+    public static Task<Dictionary<Guid, string>> WarehousesAsync(IAppDbContext db, Guid organizationId, CancellationToken ct) =>
+        db.Warehouses.Where(x => x.OrganizationId == organizationId).ToDictionaryAsync(x => x.Id, x => x.Name, ct);
+
     /// <summary>The name for an id, or nothing when the row has none.</summary>
     public static string? NameOf(this IReadOnlyDictionary<Guid, string> names, Guid? id) =>
         id is { } key ? names.GetValueOrDefault(key) : null;

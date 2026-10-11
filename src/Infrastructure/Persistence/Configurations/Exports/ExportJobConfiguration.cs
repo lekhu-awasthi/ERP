@@ -27,8 +27,8 @@ public sealed class ExportJobConfiguration : IEntityTypeConfiguration<ExportJob>
         //
         // The empty-string default is the truth about the rows that already exist (phase 37's rule):
         // every export written before this phase ran every category, and ExportJob.SelectedCategories
-        // reads empty as "all of them" for exactly that reason. 200 characters is roughly six times
-        // the longest possible full selection.
+        // reads empty as "all of them" for exactly that reason. A full selection of phase 80's twelve
+        // is 155 characters; ExportJobModelTests holds it under this width.
         builder.Property(x => x.Categories).HasMaxLength(200).HasDefaultValue(string.Empty).IsRequired();
 
         // Note what is NOT here, exactly as on ImportJobs: a rowversion / concurrency token. This

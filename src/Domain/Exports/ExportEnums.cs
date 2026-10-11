@@ -23,6 +23,11 @@ namespace ErpApp.Domain.Exports;
 /// <see cref="PurchaseDocuments"/> and <see cref="Payments"/> close exactly that gap and stop
 /// there -- the rule refuses, for instance, a Stock Position category, which is
 /// <see cref="StockMovements"/> added up.</para>
+/// <para><b>Phase 80 added four by the same rule</b>, after a census of every document type: eight were on no sheet
+/// (Quotation, Sales Order, Purchase Order, Delivery Note, GRN, Bill of Materials, Production Order and Production
+/// Journal). Each new sheet holds documents whose columns mean one thing when summed, so a commitment never lands on a
+/// sheet that adds up to net sales. Journal Vouchers, Cash Transfers, Warehouse Transfers and Inventory Adjustments
+/// needed no sheet: the two ledger sheets carry them, and now name them by Document No.</para>
 public enum ExportCategory
 {
     Products,
@@ -41,6 +46,22 @@ public enum ExportCategory
     /// against. Not derivable from the ledger either: a payment's own document number, mode and
     /// cheque details live on the Payment, not on the entry it posted.</summary>
     Payments,
+
+    /// <summary>Phase 80 -- a Bill of Materials' output, raw materials, by-products and expenses. Master data (a
+    /// recipe), so not date-filtered; nothing else in the export records what a product is made of.</summary>
+    BillsOfMaterials,
+
+    /// <summary>Phase 80 -- Quotation, Sales Order and Purchase Order lines: commitments, which post nothing and move no
+    /// stock, so neither ledger sheet can say what was promised.</summary>
+    Orders,
+
+    /// <summary>Phase 80 -- Delivery Note and Goods Received Note lines: the physical stock ledger's documents (phase
+    /// 58), which write no FIFO movement, so Stock Movements never sees them.</summary>
+    GoodsNotes,
+
+    /// <summary>Phase 80 -- Production Order and Production Journal rows: what was planned and what was made, with the
+    /// cost each part carried. Stock Movements has the journal's quantities, not which output they made.</summary>
+    Production,
 }
 
 /// <summary>
