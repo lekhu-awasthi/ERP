@@ -142,9 +142,13 @@ export class ImportPage implements OnDestroy {
 
   protected readonly exportCategories = EXPORT_CATEGORIES;
 
-  /** Empty means every category, which is what the endpoint means by an omitted selection and what
-   * this button meant before Phase 38. */
-  protected readonly selectedExportCategories = signal<readonly ExportCategory[]>([]);
+  /** Phase 78 -- the ticked categories, every one to begin with. It used to start empty, meaning "every category",
+   * and unticking a box removed it from an empty list: the state stayed "every category" while the box showed
+   * unticked, so a user who unticked six of eight boxes exported all eight. Only the request still says "every
+   * category" by sending none (what the endpoint means by an omitted selection), and only when every box is ticked. */
+  protected readonly selectedExportCategories = signal<readonly ExportCategory[]>(
+    EXPORT_CATEGORIES.map((c) => c.value),
+  );
   protected readonly exportFrom = signal<string | null>(null);
   protected readonly exportTo = signal<string | null>(null);
 
@@ -238,13 +242,14 @@ export class ImportPage implements OnDestroy {
   protected toggleExportCategory(category: ExportCategory, checked: boolean): void {
     const current = this.selectedExportCategories();
     this.selectedExportCategories.set(
-      checked ? [...current, category] : current.filter((c) => c !== category),
+      this.exportCategories
+        .map((c) => c.value)
+        .filter((c) => (c === category ? checked : current.includes(c))),
     );
   }
 
   protected isExportCategorySelected(category: ExportCategory): boolean {
-    const selected = this.selectedExportCategories();
-    return selected.length === 0 || selected.includes(category);
+    return this.selectedExportCategories().includes(category);
   }
 
   protected onExportFromChange(value: string): void {
@@ -395,10 +400,11 @@ export class ImportPage implements OnDestroy {
     this.exportStarting.set(true);
     this.errorMessage.set(null);
 
+    const selected = this.selectedExportCategories();
     this.exportService
       .createExportJob(
         this.organizationId,
-        this.selectedExportCategories(),
+        selected.length === this.exportCategories.length ? [] : selected,
         this.exportFrom(),
         this.exportTo(),
       )

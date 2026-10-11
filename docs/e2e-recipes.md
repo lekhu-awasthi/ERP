@@ -356,3 +356,21 @@ beside a 200 from the same user, and create a fresh Organization per phase.
     needed. Sales Documents' Σ(Amount + Service Charge + Packaging Fee + VAT Amount + Round Off) equals SQL's
     invoices less credit notes, and Payments' received less paid equals Σ tenders − Σ `ChangeAmount` − Σ payouts.
   - `python -I` ignores `PYTHONIOENCODING`; print a Σ with `python -I -X utf8`.
+- Phase 78. A purchase document stores a `LocationId` only when the tenant's scope is *All Transactions*: `PUT
+  /organizations/{id}/billing-location-settings {locationScopeMode: "AllTransactions", locationWiseReportPermission:
+  false}` (200). On the default *Sales Transactions Only* every bill, debit note and expense has NULL, and the export's
+  Location column is rightly empty.
+  - Purchase shapes: `POST /purchase-bills` takes `lines: [{productId, quantity, rate, vatRate,
+    expenditureClassification, discountPct, unitId}]`, `tdsTypeId`, `discountPct`, `currencyCode`/`exchangeRate`,
+    `additionalCosts: [{costTermId, productId, method: "Value"|"Quantity", amount}]` and `locationId` (201; approve
+    is a bodiless POST, 200). A debit note against it takes `referrerType: "PurchaseBill"`, `referrerId` and
+    `warehouseId`; an expense takes `tdsApplicable`, `tdsTypeId` and `lines: [{accountId, amount, vatRate}]`. Lookups:
+    `POST /configuration/tds-types {code, name, ratePct}`, `POST /configuration/cost-terms {name, category:
+    "AdditionalCost"}`, `POST /products/{id}/secondary-units {unitId, conversionRate, sellingPrice, purchasePrice}`.
+  - `POST /pos/sales` answers **200**, not 201. A drawer's Cash In from the bank is a 409 on a tenant whose bank holds
+    nothing (the negative-cash guard); take a float top-up from an equity account.
+  - The export job table is `exports.ExportJobs`; its `Categories` column is comma-joined, so read it with `-s'|'`.
+  - The download's 403-not-404 pair: `GET /export-jobs/{nonexistent}/download` is **404** "Export job not found." as
+    Admin and **403 naming `Configuration.ExportJob.View`** from a role holding only `Tenancy.BillingLocation.View`.
+  - Accounting defaults for a purchase E2E: set every `default*Id` by name (payable, receivable, both VATs, inventory,
+    landed cost clearing, TDS payable, purchase, COGS) from one `GET`, then `PUT` it back whole.

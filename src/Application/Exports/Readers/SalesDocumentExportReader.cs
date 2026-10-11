@@ -40,6 +40,13 @@ namespace ErpApp.Application.Exports.Readers;
 /// line's Bill Discount share, a zero service charge when waived), and an unbilled tab is not exported (Decision D).
 /// <see cref="ExportedLineMoney"/> names every money column of a line, and a guard test holds the Domain to it.</para>
 ///
+/// <para><b>Phase 78 -- Unit, Exchange Rate and Location, appended the same way.</b> Since phase 52 a line's Quantity and
+/// Rate are in the unit it was entered in, so "2" was 2 of something the sheet never said; the line's own unit is
+/// printed, or the product's primary unit when the line names none (which is what a line with no unit means). A
+/// foreign-currency document's figures are in its currency, and the rate is what turns them into rupees. The location
+/// is the billing location the document was raised at (phase 35a). A round-off row carries its document's rate and
+/// location and no unit.</para>
+///
 /// <para><b>Four queries merged in memory, not one <c>Concat</c>.</b> The round-off rows have no product and a credit
 /// note has no order of its own, so a single set operation would need typed null constants on one side, which is a
 /// translation this codebase has never proven on SQL Server. Each half is ordered and capped on its own and the pages are
@@ -55,9 +62,10 @@ public sealed class SalesDocumentExportReader(IAppDbContext db) : IExportCategor
 
     /// <summary>
     /// Phase 77 -- the money of an <see cref="InvoiceLine"/> and a <see cref="CreditNoteLine"/> this sheet carries, by
-    /// property name. <c>SalesExportCoverageTests</c> asserts every <c>decimal</c> property of both line types is here
+    /// property name. <c>TillExportTests</c> asserts every <c>decimal</c> property of both line types is here
     /// or named there as not money (a rate, a factor, a cost), so the next part of a line's money cannot be added
-    /// without deciding whether it is exported.
+    /// without deciding whether it is exported. Phase 78 holds the two documents' own decimals the same way
+    /// (<see cref="ExportedDocumentMoney"/>).
     /// </summary>
     public static readonly IReadOnlySet<string> ExportedLineMoney = new HashSet<string>(StringComparer.Ordinal)
     {
@@ -70,6 +78,15 @@ public sealed class SalesDocumentExportReader(IAppDbContext db) : IExportCategor
         nameof(InvoiceLine.ServiceChargeAmount),
         nameof(InvoiceLine.PackagingFeeAmount),
         nameof(InvoiceLine.VatAmount),
+    };
+
+    /// <summary>Phase 78 -- the figures an <see cref="Invoice"/> and a <see cref="CreditNote"/> store of their own that
+    /// this sheet carries: Document Discount %, Round Off and Exchange Rate.</summary>
+    public static readonly IReadOnlySet<string> ExportedDocumentMoney = new HashSet<string>(StringComparer.Ordinal)
+    {
+        nameof(Invoice.DiscountPct),
+        nameof(Invoice.RoundOff),
+        nameof(Invoice.ExchangeRate),
     };
 
     public IReadOnlyList<string> Headers { get; } =
@@ -97,6 +114,9 @@ public sealed class SalesDocumentExportReader(IAppDbContext db) : IExportCategor
         "Service Charge",
         "Packaging Fee",
         "Round Off",
+        "Unit",
+        "Exchange Rate",
+        "Location",
     ];
 
     public async Task<ExportCategoryResult> ReadAsync(
@@ -122,7 +142,8 @@ public sealed class SalesDocumentExportReader(IAppDbContext db) : IExportCategor
                 line.Quantity, line.Rate, line.DiscountPct, line.Amount, line.VatAmount,
                 doc.Channel, order == null ? null : order.Code, null,
                 line.DiscountPerUnit, doc.DiscountPct, line.BillDiscountAmount,
-                line.ServiceChargeAmount, line.PackagingFeeAmount, 0m, false);
+                line.ServiceChargeAmount, line.PackagingFeeAmount, 0m, false,
+                line.UnitId ?? (product == null ? null : (Guid?)product.PrimaryUnitId), doc.ExchangeRate, doc.LocationId);
 
         // A Credit Note's figures are negated so the columns sum to net sales; its rates and percentages are not, as
         // phase 38's Rate never was. Its order is the one its invoice billed.
@@ -150,7 +171,8 @@ public sealed class SalesDocumentExportReader(IAppDbContext db) : IExportCategor
                 -line.Quantity, line.Rate, line.DiscountPct, -line.Amount, -line.VatAmount,
                 doc.Channel, order == null ? null : order.Code, doc.AgainstInvoiceNumber ?? (invoice == null ? null : invoice.Code),
                 line.DiscountPerUnit, doc.DiscountPct, -line.BillDiscountAmount,
-                -line.ServiceChargeAmount, -line.PackagingFeeAmount, 0m, false);
+                -line.ServiceChargeAmount, -line.PackagingFeeAmount, 0m, false,
+                line.UnitId ?? (product == null ? null : (Guid?)product.PrimaryUnitId), doc.ExchangeRate, doc.LocationId);
 
         var invoiceRoundOffs =
             from doc in db.Invoices
@@ -168,7 +190,7 @@ public sealed class SalesDocumentExportReader(IAppDbContext db) : IExportCategor
                 contact == null ? null : contact.Name, doc.Reference, doc.CurrencyCode,
                 null, null, 0m, 0m, 0m, 0m, 0m,
                 doc.Channel, order == null ? null : order.Code, null,
-                0m, doc.DiscountPct, 0m, 0m, 0m, doc.RoundOff, true);
+                0m, doc.DiscountPct, 0m, 0m, 0m, doc.RoundOff, true, null, doc.ExchangeRate, doc.LocationId);
 
         var creditNoteRoundOffs =
             from doc in db.CreditNotes
@@ -190,7 +212,7 @@ public sealed class SalesDocumentExportReader(IAppDbContext db) : IExportCategor
                 contact == null ? null : contact.Name, doc.Reference, doc.CurrencyCode,
                 null, null, 0m, 0m, 0m, 0m, 0m,
                 doc.Channel, order == null ? null : order.Code, doc.AgainstInvoiceNumber ?? (invoice == null ? null : invoice.Code),
-                0m, doc.DiscountPct, 0m, 0m, 0m, -doc.RoundOff, true);
+                0m, doc.DiscountPct, 0m, 0m, 0m, -doc.RoundOff, true, null, doc.ExchangeRate, doc.LocationId);
 
         var totalRowCount = 0;
         var merged = new List<SalesRow>();
@@ -201,13 +223,16 @@ public sealed class SalesDocumentExportReader(IAppDbContext db) : IExportCategor
             merged.AddRange(await query.Take(maxRows).ToListAsync(cancellationToken));
         }
 
+        var units = await ExportLookups.UnitsAsync(db, organizationId, cancellationToken);
+        var locations = await ExportLookups.LocationsAsync(db, organizationId, cancellationToken);
+
         var rows = merged
             .OrderBy(r => r.Date)
             .ThenBy(r => r.DocumentType, StringComparer.Ordinal)
             .ThenBy(r => r.DocumentCode, StringComparer.Ordinal)
             .ThenBy(r => r.IsRoundOff)
             .Take(maxRows)
-            .Select(r => r.ToCells())
+            .Select(r => r.ToCells(units, locations))
             .ToList();
 
         return new ExportCategoryResult(rows, totalRowCount);
@@ -239,9 +264,12 @@ public sealed class SalesDocumentExportReader(IAppDbContext db) : IExportCategor
         decimal ServiceCharge,
         decimal PackagingFee,
         decimal RoundOff,
-        bool IsRoundOff)
+        bool IsRoundOff,
+        Guid? UnitId,
+        decimal ExchangeRate,
+        Guid? LocationId)
     {
-        public object?[] ToCells() =>
+        public object?[] ToCells(IReadOnlyDictionary<Guid, string> units, IReadOnlyDictionary<Guid, string> locations) =>
         [
             .. new DocumentLineRow(
                 DocumentType, DocumentCode, Date, Status, ContactName, Reference, CurrencyCode, ProductCode,
@@ -255,6 +283,9 @@ public sealed class SalesDocumentExportReader(IAppDbContext db) : IExportCategor
             ServiceCharge,
             PackagingFee,
             RoundOff,
+            units.NameOf(UnitId),
+            ExchangeRate,
+            locations.NameOf(LocationId),
         ];
     }
 }

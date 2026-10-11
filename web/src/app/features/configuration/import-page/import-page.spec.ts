@@ -175,10 +175,71 @@ describe('ImportPage (export half)', () => {
 
     expect(exportService.downloadedIds).toEqual(['job-1']);
   });
+
+  /** Phase 78 -- the selection starts with every box ticked and is what the boxes show. It used to start empty
+   * ("every category"), so unticking from it changed nothing and every category was exported anyway. */
+  describe('choosing categories', () => {
+    function categories(fixture: ComponentFixture<ImportPage>): HTMLInputElement[] {
+      return Array.from(
+        (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLInputElement>('input[id^="exportCategory-"]'),
+      );
+    }
+
+    function startButton(fixture: ComponentFixture<ImportPage>): HTMLButtonElement {
+      return Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('button')).find(
+        (b) => b.textContent?.includes('Start Export'),
+      )!;
+    }
+
+    function untick(fixture: ComponentFixture<ImportPage>, box: HTMLInputElement): void {
+      box.checked = false;
+      box.dispatchEvent(new Event('change'));
+      fixture.detectChanges();
+    }
+
+    it('exports only what is left ticked after unticking the rest', () => {
+      const { fixture, exportService } = page([]);
+      const boxes = categories(fixture);
+      expect(boxes.every((b) => b.checked)).toBe(true);
+
+      boxes
+        .filter((b) => !['exportCategory-PurchaseDocuments', 'exportCategory-Payments'].includes(b.id))
+        .forEach((b) => untick(fixture, b));
+      startButton(fixture).click();
+
+      expect(exportService.requestedCategories).toEqual([['PurchaseDocuments', 'Payments']]);
+      expect(categories(fixture).filter((b) => b.checked).map((b) => b.id)).toEqual([
+        'exportCategory-PurchaseDocuments',
+        'exportCategory-Payments',
+      ]);
+    });
+
+    it('asks for every category by naming none when every box stays ticked', () => {
+      const { fixture, exportService } = page([]);
+
+      startButton(fixture).click();
+
+      expect(exportService.requestedCategories).toEqual([[]]);
+    });
+
+    it('will not start with nothing ticked, and says why', () => {
+      const { fixture, text, exportService } = page([]);
+
+      categories(fixture).forEach((b) => untick(fixture, b));
+
+      const button = startButton(fixture);
+      expect(button.disabled).toBe(true);
+      expect(button.getAttribute('aria-describedby')).toBe('exportCategoriesHelp');
+      expect(text()).toContain('Tick at least one category to export.');
+      button.click();
+      expect(exportService.requestedCategories).toEqual([]);
+    });
+  });
 });
 
 class ExportServiceStub {
   readonly downloadedIds: string[] = [];
+  readonly requestedCategories: (readonly string[])[] = [];
 
   constructor(private readonly jobs: ExportJobSummary[]) {}
 
@@ -186,7 +247,8 @@ class ExportServiceStub {
     return of({ items: this.jobs, page: 1, pageSize: 25, totalCount: this.jobs.length });
   }
 
-  createExportJob(): Observable<ExportJobSummary> {
+  createExportJob(_organizationId: string, categories: readonly string[] = []): Observable<ExportJobSummary> {
+    this.requestedCategories.push(categories);
     return of(this.jobs[0]);
   }
 

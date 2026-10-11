@@ -1,7 +1,9 @@
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Domain.Common;
 using ErpApp.Domain.Configuration;
 using ErpApp.Domain.Exports;
 using ErpApp.Domain.Payments;
+using ErpApp.Domain.Pos;
 using Microsoft.EntityFrameworkCore;
 
 namespace ErpApp.Application.Exports.Readers;
@@ -28,6 +30,16 @@ namespace ErpApp.Application.Exports.Readers;
 /// sale's cash tender (change only ever comes out of cash tendered). A <b>Source</b> column, appended so phase 38's
 /// positions hold, says which kind of row each is. As with the sales sheet, the four sources are read separately and
 /// merged in memory rather than in one set operation.</para>
+///
+/// <para><b>Phase 78 -- the drawer's own cash in and out.</b> A Cash In (a float top-up, the owner's cash) is a Received
+/// row and a Cash Out (vegetables paid from the till, a drop to the safe) a Paid row, numbered by its session, in the
+/// mode of the location's cash tender, with its note as the Reference. A movement has no contact; what it moved against
+/// is an account (phase 61 makes the cashier name one), so an appended <b>Account</b> column names it, and is empty on
+/// every other row, whose other side is its contact. A movement posts when it is recorded and nothing voids it, so its
+/// Status is Approved; its Date is the Nepal day it was recorded, and the period filter cuts on Nepal midnights (phase
+/// 66). The opening float and a close's over/short are not rows: the float moves no money (it counts what is already
+/// there) and the over/short corrects the drawer's account, which Ledger Transactions carries. <b>Exchange Rate</b> and
+/// <b>Location</b> are appended as on the document sheets; a till's money is in the base currency.</para>
 /// </summary>
 public sealed class PaymentExportReader(IAppDbContext db) : IExportCategoryReader
 {
@@ -49,6 +61,9 @@ public sealed class PaymentExportReader(IAppDbContext db) : IExportCategoryReade
         "Amount",
         "Reference",
         "Source",
+        "Exchange Rate",
+        "Location",
+        "Account",
     ];
 
     public async Task<ExportCategoryResult> ReadAsync(
@@ -67,7 +82,8 @@ public sealed class PaymentExportReader(IAppDbContext db) : IExportCategoryReade
             select new MoneyRow(
                 payment.Code, payment.Date, payment.Direction, payment.Status.ToString(),
                 contact == null ? null : contact.Name, mode == null ? null : mode.Name,
-                payment.CurrencyCode, payment.Amount, payment.Reference, "Payment");
+                payment.CurrencyCode, payment.Amount, payment.Reference, "Payment",
+                payment.ExchangeRate, payment.LocationId, null);
 
         var tenders =
             from tender in db.InvoiceTenders
@@ -83,7 +99,8 @@ public sealed class PaymentExportReader(IAppDbContext db) : IExportCategoryReade
             select new MoneyRow(
                 doc.Code, doc.Date, PaymentDirection.Received, doc.Status.ToString(),
                 contact == null ? null : contact.Name, mode == null ? null : mode.Name,
-                doc.CurrencyCode, tender.Amount, doc.Reference, "Till Sale");
+                doc.CurrencyCode, tender.Amount, doc.Reference, "Till Sale",
+                doc.ExchangeRate, doc.LocationId, null);
 
         var change =
             from doc in db.Invoices
@@ -101,7 +118,8 @@ public sealed class PaymentExportReader(IAppDbContext db) : IExportCategoryReade
                  where tender.InvoiceId == doc.Id && tender.Kind == PaymentModeKind.Cash
                  join mode in db.PaymentModes on tender.PaymentModeId equals mode.Id
                  select mode.Name).FirstOrDefault(),
-                doc.CurrencyCode, doc.ChangeAmount, doc.Reference, "Till Change");
+                doc.CurrencyCode, doc.ChangeAmount, doc.Reference, "Till Change",
+                doc.ExchangeRate, doc.LocationId, null);
 
         var payouts =
             from payout in db.CreditNotePayouts
@@ -117,7 +135,8 @@ public sealed class PaymentExportReader(IAppDbContext db) : IExportCategoryReade
             select new MoneyRow(
                 doc.Code, doc.Date, PaymentDirection.Paid, doc.Status.ToString(),
                 contact == null ? null : contact.Name, mode == null ? null : mode.Name,
-                doc.CurrencyCode, payout.Amount, doc.Reference, "Till Refund");
+                doc.CurrencyCode, payout.Amount, doc.Reference, "Till Refund",
+                doc.ExchangeRate, doc.LocationId, null);
 
         var totalRowCount = 0;
         var merged = new List<MoneyRow>();
@@ -127,6 +146,35 @@ public sealed class PaymentExportReader(IAppDbContext db) : IExportCategoryReade
             totalRowCount += await query.CountAsync(cancellationToken);
             merged.AddRange(await query.Take(maxRows).ToListAsync(cancellationToken));
         }
+
+        var drawer = DrawerMovements(organizationId, range);
+        totalRowCount += await drawer.CountAsync(cancellationToken);
+        var drawerPage = await drawer.Take(maxRows).ToListAsync(cancellationToken);
+        if (drawerPage.Count > 0)
+        {
+            // The drawer is the account of the location's Cash-kind mode (phase 61), so that mode names its rows.
+            var cashModes = await (
+                    from link in db.PosLocationPaymentModes
+                    where link.OrganizationId == organizationId
+                    join mode in db.PaymentModes on link.PaymentModeId equals mode.Id
+                    where mode.Kind == PaymentModeKind.Cash && mode.AccountId != null
+                    select new { link.BillingLocationId, mode.AccountId, mode.Name })
+                .ToListAsync(cancellationToken);
+            var cashModeOf = cashModes
+                .GroupBy(x => (x.BillingLocationId, AccountId: x.AccountId!.Value))
+                .ToDictionary(g => g.Key, g => g.Min(x => x.Name)!);
+
+            merged.AddRange(drawerPage.Select(m => new MoneyRow(
+                m.SessionCode, NepalTime.LocalDate(m.CreatedAt),
+                m.Direction == PosCashMovementDirection.In ? PaymentDirection.Received : PaymentDirection.Paid,
+                "Approved", null, cashModeOf.GetValueOrDefault((m.BillingLocationId, m.CashAccountId)),
+                CurrencyCatalog.BaseCode, m.Amount, m.Note,
+                m.Direction == PosCashMovementDirection.In ? "Till Cash In" : "Till Cash Out",
+                ExchangeRates.BaseRate, m.BillingLocationId, m.AccountId)));
+        }
+
+        var locations = await ExportLookups.LocationsAsync(db, organizationId, cancellationToken);
+        var accounts = await ExportLookups.AccountsAsync(db, organizationId, cancellationToken);
 
         var rows = merged
             .OrderBy(r => r.Date)
@@ -145,11 +193,53 @@ public sealed class PaymentExportReader(IAppDbContext db) : IExportCategoryReade
                 p.Amount,
                 p.Reference,
                 p.Source,
+                p.ExchangeRate,
+                locations.NameOf(p.LocationId),
+                accounts.NameOf(p.AccountId),
             })
             .ToList();
 
         return new ExportCategoryResult(rows, totalRowCount);
     }
+
+    /// <summary>Phase 78 -- a drawer's cash movements in the period, in the order they were recorded. The period is Nepal
+    /// days, so each bound is a Nepal midnight, and each is its own <c>Where</c> rather than a null test inside one.</summary>
+    private IQueryable<DrawerMovement> DrawerMovements(Guid organizationId, ExportDateRange range)
+    {
+        var movements =
+            from movement in db.PosCashMovements
+            join session in db.PosSessions on movement.PosSessionId equals session.Id
+            where session.OrganizationId == organizationId
+            select new { movement, session };
+
+        if (range.From is { } from)
+        {
+            var fromInstant = new DateTimeOffset(from.ToDateTime(TimeOnly.MinValue), NepalTime.Offset);
+            movements = movements.Where(x => x.movement.CreatedAt >= fromInstant);
+        }
+
+        if (range.To is { } to)
+        {
+            var beforeInstant = new DateTimeOffset(to.AddDays(1).ToDateTime(TimeOnly.MinValue), NepalTime.Offset);
+            movements = movements.Where(x => x.movement.CreatedAt < beforeInstant);
+        }
+
+        return movements
+            .OrderBy(x => x.movement.CreatedAt)
+            .Select(x => new DrawerMovement(
+                x.session.Code, x.movement.CreatedAt, x.movement.Direction, x.movement.Amount, x.movement.Note,
+                x.session.BillingLocationId, x.session.CashAccountId, x.movement.AccountId));
+    }
+
+    private sealed record DrawerMovement(
+        string SessionCode,
+        DateTimeOffset CreatedAt,
+        PosCashMovementDirection Direction,
+        decimal Amount,
+        string? Note,
+        Guid BillingLocationId,
+        Guid CashAccountId,
+        Guid AccountId);
 
     private sealed record MoneyRow(
         string Code,
@@ -161,5 +251,8 @@ public sealed class PaymentExportReader(IAppDbContext db) : IExportCategoryReade
         string CurrencyCode,
         decimal Amount,
         string? Reference,
-        string Source);
+        string Source,
+        decimal ExchangeRate,
+        Guid? LocationId,
+        Guid? AccountId);
 }

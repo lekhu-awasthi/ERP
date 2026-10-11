@@ -109,6 +109,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 75: printing by location ("Location: name, address" when there are two or more locations, hideable; a template per location falling back to the default; the receipt prints both addresses). Before printing anything a location decides — `docs/phase-75-status.md`
 - Phase 76: separate till keys (a discount, a waiver and a changed price each their own location-scoped `Sales.Invoice.Till*` key instead of Approve; existing Approve grants backfilled at the same scope; credit stays on Approve). Before borrowing a key for a new power, or splitting one — `docs/phase-76-status.md`
 - Phase 77: an order's Amount discount moves with its food (a transfer or parcel takes its share, read from the line's bills once billed; discard still refused) + the export carries every part of a sale's money and the till's tenders, change and payouts. Before moving a quantity that carries a share, reading a credit note's invoice, or adding money to a sales line — `docs/phase-77-status.md`
+- Phase 78: the export finished (Purchase Documents carry expenses, TDS and additional costs as rows of their own and a debit note's bill and inherited classification; Unit, Exchange Rate and Location on every sheet; a drawer's Cash In/Out on Payments) + the export screen sending only what is ticked. Before adding a row kind or column to an export sheet, or a "select some" control whose empty state means all — `docs/phase-78-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -330,6 +331,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - Context for the **run** is not data on the row: a statement row names no account, so `ImportJob.BankAccountId` is required for one entity type and refused for the other nine — the refusing half is the one that rots (phase-55).
 - A bank statement has no natural key (two identical ATM withdrawals in a day are two real rows), so a duplicate upload cannot be refused; carry the `ImportJobId` on each row and make the whole upload one undo (phase-55).
 - Each phase that adds money to a line owes the export a column; `TillExportTests` holds every `decimal` on a sales line to an exported column or a named reason (phase-77).
+- A document figure true of no line (round-off, TDS, an additional cost) is a row of its own on an export sheet, never a column repeated per line; an additional cost is never in Amount (phase-78).
 
 **Background jobs**
 - A singleton `BackgroundService` cannot inject scoped services; take `IServiceScopeFactory`, read options via `IOptionsMonitor`, and never let a tick's exception escape `ExecuteAsync` (`AlertSchedulerHostedService`).
@@ -425,6 +427,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A drag that listens for the release on its own container never ends when the pointer lets go elsewhere, and keeps moving things; listen on the document, bind the drag to what was grabbed, and add a threshold (phase-64).
 - A Bootstrap `.btn-check` radio is a hidden input; in the Browser pane click its `<label>`, or nothing changes (phase-65).
 - A radio whose `(change)` is cancelled stays checked: the `[checked]` binding did not change, so Angular never puts it back. Restore it by hand (phase-64).
+- A checkbox list whose empty state means "all" cannot be unticked: unticking from `[]` stays `[]`, the box shows unticked anyway, and all is sent. Hold the ticked list; send "all" only on the wire (phase-78).
 - A visually-hidden caption inside `.table-responsive` overhangs by 1px and grows a scrollbar; `styles.scss` pins it. Measure scrollHeight against clientHeight (phase-66).
 - A component with a `@defer` block has async metadata: its TestBed spec must `await compileComponents()`, or every test fails "unresolved metadata" (phase-66).
 - A `responseType: 'blob'` request's error body is a Blob, so `extractErrorMessage` reads nothing and every refusal shows the fallback; parse it back to JSON (`PrintingService`, phase-67).
@@ -538,25 +541,24 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 
 ## Current status
 
-**Phases 0-77 are complete. Next: not yet scheduled** (the user picks; candidates in `docs/roadmap.md`).
+**Phases 0-78 are complete. Next: not yet scheduled** (the user picks; candidates in `docs/roadmap.md`).
 Each phase's story is in its `docs/phase-N-status.md`, and finished planning entries are archived in
 `docs/roadmap-history.md`.
 
-**Phase 77 let an order's Amount discount move with its food, and completed the full-tenant export.**
+**Phase 78 finished the full-tenant export.**
 
-- A transferred or parcelled quantity takes its share of the order's amount (`PosOrder.ShareCarriedBy`). Once the
-  order is billed, the share is read from the line's bills. An amount is the same terms as another amount. Discard of
-  a dish carrying a frozen share stays refused.
-- *Sales Documents* gains nine appended columns, plus a round-off row per document. *Payments* gains till tenders,
-  change and refund payouts, with a *Source* column.
+- *Purchase Documents* gains twelve appended columns. Expenses are on it (an *Account* column), TDS and an additional
+  cost are rows of their own, and a debit note names its bill and takes its classification. What a supplier is owed is
+  Amount + VAT − TDS.
+- Every sheet names its Unit, Exchange Rate and Location. *Payments* gains the drawer's Cash In / Cash Out.
+- The export screen used to export every category whatever was unticked (since phase 38). It now sends what is ticked.
 
 **Next:** not yet scheduled. Candidates: phase 75 § 5 (with the rest of phase 73 § 5: ordering of header blocks, the
 Modern/Classic layouts, amount in words for a foreign currency), phase 76 § 5 (a discount ceiling per role, the ERP
-invoice form's discount/rate gating), phase 77 § 5 (discard with a share, a drawer's cash movements in the export),
-phase 71 § 5.
+invoice form's discount/rate gating), phase 77 § 5 (discard with a share), phase 78 § 5, phase 71 § 5.
 
-Tests: Domain **995**, Application.UnitTests **1714**, Infrastructure.UnitTests 13,
-Api.IntegrationTests 57, Angular 833. Everything was green at phase 77's close with Docker up.
+Tests: Domain **995**, Application.UnitTests **1722**, Infrastructure.UnitTests 13,
+Api.IntegrationTests 57, Angular 836. Everything was green at phase 78's close with Docker up.
 The bundle sits at **652.58 kB** against `build-budget.spec.ts`'s 680 kB; every POS screen is lazy.
 
 - `Api.IntegrationTests` needs Docker Desktop running. Without it the Testcontainers-backed tests

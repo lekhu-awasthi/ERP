@@ -3,6 +3,7 @@ using ErpApp.Application.Exports;
 using ErpApp.Application.Exports.Readers;
 using ErpApp.Application.Pos.Commands.UpdatePosOrderDiscount;
 using ErpApp.Application.UnitTests.Pos;
+using ErpApp.Domain.Accounting;
 using ErpApp.Domain.Pos;
 using ErpApp.Domain.Sales;
 using Microsoft.EntityFrameworkCore;
@@ -19,7 +20,8 @@ public sealed class TillExportTests
 {
     // Column positions of the Sales Documents sheet: phase 38's fourteen, then phase 77's nine.
     private const int ProductCode = 7, Quantity = 9, Amount = 12, Vat = 13, Channel = 14, OrderNo = 15,
-        AgainstInvoice = 16, BillDiscount = 19, ServiceCharge = 20, PackagingFee = 21, RoundOff = 22;
+        AgainstInvoice = 16, BillDiscount = 19, ServiceCharge = 20, PackagingFee = 21, RoundOff = 22,
+        Unit = 23, ExchangeRate = 24, Location = 25;
 
     private static async Task<IReadOnlyList<object?[]>> SalesSheetAsync(PosTestTill till) =>
         (await new SalesDocumentExportReader(till.Db).ReadAsync(
@@ -45,9 +47,16 @@ public sealed class TillExportTests
         var momo = Assert.Single(invoice, r => (decimal)r[Quantity]! == 2m && (decimal)r[ServiceCharge]! != 0m);
         Assert.Equal((400m, 40m, 57.20m, "POS"), ((decimal)momo[Amount]!, (decimal)momo[ServiceCharge]!, (decimal)momo[Vat]!, (string)momo[Channel]!));
 
-        // The round-off is a row of its own after the lines: no product, every line figure zero.
+        // Phase 78 -- the product's own unit (a till line names none), the base rate, and the till's location.
+        var unitName = await till.Db.Products.Where(p => p.Id == till.MomoId)
+            .Join(till.Db.UnitsOfMeasurement, p => p.PrimaryUnitId, u => u.Id, (_, u) => u.Name).SingleAsync();
+        Assert.Equal((unitName, 1m, till.Location.Name), ((string)momo[Unit]!, (decimal)momo[ExchangeRate]!, (string)momo[Location]!));
+
+        // The round-off is a row of its own after the lines: no product, every line figure zero, no unit.
         var roundOff = invoice[^1];
         Assert.Null(roundOff[ProductCode]);
+        Assert.Null(roundOff[Unit]);
+        Assert.Equal(till.Location.Name, roundOff[Location]);
         Assert.Equal((0m, 0m, 0.20m), ((decimal)roundOff[Quantity]!, (decimal)roundOff[Amount]!, (decimal)roundOff[RoundOff]!));
         Assert.Equal(633m, invoice.Sum(Billed));
 
@@ -86,6 +95,46 @@ public sealed class TillExportTests
 
         // Received less paid is what the drawer and the card machine kept: the sale's 633 less the refund's 68.
         Assert.Equal(565m, result.Rows.Sum(r => Equals(r[2], "Received") ? (decimal)r[7]! : -(decimal)r[7]!));
+    }
+
+    [Fact]
+    public async Task A_drawers_cash_in_and_out_are_rows_of_the_payments_sheet_naming_the_account()
+    {
+        var till = await PosTestTill.CreateAsync();
+        var group = await till.Db.AccountGroups.FirstAsync(x => x.OrganizationId == till.OrganizationId);
+        var capital = Account.Create(till.OrganizationId, "3100", "Owner's Capital", AccountRootType.Equity, group.Id);
+        till.Db.Accounts.Add(capital);
+        await till.Db.SaveChangesAsync();
+
+        var session = await till.OpenAsync();
+        await till.CashMovementAsync(session.Id, PosCashMovementDirection.In, 300m, capital.Id, "Float top-up");
+        await till.CashMovementAsync(session.Id, PosCashMovementDirection.Out, 100m, till.VegetablesAccountId, "Vegetables");
+
+        var reader = new PaymentExportReader(till.Db);
+        var result = await reader.ReadAsync(till.OrganizationId, 1000, ExportDateRange.Unbounded, CancellationToken.None);
+        Assert.Equal(2, result.TotalRowCount);
+        Assert.All(result.Rows, r => Assert.Equal(reader.Headers.Count, r.Length));
+
+        var cashMode = await till.Db.PaymentModes.Where(x => x.Id == till.CashModeId).Select(x => x.Name).SingleAsync();
+        var accounts = await till.Db.Accounts.Where(x => x.Id == capital.Id || x.Id == till.VegetablesAccountId)
+            .ToDictionaryAsync(x => x.Id, x => x.Code + " " + x.Name);
+
+        // Document No, Direction, Status, Contact, Payment Mode, Amount, Reference, Source, Location, Account.
+        var rows = result.Rows.Select(r => (r[0], r[2], r[3], r[4], r[5], r[7], r[8], r[9], r[11], r[12])).ToList();
+        Assert.Contains((session.Code, "Received", "Approved", null, cashMode, 300m, "Float top-up", "Till Cash In",
+            till.Location.Name, accounts[capital.Id]), rows);
+        Assert.Contains((session.Code, "Paid", "Approved", null, cashMode, 100m, "Vegetables", "Till Cash Out",
+            till.Location.Name, accounts[till.VegetablesAccountId]), rows);
+        Assert.All(result.Rows, r => Assert.Equal((PosTestTill.Today.ToString("yyyy-MM-dd"), 1m), (r[1], r[10])));
+
+        // The period is Nepal days: a range that ended yesterday holds none of today's movements.
+        var yesterday = PosTestTill.Today.AddDays(-1);
+        var before = await reader.ReadAsync(
+            till.OrganizationId, 1000, new ExportDateRange(yesterday, yesterday), CancellationToken.None);
+        Assert.Equal(0, before.TotalRowCount);
+        var today = await reader.ReadAsync(
+            till.OrganizationId, 1000, new ExportDateRange(PosTestTill.Today, PosTestTill.Today), CancellationToken.None);
+        Assert.Equal(2, today.TotalRowCount);
     }
 
     [Fact]
@@ -140,5 +189,40 @@ public sealed class TillExportTests
         // Both lists name only what exists, or a rename would leave a stale entry passing for coverage.
         var invoiceLine = typeof(InvoiceLine).GetProperties().Select(p => p.Name).ToHashSet();
         Assert.All(SalesDocumentExportReader.ExportedLineMoney.Concat(notExported.Keys), name => Assert.Contains(name, invoiceLine));
+    }
+
+    /// <summary>Phase 78 -- the same for the figures an invoice and a credit note store of their own.</summary>
+    [Fact]
+    public void Every_decimal_a_sales_document_stores_is_exported_or_named()
+    {
+        var notExported = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            [nameof(Invoice.DiscountAmount)] = "an Amount discount, spread onto the lines as Bill Discount (phase 74)",
+            [nameof(Invoice.ChangeAmount)] = "the Payments sheet's Till Change row",
+            [nameof(Invoice.GrandTotal)] = "derived: the lines' money + Round Off",
+            [nameof(Invoice.ServiceChargeTotal)] = "derived: the sum of Service Charge",
+            [nameof(Invoice.PackagingFeeTotal)] = "derived: the sum of Packaging Fee",
+            [nameof(Invoice.TenderedAmount)] = "the Payments sheet's Till Sale rows",
+            [nameof(Invoice.SettledAmount)] = "derived: tendered less change",
+            [nameof(Invoice.CreditAmount)] = "derived: what tenders did not settle",
+            [nameof(CreditNote.PaidOutAmount)] = "the Payments sheet's Till Refund rows",
+            [nameof(CreditNote.ToAccountAmount)] = "derived: what payouts did not settle",
+        };
+
+        foreach (var type in new[] { typeof(Invoice), typeof(CreditNote) })
+        {
+            var decimals = type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                .Where(p => p.PropertyType == typeof(decimal) || p.PropertyType == typeof(decimal?))
+                .Select(p => p.Name)
+                .ToList();
+
+            Assert.NotEmpty(decimals);
+            Assert.All(decimals, name => Assert.True(
+                SalesDocumentExportReader.ExportedDocumentMoney.Contains(name) || notExported.ContainsKey(name),
+                $"{type.Name}.{name} is neither exported on the Sales Documents sheet nor named."));
+        }
+
+        var stored = typeof(Invoice).GetProperties().Concat(typeof(CreditNote).GetProperties()).Select(p => p.Name).ToHashSet();
+        Assert.All(SalesDocumentExportReader.ExportedDocumentMoney.Concat(notExported.Keys), name => Assert.Contains(name, stored));
     }
 }

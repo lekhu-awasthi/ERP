@@ -6,7 +6,7 @@ Guiding rule for phase sizing: each phase ends with something *runnable and demo
 
 ---
 
-## Completed phases (0–76)
+## Completed phases (0–78)
 
 One line each; phase *N*'s full story is `docs/phase-N-status.md`. The verbose index as it stood on
 2026-09-28 is archived verbatim in `roadmap-history.md` ("Completed-phases index, verbose form").
@@ -62,6 +62,8 @@ One line each; phase *N*'s full story is `docs/phase-N-status.md`. The verbose i
 | 74 | Till pricing: Amount discounts at both tills (a line's rupees off each unit, a bill's or an order's spread over its lines and stored per line, an order's frozen at its first bill); the refund returning the last of a sale line takes what is left of it, so refunds tie out to the paisa; any Retail price but the catalogue's needs `Sales.Invoice.Approve` |
 | 75 | Printing by location: "Location: name, address" under the registered address on every PDF of a multi-location organization (hideable, never locked); a location may choose its own template per type, falling back to the default; the till receipt prints the registered address and the location's own |
 | 76 | Separate till keys: a discount, a waived service charge and any price but the catalogue's each need their own location-scoped key (`Sales.Invoice.TillDiscount` / `.TillRemoveServiceCharge` / `.TillChangeRate`, the vendor's three POS role switches) instead of `Sales.Invoice.Approve`, which also approved every ERP draft; existing Approve grants backfilled at the same scope; credit stays on Approve |
+| 77 | An order's Amount discount moves with its food (a transferred or parcelled quantity takes its share, read from the line's bills once billed; discard still refused); the export's Sales Documents carry every part of a sale's money and Payments the till's tenders, change and payouts |
+| 78 | The export finished: Purchase Documents carry expenses, TDS and additional costs as rows of their own, a debit note's bill and the classification it inherits; Unit, Exchange Rate and Location on every sheet; a drawer's Cash In / Cash Out on Payments; the export screen's unticked categories are no longer exported anyway |
 
 ---
 
@@ -151,8 +153,11 @@ three switches, and every existing Approve grant was copied to them. Phase 77 le
 with its food (`phase-77-status.md`): a transferred or parcelled quantity takes its share, read from the line's bills
 once the order is billed. The full-tenant export now carries every part of a sale's money (service charge, packaging
 fee, both kinds of discount, round-off on a row of its own, the order and the invoice a note is against) and the
-till's tenders, change and refund payouts. **Next: not yet scheduled**; the candidates are phase 75 § 5's (and the rest
-of phase 73 § 5 it carries), phase 76 § 5's, phase 77 § 5's and phase 71 § 5's.
+till's tenders, change and refund payouts. Phase 78 finished the export (`phase-78-status.md`): the Purchase Documents
+sheet carries expenses, TDS and additional costs as rows of their own and a debit note's bill and inherited
+classification; every sheet names its unit, exchange rate and location; a drawer's Cash In / Cash Out are Payments rows;
+and the export screen sends only the categories left ticked. **Next: not yet scheduled**; the candidates are phase 75
+§ 5's (and the rest of phase 73 § 5 it carries), phase 76 § 5's, phase 77 § 5's discard-with-a-share and phase 71 § 5's.
 
 Open question for the tax advisor, not to be guessed (carried from the PAN fix): whether IRD expects a buyer PAN
 on a high-value sale to an unregistered buyer. If it does, it would be a warning on approve, never a block.
@@ -205,9 +210,12 @@ vendor's three role switches as one key, in phase 76.
 maximum discount per role (the vendor's `discount_limit` is a switch despite its name) has no live evidence; the
 vendor's server-side enforcement of its switches is unread; its POS-channel role sets are not modelled.
 
-**Carried from phase 77** (§ 5 there): discarding a dish that carries a frozen share is still refused; a drawer's
-cash in/out is not on the export's Payments sheet; the Purchase Documents sheet keeps phase 38's fourteen columns; the
-vendor's server-side handling of an amount on a transfer is unread.
+**Carried from phase 78** (§ 5 there): Cash Transfers and the drawer's over/short are not Payments rows; an additional
+cost's Method is not exported; Purchase Orders, GRNs, Delivery Notes and the manufacturing documents are on no sheet.
+
+**Carried from phase 77** (§ 5 there): discarding a dish that carries a frozen share is still refused; the vendor's
+server-side handling of an amount on a transfer is unread. The drawer's cash in/out and the Purchase Documents sheet's
+missing columns were done in phase 78.
 
 **Carried from phase 70** (§ 5 there): the VAT Act §13 wording for packaging is unverified (phase 61's reading
 applied to a second charge); a receipt prints the fee's total, not which items carried it. The export's packaging

@@ -150,7 +150,8 @@
         <button
           type="button"
           class="btn btn-primary fw-bold"
-        [disabled]="exportStarting()"
+        [disabled]="exportStarting() || selectedExportCategories().length === 0"
+        aria-describedby="exportCategoriesHelp"
         (click)="startExport()"
         >
           @if (exportStarting()) {
@@ -182,6 +183,15 @@
                     }
                   </label>
                 </div>
+              }
+            </div>
+            <!-- Phase 78: always present, so the change to "tick at least one" is announced (phase 40), and it
+                 is what the disabled Start Export button is described by. -->
+            <div id="exportCategoriesHelp" class="form-text" aria-live="polite">
+              @if (selectedExportCategories().length === 0) {
+                Tick at least one category to export.
+              } @else {
+                Untick any category you do not need.
               }
             </div>
           </fieldset>

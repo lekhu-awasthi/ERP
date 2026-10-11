@@ -2135,3 +2135,18 @@ invoices and credit notes. *Payments* is four too: payments, tenders, change and
 null constants. New columns are appended so phase 38's positions hold, and round-off is a row of its own. A till
 refund's invoice comes through `ReferrerId`, not `AgainstInvoiceId`. `TillExportTests` holds every `decimal` on a sales
 line to an exported column or a named reason.
+
+## Phase 78 — The export finished: every part of a purchase, and every rupee in and out of a drawer
+
+**Read `phase-78-status.md` before adding a row kind or a column to an export sheet, or a "select some of these" control
+whose empty state means "all".**
+
+**A document figure true of no line is a row of its own.** Phase 77's round-off, then TDS and an additional cost on
+*Purchase Documents*: no product, line figures zero, after the document's lines (`RowKind`). An additional cost sits in
+its own column, never in Amount, because the supplier is not owed it. What a supplier is owed is Amount + VAT − TDS.
+A debit note's classification and import flag are its bill's, matched as `PurchaseReturnReader` matches them (a
+correlated subquery coalescing to Others). Expenses are on the sheet with an *Account* column. Every sheet now names
+its Unit (the line's, else the product's primary), Exchange Rate and Location; names come from `ExportLookups`, loaded
+once per tenant. The guards hold every `decimal` on eight purchase types and on the sales headers. A drawer's Cash In /
+Out are Payments rows numbered by the session. The export screen's selection is now the ticked list; "all" is only
+what the request sends when every box is ticked.

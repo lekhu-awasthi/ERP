@@ -4467,3 +4467,25 @@ was charged, and its Payments sheet had none of the till's tenders. A reflection
 `InvoiceLine` and `CreditNoteLine` and requires it to be exported (`SalesDocumentExportReader.ExportedLineMoney`) or
 named with a reason (a rate, a factor, a cost, a derived total). Each list is asserted to name only properties that
 exist.
+
+## A checkbox list whose empty state means "all" cannot be unticked (phase 78)
+
+Phase 38's export screen held its category selection as a list where empty meant "every category", the endpoint's own
+meaning for an omitted selection. Every box rendered ticked from that empty list. Unticking one ran
+`current.filter(c => c !== category)` over the empty list, which is still empty, so still "every category". The box
+nevertheless showed unticked, because its `[checked]` binding evaluated to `true` before and after and Angular never
+wrote it back (phase 64's cancelled radio, as a checkbox). A user who unticked six of eight boxes saw two ticked and got
+all eight sheets, with the history's "8/8 sheets" the only sign. No spec had ever unticked a box. Hold the explicit
+list, starting full, and translate to the API's "omitted means all" only when sending; disable the action, with a
+reason, when nothing is ticked. This is phase 38's binder bug (a repeated query string arriving `null`) through a
+second door.
+
+## A document figure true of no line is a row of its own (phase 78)
+
+An export sheet of lines has two wrong places for a figure that belongs to the document: on one line, where it says
+something untrue about that line, and on every line, where its column sums to the figure times the line count. Phase
+77's round-off took a row of its own after the document's lines, with no product and every line figure zero. Phase 78
+did the same for TDS (withheld from the supplier, so what is owed is Amount + VAT − TDS) and for an additional cost,
+which also needs its own column because it is not owed to the supplier at all and must never be summed into Amount.
+Order a document's rows by kind (lines, then what it adds outside them, then what it withholds), so a reader can find
+each.
