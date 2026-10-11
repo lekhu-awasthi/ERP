@@ -25,6 +25,11 @@ namespace ErpApp.Application.Pos.Commands.CreatePosOrderInvoice;
 /// <para><b>Permissions</b> are the till sale's (phase 61 Decision F): <c>Sales.Invoice.Create</c> at
 /// the location in the pipeline, and <c>Sales.Invoice.Approve</c> there too when part of the bill is
 /// left on credit. Named <c>Create…</c> so <c>AuditBehavior</c> writes its row.</para>
+///
+/// <para><b>Phase 83 -- a discount on this bill only</b> (<see cref="DiscountPct"/> or <see cref="DiscountAmount"/>,
+/// one guest's), taken after the order's terms and given up by a void of the bill. It needs
+/// <c>Sales.Invoice.TillDiscount</c> at the order's location from whoever takes the payment, checked in the handler
+/// because the location is the loaded order's (phase 72's arrangement for the order's own discount).</para>
 /// </summary>
 public sealed record CreatePosOrderInvoiceCommand(
     Guid OrganizationId,
@@ -38,7 +43,9 @@ public sealed record CreatePosOrderInvoiceCommand(
     decimal ChangeAmount = 0,
     Guid? ContactId = null,
     bool OverrideStockWarning = false,
-    bool OverrideCreditLimitWarning = false)
+    bool OverrideCreditLimitWarning = false,
+    decimal? DiscountPct = null,
+    decimal? DiscountAmount = null)
     : IRequest<CreatePosOrderInvoiceResult>, IRequirePermission, IOrganizationScoped, IRequireFeature,
         ILockDateSensitive, IAuditableRequest, IMeteredTransaction, ILocationBearingCommand
 {
@@ -104,5 +111,9 @@ public sealed class CreatePosOrderInvoiceCommandValidator : AbstractValidator<Cr
             tender.RuleFor(x => x.PaymentModeId).NotEmpty();
             tender.RuleFor(x => x.Amount).PosPositiveCashAmount();
         });
+        RuleFor(x => x.DiscountAmount).Null().When(x => x.DiscountPct is not null)
+            .WithMessage(PosOrderValidationRules.OneKindOfDiscount);
+        RuleFor(x => x.DiscountPct).PosOrderDiscountPct();
+        RuleFor(x => x.DiscountAmount).PosCashAmount();
     }
 }

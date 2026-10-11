@@ -298,9 +298,9 @@ public class SalesPriceGateTests
             db, seed, user, [Line(seed, 150m, discountPct: 10m)], locationId: branch.Id));
 
         Assert.Contains("(BR1.Sales.Invoice.Discount)", refused.Message);
-        Assert.Equal(new SalesPricePowersDto(true, false), await PowersAsync(db, seed, user, headOffice.Id));
-        Assert.Equal(new SalesPricePowersDto(true, false), await PowersAsync(db, seed, user, null));
-        Assert.Equal(new SalesPricePowersDto(false, false), await PowersAsync(db, seed, user, branch.Id));
+        Assert.Equal(new SalesPricePowersDto(true, false, true), await PowersAsync(db, seed, user, headOffice.Id));
+        Assert.Equal(new SalesPricePowersDto(true, false, true), await PowersAsync(db, seed, user, null));
+        Assert.Equal(new SalesPricePowersDto(false, false, true), await PowersAsync(db, seed, user, branch.Id));
     }
 
     [Fact]
@@ -308,9 +308,9 @@ public class SalesPriceGateTests
     {
         var (db, seed) = await SeedAsync();
 
-        Assert.Equal(new SalesPricePowersDto(false, false), await PowersAsync(db, seed, Clerk(), null));
+        Assert.Equal(new SalesPricePowersDto(false, false, false), await PowersAsync(db, seed, Clerk(), null));
         Assert.Equal(
-            new SalesPricePowersDto(true, true),
+            new SalesPricePowersDto(true, true, false),
             await PowersAsync(db, seed, await SalesPricing.PricerAsync(db, seed.OrganizationId), null));
     }
 

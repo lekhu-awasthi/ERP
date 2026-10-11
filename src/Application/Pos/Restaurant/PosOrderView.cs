@@ -51,7 +51,10 @@ public sealed record PosOrderLineDto(
     // Phase 74 -- the line's Amount discount per unit, and its share of the order's Amount discount (live until
     // the first bill, frozen from it).
     decimal DiscountPerUnit = 0m,
-    decimal OrderDiscountShare = 0m);
+    decimal OrderDiscountShare = 0m,
+    // Phase 83 -- what the line's bills not voided gave off it of their own (a discount on one guest's part),
+    // already taken off the money above.
+    decimal PartDiscount = 0m);
 
 public sealed record KitchenTicketLineDto(
     Guid OrderLineId, int LineNo, string ProductName, string? UnitName, decimal Quantity, string? Note,
@@ -81,7 +84,9 @@ public sealed record KitchenTicketDto(
 /// <paramref name="Invoices"/> lists every bill, voided ones included. Phase 72: <paramref name="DiscountPct"/> and
 /// <paramref name="ServiceChargeWaived"/> are the order's own terms; <paramref name="Gross"/> less
 /// <paramref name="Discount"/> is <paramref name="Amount"/>. Phase 74: <paramref name="DiscountAmount"/> is the order's
-/// Amount discount, the other kind of its own term.
+/// Amount discount, the other kind of its own term. Phase 83: <paramref name="PartDiscount"/> is what its bills not
+/// voided gave off of their own (one guest's discount each), already out of <paramref name="Total"/>, which is so what
+/// the bills add up to once the last is paid.
 /// </summary>
 public sealed record PosOrderDto(
     Guid Id,
@@ -120,7 +125,8 @@ public sealed record PosOrderDto(
     bool ServiceChargeWaived = false,
     decimal Gross = 0m,
     decimal Discount = 0m,
-    decimal DiscountAmount = 0m);
+    decimal DiscountAmount = 0m,
+    decimal PartDiscount = 0m);
 
 /// <summary>
 /// Phase 64 -- builds <see cref="PosOrderDto"/>s: one order for the till, or a page of them for the ERP
@@ -217,7 +223,8 @@ internal static class PosOrderView
                 .Select(line =>
                 {
                     var q = order.QuantitiesOf(line);
-                    var figures = order.FiguresOf(line, q.Net);
+                    var partDiscount = billed.Lines.GetValueOrDefault(line.Id)?.PartDiscountAmount ?? 0m;
+                    var figures = order.FiguresOf(line, q.Net, partDiscount);
                     var product = products.GetValueOrDefault(line.ProductId);
 
                     return new PosOrderLineDto(
@@ -230,7 +237,7 @@ internal static class PosOrderView
                         figures.Total,
                         line.IsTakeAway, line.ParcelledFromLineId, q.MovedIn, q.MovedOut,
                         line.DiscountPct, PosLineArithmetic.RoundMoney(q.Net * line.Rate),
-                        line.DiscountPerUnit, order.DiscountShareOf(line));
+                        line.DiscountPerUnit, order.DiscountShareOf(line), partDiscount);
                 })
                 .ToList();
 
@@ -267,7 +274,7 @@ internal static class PosOrderView
 
             var location = locations.GetValueOrDefault(order.BillingLocationId);
             var table = order.PosTableId is { } t ? tables.GetValueOrDefault(t) : null;
-            var estimate = order.Estimate();
+            var estimate = order.Estimate(billed.Lines);
 
             return new PosOrderDto(
                 order.Id,
@@ -306,7 +313,8 @@ internal static class PosOrderView
                 order.ServiceChargeWaived,
                 lines.Sum(x => x.Gross),
                 lines.Sum(x => x.Gross) - estimate.Amount,
-                order.DiscountAmount);
+                order.DiscountAmount,
+                lines.Sum(x => x.PartDiscount));
         }).ToList();
     }
 }

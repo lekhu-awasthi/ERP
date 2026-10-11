@@ -17,13 +17,19 @@ namespace ErpApp.Application.Pos.Queries.PreviewPosOrderBill;
 /// <para>Under <c>Pos.Order.Operate</c> at the order's location, like every order read: a waiter who
 /// holds no drawer prints the estimate the guests ask for, and only the cashier's bill needs a session.
 /// A POST because the part is a body (items with quantities), and nothing is written.</para>
+///
+/// <para>Phase 83 -- with the part's own discount (<paramref name="DiscountPct"/> or
+/// <paramref name="DiscountAmount"/>, one guest's), priced by the same planner. A preview needs no discount key:
+/// it lowers nothing, and the bill that would is checked when it is paid.</para>
 /// </summary>
 public sealed record PreviewPosOrderBillQuery(
     Guid OrganizationId,
     Guid OrderId,
     PosOrderSplit Split,
     IReadOnlyList<PosOrderLineQuantityInput> Items,
-    int? Parts)
+    int? Parts,
+    decimal? DiscountPct,
+    decimal? DiscountAmount)
     : IRequest<PosOrderBillPreviewDto>, IRequirePermission, IOrganizationScoped, IRequireFeature
 {
     public string PermissionKey => PermissionKeys.PosOrderOperate;
@@ -49,6 +55,10 @@ public sealed class PreviewPosOrderBillQueryValidator : AbstractValidator<Previe
             .InclusiveBetween(1, PosOrder.MaxCovers)
             .When(x => x.Split == PosOrderSplit.Equal)
             .WithMessage($"An equal split is into 1 to {PosOrder.MaxCovers} parts.");
+        RuleFor(x => x.DiscountAmount).Null().When(x => x.DiscountPct is not null)
+            .WithMessage(PosOrderValidationRules.OneKindOfDiscount);
+        RuleFor(x => x.DiscountPct).PosOrderDiscountPct();
+        RuleFor(x => x.DiscountAmount).PosCashAmount();
     }
 }
 
@@ -61,7 +71,10 @@ public sealed class PreviewPosOrderBillQueryHandler(IAppDbContext db, ICurrentUs
             db, request.OrganizationId, currentUser.UserId, request.OrderId, cancellationToken);
 
         var (plan, _) = await PosOrderBillPlanner.PlanAsync(
-            db, request.OrganizationId, order, till, new PosOrderBillPart(request.Split, request.Items, request.Parts),
+            db, request.OrganizationId, order, till,
+            new PosOrderBillPart(
+                request.Split, request.Items, request.Parts,
+                PosOrderBillPart.DiscountOf(request.DiscountPct, request.DiscountAmount)),
             cancellationToken);
 
         return await PosOrderBillPlanner.ToPreviewAsync(db, order, plan, cancellationToken);

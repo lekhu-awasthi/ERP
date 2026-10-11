@@ -78,6 +78,10 @@ export function rateIsLocked(
  * Phase 81 -- says why a discount or a rate cannot be changed, naming the key, as the till does
  * (phase 76). Renders nothing while the user may do both; it is guidance, not a status message, so it
  * is not a live region (phase 40's rule about furniture).
+ *
+ * <p>Phase 83 -- "at this location" only when the answer was about one: a document the tenant's scope gives no
+ * location (a quotation under the default scope) is priced by an organization-wide grant, and the note says so.
+ * And a discount already there can still be removed, which the form offers beside it.</p>
  */
 @Component({
   selector: 'app-sales-price-note',
@@ -86,12 +90,13 @@ export function rateIsLocked(
     @if (powers(); as p) {
       @if (!p.canDiscount) {
         <p class="small text-body-secondary mb-1">
-          Giving a discount needs the Sales.Invoice.Discount permission at this location.
+          Giving a discount needs the Sales.Invoice.Discount permission {{ where(p) }}. A discount already on the
+          document can still be removed.
         </p>
       }
       @if (!p.canChangeRate && currencyCode() === baseCurrency) {
         <p class="small text-body-secondary mb-1">
-          A rate other than the product's price needs the Sales.Invoice.ChangeRate permission at this location.
+          A rate other than the product's price needs the Sales.Invoice.ChangeRate permission {{ where(p) }}.
         </p>
       }
     }
@@ -101,4 +106,8 @@ export class SalesPriceNote {
   readonly powers = input<SalesPricePowers | null>(null);
   readonly currencyCode = input<string>(BASE_CURRENCY_CODE);
   protected readonly baseCurrency = BASE_CURRENCY_CODE;
+
+  protected where(powers: SalesPricePowers): string {
+    return powers.atLocation ? 'at this location' : 'in this organization';
+  }
 }

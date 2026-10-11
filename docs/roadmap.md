@@ -6,7 +6,7 @@ Guiding rule for phase sizing: each phase ends with something *runnable and demo
 
 ---
 
-## Completed phases (0–82)
+## Completed phases (0–83)
 
 One line each; phase *N*'s full story is `docs/phase-N-status.md`. The verbose index as it stood on
 2026-09-28 is archived verbatim in `roadmap-history.md` ("Completed-phases index, verbose form").
@@ -68,6 +68,7 @@ One line each; phase *N*'s full story is `docs/phase-N-status.md`. The verbose i
 | 80 | The export's remaining documents: four new sheets (Bills of Materials; Orders for Quotation, Sales Order and Purchase Order; Goods Notes for Delivery Note and GRN; Production for Production Order and Journal), Document No and Reference on Ledger Transactions and Stock Movements, an additional cost's Allocation Method |
 | 81 | The ERP's price keys: a discount or a rate the form would not suggest on a Quotation, Sales Order or Invoice draft needs `Sales.Invoice.Discount` / `.ChangeRate` at its location (Admin+Member, backfilled to every role that drafts them; what a draft or its source quotation already carried needs neither); the forms disable what Save would refuse; a picked unit's rate goes through the price basis |
 | 82 | A dish carrying a frozen share of an order's Amount discount can be discarded: its share leaves with it (the order's amount falls by what the quantity carries, every other dish keeps its price), exactly what billing and refunding it gave; before the first bill a discard leaves the amount whole; the panel says so and the message names what the discount fell by |
+| 83 | A discount on one guest's part: a restaurant bill takes its own % or Rs after the order's terms, kept apart on each line (`PartDiscountAmount`) so the last part of a dish never takes it back and a void gives it up; `Sales.Invoice.TillDiscount` at the location from whoever bills; a PDF with both kinds prints the percentage first. Plus the ERP forms' *Remove* for a clerk, "in this organization" on a document with no location, and the discard capped at what is unbilled |
 
 ---
 
@@ -219,7 +220,8 @@ the sequence).
 with the user's 2026-10-03 answer, the packaging fee in phase 70, and a discount, credit and per-part customers on a
 restaurant bill in phase 72. VAT stays in code; only fees are settings.
 
-**Carried from phase 72** (§ 5 there): a discount on one guest's part once splitting has begun. The export's order
+**Carried from phase 72** (§ 5 there): a discount on one guest's part once splitting has begun was done in phase 83 (on
+the bill, not the order). The export's order
 terms were settled in phase 77 (a bill names its order and its lines carry the terms; no POS Orders sheet). Its refund-of-a-remainder paisa, Amount discounts and *Can Change Rate* were done
 in phase 74.
 
@@ -231,11 +233,14 @@ vendor's three role switches as one key, in phase 76.
 per role was closed there (neither vendor app has one); the vendor's server-side enforcement of its switches is unread;
 its POS-channel role sets are not modelled.
 
-**Carried from phase 81** (§ 5 there): the form does not offer a clerk the removal of a discount the API allows; the
-note's "at this location" is loose on a quotation outside the location scope.
+**Carried from phase 81** (§ 5 there): the form's removal of a discount for a clerk and the note's wording on a document
+with no location were done in phase 83. A price change between saves keeps the saved line's price (the carried rule).
 
-**Carried from phase 82** (§ 5 there): the discard panel's maximum is the line's whole quantity, not what is
-unbilled (the server refuses the excess with a 409).
+**Carried from phase 82** (§ 5 there): the discard panel's maximum was capped at what is unbilled in phase 83.
+
+**Carried from phase 83** (§ 5 there): a per-part service charge waiver (one guest declining it on their own part, the
+same shape as the part discount, not asked for); the till receipt and the roll print a guest's discount inside the
+bill's *Discount*, not apart from the order's.
 
 **Carried from phase 78** (§ 5 there): done in phase 80 (four new sheets, an additional cost's Allocation Method, and
 the ledger sheets naming each document). Cash Transfers and the drawer's over/short stay on Ledger Transactions by

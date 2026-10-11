@@ -171,6 +171,9 @@ public sealed class TillExportTests
             [nameof(InvoiceLine.CogsUnitCost)] = "a cost, not a sale: Stock Movements carries the value",
             [nameof(InvoiceLine.TaxableAmount)] = "derived: Amount + Service Charge + Packaging Fee",
             [nameof(InvoiceLine.LineTotal)] = "derived: Taxable Amount + VAT",
+            // Phase 83 -- a column of its own would read 0 on the refund that gave it back: a credit note line gives
+            // back its sale's Bill Discount whole and does not split it.
+            [nameof(InvoiceLine.PartDiscountAmount)] = "inside Bill Discount: the bill's own part of it, one guest's",
         };
 
         foreach (var type in new[] { typeof(InvoiceLine), typeof(CreditNoteLine) })

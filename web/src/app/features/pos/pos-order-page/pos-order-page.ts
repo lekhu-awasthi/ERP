@@ -4,6 +4,7 @@ import { concatMap, from, toArray } from 'rxjs';
 
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { Contact } from '../../../core/contacts/contacts.models';
+import { fromPaisa, toPaisa } from '../../../core/pos/pos-bill';
 import { POS_TAB_LABELS, PosDiscountKind, PosProduct } from '../../../core/pos/pos.models';
 import {
   KitchenTicket,
@@ -434,7 +435,8 @@ export class PosOrderPage {
     const order = this.order();
     if (!order) return;
 
-    this.restaurantService.previewBill(this.organizationId, order.id, { split: 'Whole', items: [], parts: null }).subscribe({
+    const whole = { split: 'Whole' as const, items: [], parts: null, discountPct: null, discountAmount: null };
+    this.restaurantService.previewBill(this.organizationId, order.id, whole).subscribe({
       next: (preview) => {
         this.printed.set([]);
         this.estimateAt.set(new Date().toISOString());
@@ -446,6 +448,11 @@ export class PosOrderPage {
   }
 
   // ---- Inline actions ----
+
+  /** Phase 83 -- the order's own discount, apart from what its bills gave of their own (both are in `discount`). */
+  protected orderOwnDiscount(order: PosOrder): number {
+    return fromPaisa(toPaisa(order.discount) - toPaisa(order.partDiscount));
+  }
 
   protected openPanel(panel: Panel, line?: PosOrderLine): void {
     this.panelOpener = document.activeElement instanceof HTMLElement ? document.activeElement : null;

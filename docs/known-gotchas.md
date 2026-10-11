@@ -4570,3 +4570,20 @@ the refund gives back the dish at its net, share included, so the guest's discou
 built the discard to equal it and asserts it: the bill of what is left is identical either way. The alternative
 considered (re-spreading the share over the rest of the tab) would have re-priced frozen dishes, which no other path
 does. Before designing the lifted refusal, compute what the workaround leaves and make that the test.
+
+## A part priced apart from the whole needs to know which part of the discount was the order's (phase 83)
+
+Phase 65's "the last part of a line takes what is left" holds only while every billed part was priced at the same
+terms. A guest's own discount on one bill breaks it: the last part, computed as the whole line less what the bills
+charged, would hand the earlier guest's discount back to whoever paid last. The fix is not a counter on the order (a
+void would have to undo it) but a second figure on each invoice line, `PartDiscountAmount`, summed by the one billed
+reader over bills not voided. The whole is priced less that sum, and `BillDiscountAmount` in the billed state stays the
+order's share alone, so the transfer, parcel and discard rules that read it did not change. Prove it the phase 82 way:
+bill a twin tab without the discount and assert the next guest's bill is identical.
+
+## A percentage printed under a total it is already inside reads as a second discount (phase 83)
+
+Phase 74 moved a rupee discount above the Sub Total it had been taken from. A bill carrying the order's 10% **and** a
+guest's rupees printed the rupees above the Sub Total and the 10% below it, as a single percentage always had. Read top
+to bottom, that is 10% off 210.60, which nobody charged. Extracted text looked right; the rendered page did not. With
+both kinds the percentage now prints first, then the figure before the bill's discount, the discount, and the Sub Total.

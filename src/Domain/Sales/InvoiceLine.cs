@@ -32,6 +32,14 @@ public sealed class InvoiceLine
     /// </summary>
     public decimal BillDiscountAmount { get; private set; }
 
+    /// <summary>
+    /// Phase 83 -- of <see cref="BillDiscountAmount"/>, what a restaurant bill's own discount took off this line (a
+    /// discount on one guest's part, given at the bill, phase-83-status.md Decision A); the rest is the line's share of
+    /// the order's Amount. Kept apart because the order's bill planner prices what is left of an order line from the
+    /// order's terms, and must know which part of the discount was the order's. Zero on every other line.
+    /// </summary>
+    public decimal PartDiscountAmount { get; private set; }
+
     public decimal Amount { get; private set; }
     public decimal VatAmount { get; private set; }
 
@@ -246,15 +254,20 @@ public sealed class InvoiceLine
     /// </summary>
     internal static InvoiceLine CreatePosOrderPart(
         Guid invoiceId, Guid posOrderLineId, Guid productId, decimal quantity, decimal rate, VatRate vatRate,
-        decimal discountPerUnit, decimal discountPct, decimal billDiscountShare, Guid? unitId, decimal conversionFactor,
-        decimal serviceChargeRate, PackagingFee packagingFee, PosLineArithmetic.Figures figures)
+        decimal discountPerUnit, decimal discountPct, decimal billDiscountShare, decimal partDiscountShare, Guid? unitId,
+        decimal conversionFactor, decimal serviceChargeRate, PackagingFee packagingFee, PosLineArithmetic.Figures figures)
     {
-        foreach (var value in figures.Parts.Append(billDiscountShare))
+        foreach (var value in figures.Parts.Append(billDiscountShare).Append(partDiscountShare))
         {
             if (value < 0m || decimal.Round(value, Invoice.PosMoneyScale) != value)
             {
                 throw new InvalidOperationException("A till line's figures are whole paisa and never negative.");
             }
+        }
+
+        if (partDiscountShare > billDiscountShare)
+        {
+            throw new InvalidOperationException("A guest's discount on a line is part of the line's bill discount.");
         }
 
         return new InvoiceLine
@@ -270,6 +283,7 @@ public sealed class InvoiceLine
             DiscountPct = discountPct,
             DiscountPerUnit = discountPerUnit,
             BillDiscountAmount = billDiscountShare,
+            PartDiscountAmount = partDiscountShare,
             Amount = figures.Amount,
             ServiceChargeRate = serviceChargeRate,
             ServiceChargeAmount = figures.ServiceChargeAmount,

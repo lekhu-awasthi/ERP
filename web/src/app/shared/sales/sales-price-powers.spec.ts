@@ -10,7 +10,7 @@ describe('Phase 81 -- the ERP price powers on a sales form', () => {
     sellingPrice: 150,
     secondaryUnits: [{ unitId: 'box', sellingPrice: 0 }],
   } as unknown as Product;
-  const clerk = { canDiscount: false, canChangeRate: false };
+  const clerk = { canDiscount: false, canChangeRate: false, atLocation: true };
 
   it('locks a priced base-currency rate for a user without the change-rate key', () => {
     expect(rateIsLocked(clerk, 'NPR', product, '')).toBe(true);
@@ -18,7 +18,7 @@ describe('Phase 81 -- the ERP price powers on a sales form', () => {
   });
 
   it('leaves the rate open where the server has nothing to keep, or before the answer arrives', () => {
-    expect(rateIsLocked({ canDiscount: false, canChangeRate: true }, 'NPR', product, '')).toBe(false);
+    expect(rateIsLocked({ canDiscount: false, canChangeRate: true, atLocation: true }, 'NPR', product, '')).toBe(false);
     expect(rateIsLocked(clerk, 'USD', product, '')).toBe(false);
     expect(rateIsLocked(clerk, 'NPR', product, 'box')).toBe(false);
     expect(rateIsLocked(clerk, 'NPR', undefined, '')).toBe(false);
@@ -33,8 +33,21 @@ describe('Phase 81 -- the ERP price powers on a sales form', () => {
     expect(text).toContain('Sales.Invoice.Discount');
     expect(text).toContain('Sales.Invoice.ChangeRate');
 
-    fixture.componentRef.setInput('powers', { canDiscount: true, canChangeRate: true });
+    expect(text).toContain('at this location');
+    expect(text).toContain('can still be removed');
+
+    fixture.componentRef.setInput('powers', { canDiscount: true, canChangeRate: true, atLocation: true });
     fixture.detectChanges();
     expect(((fixture.nativeElement as HTMLElement).textContent ?? '').trim()).toBe('');
+  });
+
+  it('says "in this organization" when the document carries no location (phase 83)', () => {
+    const fixture = TestBed.createComponent(SalesPriceNote);
+    fixture.componentRef.setInput('powers', { ...clerk, atLocation: false });
+    fixture.detectChanges();
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(text).toContain('Sales.Invoice.Discount permission in this organization');
+    expect(text).toContain('Sales.Invoice.ChangeRate permission in this organization');
+    expect(text).not.toContain('at this location');
   });
 });

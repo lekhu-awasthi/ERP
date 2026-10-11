@@ -183,7 +183,9 @@ public static class PosRestaurantEndpoints
         group.MapPost("/orders/{orderId:guid}/bill/preview", async (
             Guid organizationId, Guid orderId, PosOrderBillRequest request, ISender sender, CancellationToken ct) =>
             Results.Ok(await sender.Send(
-                new PreviewPosOrderBillQuery(organizationId, orderId, request.Split, request.Items ?? [], request.Parts),
+                new PreviewPosOrderBillQuery(
+                    organizationId, orderId, request.Split, request.Items ?? [], request.Parts, request.DiscountPct,
+                    request.DiscountAmount),
                 ct)));
 
         group.MapPost("/orders/{orderId:guid}/invoices", async (
@@ -193,7 +195,8 @@ public static class PosRestaurantEndpoints
                 new CreatePosOrderInvoiceCommand(
                     organizationId, request.SessionId, request.LocationId, orderId, request.Split, request.Items ?? [],
                     request.Parts, request.Tenders ?? [], request.ChangeAmount, request.ContactId,
-                    request.OverrideStockWarning, request.OverrideCreditLimitWarning),
+                    request.OverrideStockWarning, request.OverrideCreditLimitWarning, request.DiscountPct,
+                    request.DiscountAmount),
                 ct)));
 
         // ---- Phase 65: the kitchen board (Pos.Kitchen.Operate) -------------------------------------------
@@ -285,8 +288,10 @@ public static class PosRestaurantEndpoints
 
     private sealed record CreatePosOrderTransferRequest(Guid? TableId, IReadOnlyList<PosOrderLineQuantityInput>? Items);
 
+    // Phase 83 -- the part's own discount, a percentage or rupees, at most one of them.
     private sealed record PosOrderBillRequest(
-        PosOrderSplit Split, IReadOnlyList<PosOrderLineQuantityInput>? Items, int? Parts);
+        PosOrderSplit Split, IReadOnlyList<PosOrderLineQuantityInput>? Items, int? Parts, decimal? DiscountPct,
+        decimal? DiscountAmount);
 
     private sealed record CreatePosOrderInvoiceRequest(
         Guid SessionId,
@@ -298,7 +303,9 @@ public static class PosRestaurantEndpoints
         decimal ChangeAmount,
         Guid? ContactId,
         bool OverrideStockWarning,
-        bool OverrideCreditLimitWarning);
+        bool OverrideCreditLimitWarning,
+        decimal? DiscountPct,
+        decimal? DiscountAmount);
 
     private sealed record ServeKitchenTicketRequest(IReadOnlyList<PosOrderLineQuantityInput>? Items);
 }

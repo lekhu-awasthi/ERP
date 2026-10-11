@@ -41,3 +41,15 @@
     text-align: right;
   }
 }
+
+// Phase 83 -- this bill's discount: the figure and its kind side by side, from the left.
+.pos-bill-discount {
+  .pos-qty {
+    margin-left: 0;
+  }
+
+  .pos-discount-kind {
+    flex: 0 0 auto;
+    width: 5.5rem;
+  }
+}

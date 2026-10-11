@@ -52,7 +52,7 @@ describe('PosBillPage', () => {
     vatRate: 'ThirteenPercentVat' as const, serviceChargeRate: 10, note: null, kitchenStationId: null,
     kitchenStationName: 'Default', ordered: quantity, discarded: 0, quantity, served: 0, outstanding: quantity,
     invoiced: 0, toBill: quantity, amount: 0, serviceChargeAmount: 0, packagingFeeAmount: 0, vatAmount: 0, total: 0, isTakeAway: false, parcelledFromLineId: null, movedIn: 0, movedOut: 0,
-    discountPct: 0, gross: quantity * 200, discountPerUnit: 0, orderDiscountShare: 0,
+    discountPct: 0, gross: quantity * 200, discountPerUnit: 0, orderDiscountShare: 0, partDiscount: 0,
   });
 
   const order = (overrides: Partial<PosOrder> = {}): PosOrder => ({
@@ -61,7 +61,7 @@ describe('PosBillPage', () => {
     contactName: 'Cash Customer', date: '2026-10-02', createdAt: '2026-10-02T04:00:00Z', createdByName: 'Sita',
     voidReason: null, voidedAt: null, voidedByName: null, amount: 520, serviceCharge: 40, packagingFee: 0, vat: 72.8, total: 632.8,
     outstanding: 4, settledAt: null, billed: 0, toBill: 4, invoices: [], tickets: [],
-    discountPct: 0, serviceChargeWaived: false, gross: 520, discount: 0, discountAmount: 0,
+    discountPct: 0, serviceChargeWaived: false, gross: 520, discount: 0, discountAmount: 0, partDiscount: 0,
     lines: [line('momo', 'Chicken Momo', 2), line('coke', 'Coke 250ml', 2)],
     ...overrides,
   });
@@ -76,6 +76,7 @@ describe('PosBillPage', () => {
       roundOff: Math.round((total - unrounded) * 100) / 100, total, billsTheRest: part !== 'first', orderTotal: 633,
       billedBefore: part === 'rest' ? 316 : 0, leftAfter: part === 'first' ? 317 : 0,
       gross: unrounded === 632.8 ? 520 : 260, discount: 0, discountPct: 0, serviceChargeWaived: false, discountAmount: 0,
+      partDiscount: 0,
     };
   };
 
@@ -162,7 +163,7 @@ describe('PosBillPage', () => {
   it('prices the whole order on the server before anything is chosen', () => {
     const p = page();
 
-    expect(p.previews[0]).toEqual({ split: 'Whole', items: [], parts: null });
+    expect(p.previews[0]).toEqual({ split: 'Whole', items: [], parts: null, discountPct: null, discountAmount: null });
     expect(p.text()).toContain('Round off0.20This bill633.00');
     expect(p.text()).toContain('Service charge40.00');
     expect(p.text()).toContain('This bill settles the order.');
@@ -174,7 +175,7 @@ describe('PosBillPage', () => {
 
     p.click('#pos-bill-split-equal');
 
-    expect(p.previews.at(-1)).toEqual({ split: 'Equal', items: [], parts: 2 });
+    expect(p.previews.at(-1)).toEqual({ split: 'Equal', items: [], parts: 2, discountPct: null, discountAmount: null });
     expect(p.text()).toContain('317.00 will be left for later bills.');
   });
 
@@ -188,6 +189,7 @@ describe('PosBillPage', () => {
 
     expect(p.previews.at(-1)).toEqual({
       split: 'Items', items: [{ lineId: 'momo', quantity: 2 }, { lineId: 'coke', quantity: 1 }], parts: null,
+      discountPct: null, discountAmount: null,
     });
 
     // The amount field is prefilled with what is due; Add takes it, then Take Payment.
@@ -275,6 +277,48 @@ describe('PosBillPage', () => {
     expect(p.text()).toContain('Gross520.00');
     expect(p.text()).toContain('Discount (5% on the order)64.00');
     expect(p.text()).toContain('Service chargeWaived');
+  });
+
+  // ---- Phase 83: a discount on one guest's bill --------------------------------------------------------
+
+  it('prices one guest\'s discount on the server, shows it apart from the order\'s, sends it, and clears it after', () => {
+    const p = page({
+      preview: {
+        ...preview('first'), amount: 234, vat: 32.76, unrounded: 284.76, roundOff: 0.24, total: 285, gross: 260,
+        discount: 26, partDiscount: 26,
+      },
+    });
+
+    p.change('#pos-bill-discount-kind', 'Amount');
+    p.change('#pos-bill-discount', '26');
+    expect(p.previews.at(-1)).toEqual({ split: 'Whole', items: [], parts: null, discountPct: null, discountAmount: 26 });
+    expect(p.text()).toContain('Discount on this bill26.00');
+    expect(p.text()).not.toContain('on the order)');
+
+    p.change('#pos-bill-discount-kind', 'Percent');
+    expect(p.previews.at(-1)).toMatchObject({ discountPct: 26, discountAmount: null });
+    p.change('#pos-bill-discount-kind', 'Amount');
+
+    p.click('#pos-bill-mode-cash');
+    p.change('#pos-bill-amount', '300');
+    p.press('Add');
+    p.takePayment().click();
+    p.render();
+
+    expect(p.bills[0]).toMatchObject({ discountPct: null, discountAmount: 26 });
+    // The next part is another guest's: it carries no discount until one is given for it.
+    expect(p.element.querySelector<HTMLInputElement>('#pos-bill-discount')!.value).toBe('');
+    expect(p.previews.at(-1)).toMatchObject({ discountPct: null, discountAmount: null });
+    expect(p.text()).toContain('26.00 off this bill.');
+  });
+
+  it('disables the bill\'s discount for a cashier without Sales.Invoice.TillDiscount and names the key', () => {
+    const p = page({ restaurant: restaurant({ canDiscount: false }) });
+
+    expect(p.element.querySelector<HTMLInputElement>('#pos-bill-discount')!.disabled).toBe(true);
+    expect(p.element.querySelector<HTMLSelectElement>('#pos-bill-discount-kind')!.disabled).toBe(true);
+    expect(p.text()).toContain('Giving a discount needs the Sales.Invoice.TillDiscount permission at this location.');
+    expect(p.previews.at(-1)).toMatchObject({ discountPct: null, discountAmount: null });
   });
 
   it('says a waiter without a drawer cannot take payment, before anything is chosen', () => {

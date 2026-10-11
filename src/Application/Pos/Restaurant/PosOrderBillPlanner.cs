@@ -8,7 +8,17 @@ namespace ErpApp.Application.Pos.Restaurant;
 /// <param name="Items">For <see cref="PosOrderSplit.Items"/>: each order line and how much of it.</param>
 /// <param name="Parts">For <see cref="PosOrderSplit.Equal"/>: how many equal parts what is left is split
 /// into, this one included. The till counts it down as the parts are paid; the server keeps no split state.</param>
-public sealed record PosOrderBillPart(PosOrderSplit Split, IReadOnlyList<PosOrderLineQuantityInput>? Items, int? Parts);
+/// <param name="Discount">Phase 83 -- this part's own discount, if any: one guest's, on this bill only.</param>
+public sealed record PosOrderBillPart(
+    PosOrderSplit Split, IReadOnlyList<PosOrderLineQuantityInput>? Items, int? Parts, PosPartDiscount? Discount)
+{
+    /// <summary>Phase 83 -- a request's <c>discountPct</c> or <c>discountAmount</c> (the validators allow one at
+    /// most) as the part's discount; neither, or zero, is none.</summary>
+    public static PosPartDiscount? DiscountOf(decimal? discountPct, decimal? discountAmount) =>
+        discountAmount is { } amount and not 0m ? new PosPartDiscount(PosDiscountKind.Amount, amount)
+        : discountPct is { } pct and not 0m ? new PosPartDiscount(PosDiscountKind.Percent, pct)
+        : null;
+}
 
 /// <summary>One line of a planned bill, named for the screen and the estimate. Phase 72:
 /// <paramref name="ServiceChargeRate"/> is the rate the line is billed at (none when the order waived it),
@@ -32,7 +42,8 @@ public sealed record PosOrderBillLineDto(
     decimal DiscountPct = 0m,
     decimal Gross = 0m,
     decimal DiscountPerUnit = 0m,
-    decimal BillDiscountShare = 0m);
+    decimal BillDiscountShare = 0m,
+    decimal PartDiscountShare = 0m);
 
 /// <summary>
 /// A part of an order priced by the server, which is what the till shows before money changes hands and
@@ -40,7 +51,9 @@ public sealed record PosOrderBillLineDto(
 /// <paramref name="OrderTotal"/> what the whole order comes to as bills; <paramref name="LeftAfter"/> what
 /// later parts will pay. Phase 72: <paramref name="Gross"/> less <paramref name="Discount"/> is
 /// <paramref name="Amount"/>, as on the receipt; <paramref name="DiscountPct"/> and
-/// <paramref name="ServiceChargeWaived"/> are the order's terms the part was priced with.
+/// <paramref name="ServiceChargeWaived"/> are the order's terms the part was priced with. Phase 83:
+/// <paramref name="PartDiscount"/> is what this bill's own discount took off, inside <paramref name="Discount"/>;
+/// <paramref name="DiscountAmount"/> stays the part's share of the order's Amount.
 /// </summary>
 public sealed record PosOrderBillPreviewDto(
     Guid OrderId,
@@ -61,7 +74,8 @@ public sealed record PosOrderBillPreviewDto(
     decimal Discount = 0m,
     decimal DiscountPct = 0m,
     bool ServiceChargeWaived = false,
-    decimal DiscountAmount = 0m);
+    decimal DiscountAmount = 0m,
+    decimal PartDiscount = 0m);
 
 /// <summary>
 /// Phase 65 -- the one planner the preview, the estimate bill and the bill itself call (phase 63's rule:
@@ -84,7 +98,8 @@ internal static class PosOrderBillPlanner
             part.Split,
             [.. (part.Items ?? []).Select(x => new PosOrderLineQuantity(x.LineId, x.Quantity))],
             part.Parts ?? 0,
-            till.Settings.RoundOffEnabled));
+            till.Settings.RoundOffEnabled,
+            part.Discount));
 
         return (plan, billed);
     }
@@ -104,7 +119,7 @@ internal static class PosOrderBillPlanner
                     order.ServiceChargeRateOf(x.Line), x.Figures.Amount, x.Figures.ServiceChargeAmount,
                     x.Figures.PackagingFeeAmount, x.Figures.VatAmount, x.Total, x.RemainingAfter,
                     x.Line.DiscountPct, PosLineArithmetic.RoundMoney(x.Quantity * x.Line.Rate), x.Line.DiscountPerUnit,
-                    x.BillDiscountShare);
+                    x.BillDiscountShare, x.PartDiscountShare);
             })
             .ToList();
 
@@ -131,6 +146,7 @@ internal static class PosOrderBillPlanner
             gross - amount,
             order.DiscountPct,
             order.ServiceChargeWaived,
-            lines.Sum(x => x.BillDiscountShare));
+            lines.Sum(x => x.BillDiscountShare),
+            plan.PartDiscount);
     }
 }

@@ -200,6 +200,8 @@ export interface PosOrderLine {
   discountPerUnit: number;
   /** Phase 74 -- this dish's share of the order's amount discount: live until the first bill, frozen from it. */
   orderDiscountShare: number;
+  /** Phase 83 -- what this dish's bills gave off it of their own (one guest's discount each). */
+  partDiscount: number;
 }
 
 /** Phase 68 -- what a kitchen ticket is: food to cook, a cancellation, a parcel, or a transfer. */
@@ -281,6 +283,11 @@ export interface PosOrder {
   discount: number;
   /** Phase 74 -- the order's discount as rupees off the whole tab, never beside `discountPct`. */
   discountAmount: number;
+  /**
+   * Phase 83 -- what the order's bills gave off of their own, one guest's discount each; inside `discount`, and out
+   * of `total`, which is what the bills add up to.
+   */
+  partDiscount: number;
 }
 
 /** Phase 65 -- one bill an order has had; voided ones stay listed. */
@@ -346,6 +353,12 @@ export interface PosOrderBillRequest {
   items: PosOrderLineQuantityInput[];
   /** For an equal split: how many parts what is left is split into, this one included. */
   parts: number | null;
+  /**
+   * Phase 83 -- a discount on this bill only (one guest's), a percentage of what the part comes to or rupees off it,
+   * at most one of the two; null for none. Required, not optional, so every request says which.
+   */
+  discountPct: number | null;
+  discountAmount: number | null;
 }
 
 export interface PosOrderBillLine {
@@ -370,6 +383,8 @@ export interface PosOrderBillLine {
   /** Phase 74 -- rupees off each unit, and what this part carries of the order's amount discount. */
   discountPerUnit: number;
   billDiscountShare: number;
+  /** Phase 83 -- what this bill's own discount took off the line. */
+  partDiscountShare: number;
 }
 
 /** A part priced by the server: what the screen shows before payment and what the estimate prints. */
@@ -399,6 +414,8 @@ export interface PosOrderBillPreview {
   serviceChargeWaived: boolean;
   /** Phase 74 -- what this part carries of the order's amount discount. */
   discountAmount: number;
+  /** Phase 83 -- what this bill's own discount took off it, inside `discount`. */
+  partDiscount: number;
 }
 
 export interface CreatePosOrderInvoiceRequest extends PosOrderBillRequest {

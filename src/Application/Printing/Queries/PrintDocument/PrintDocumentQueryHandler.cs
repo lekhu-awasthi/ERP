@@ -1001,15 +1001,27 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
         // Phase 74 -- a till bill's Amount discount is rupees already taken off its lines, so it prints above the Sub
         // Total it was taken from, the arithmetic reading down the page: what the lines came to, less the discount, is
         // the Sub Total. Printed under it (as the rate is), a figure reads as a second subtraction -- it did, once.
+        //
+        // Phase 83 -- a restaurant bill can carry both: the order's percentage, already in every line's Amount, and one
+        // guest's own discount in rupees. Two rows both called "Discount Applied" would read as one discount printed
+        // twice, so the guest's is named for what it is, the bill's own; and the percentage prints first, because the
+        // figure the bill's discount comes off is already after it. Printed under the Sub Total, as it is alone, it
+        // read as a second 10% off a total it is already inside (phase 74's lesson, seen on the rendered page).
         var summary = new List<PrintableFieldDto>();
+        var both = discountAmount > 0 && discountPct > 0;
+        if (both)
+        {
+            summary.Add(new PrintableFieldDto("Discount Applied", $"{Percent(discountPct)}%"));
+        }
+
         if (discountAmount > 0)
         {
-            summary.Add(new PrintableFieldDto("Before Discount", Money(subTotal + discountAmount)));
-            summary.Add(new PrintableFieldDto("Discount Applied", $"({Money(discountAmount)})"));
+            summary.Add(new PrintableFieldDto(both ? "Before Bill Discount" : "Before Discount", Money(subTotal + discountAmount)));
+            summary.Add(new PrintableFieldDto(both ? "Bill Discount" : "Discount Applied", $"({Money(discountAmount)})"));
         }
 
         summary.Add(new PrintableFieldDto("Sub Total", Money(subTotal)));
-        if (discountPct > 0)
+        if (discountPct > 0 && !both)
         {
             // The header discount is already folded into every line's Amount (phase-16b), so this
             // is disclosure of the rate applied, not a figure to subtract again.

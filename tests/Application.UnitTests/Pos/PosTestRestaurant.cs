@@ -147,9 +147,10 @@ internal sealed class PosTestRestaurant
 
     public Task<PosOrderBillPreviewDto> PreviewAsync(
         Guid orderId, PosOrderSplit split, IReadOnlyList<PosOrderLineQuantityInput>? items = null, int? parts = null,
-        Guid? userId = null) =>
+        Guid? userId = null, decimal? discountPct = null, decimal? discountAmount = null) =>
         new PreviewPosOrderBillQueryHandler(Till.Db, CurrentUser(userId)).Handle(
-            new PreviewPosOrderBillQuery(OrganizationId, orderId, split, items ?? [], parts), CancellationToken.None);
+            new PreviewPosOrderBillQuery(OrganizationId, orderId, split, items ?? [], parts, discountPct, discountAmount),
+            CancellationToken.None);
 
     public CreatePosOrderInvoiceCommandHandler BillHandler(Guid? userId = null)
     {
@@ -169,11 +170,13 @@ internal sealed class PosTestRestaurant
         int? parts = null,
         decimal change = 0m,
         Guid? contactId = null,
-        Guid? userId = null) =>
+        Guid? userId = null,
+        decimal? discountPct = null,
+        decimal? discountAmount = null) =>
         BillHandler(userId).Handle(
             new CreatePosOrderInvoiceCommand(
                 OrganizationId, sessionId, LocationId, orderId, split, items ?? [], parts, tenders, change, contactId,
-                OverrideStockWarning: true),
+                OverrideStockWarning: true, DiscountPct: discountPct, DiscountAmount: discountAmount),
             CancellationToken.None);
 
     public Task<PosKitchenBoardDto> BoardAsync(

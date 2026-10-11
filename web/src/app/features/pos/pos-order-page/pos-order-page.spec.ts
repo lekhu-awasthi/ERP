@@ -65,18 +65,18 @@ describe('PosOrderPage', () => {
     contactName: 'Cash Customer', date: '2026-10-02', createdAt: '2026-10-02T04:00:00Z', createdByName: 'Sita',
     voidReason: null, voidedAt: null, voidedByName: null, amount: 460, serviceCharge: 40, packagingFee: 0, vat: 65, total: 565, outstanding: 3,
     settledAt: null, billed: 0, toBill: 3, invoices: [],
-    discountPct: 0, serviceChargeWaived: false, gross: 460, discount: 0, discountAmount: 0,
+    discountPct: 0, serviceChargeWaived: false, gross: 460, discount: 0, discountAmount: 0, partDiscount: 0,
     lines: [
       { id: 'l-Chicken Momo', lineNo: 1, productId: 'momo', productCode: 'P0002', productName: 'Chicken Momo', unitId: 'plate',
         unitName: 'plt', rate: 200, vatRate: 'ThirteenPercentVat', serviceChargeRate: 10, note: null, kitchenStationId: 'kitchen',
         kitchenStationName: 'Kitchen', ordered: 2, discarded: 0, quantity: 2, served: 0, outstanding: 2, invoiced: 0, toBill: 2, amount: 400,
         serviceChargeAmount: 40, packagingFeeAmount: 0, vatAmount: 57.2, total: 497.2, isTakeAway: false, parcelledFromLineId: null, movedIn: 0, movedOut: 0,
-        discountPct: 0, gross: 400, discountPerUnit: 0, orderDiscountShare: 0 },
+        discountPct: 0, gross: 400, discountPerUnit: 0, orderDiscountShare: 0, partDiscount: 0 },
       { id: 'l-Coke 250ml', lineNo: 2, productId: 'coke', productCode: 'P0003', productName: 'Coke 250ml', unitId: 'plate',
         unitName: 'plt', rate: 60, vatRate: 'ThirteenPercentVat', serviceChargeRate: 0, note: null, kitchenStationId: null,
         kitchenStationName: 'Default', ordered: 1, discarded: 0, quantity: 1, served: 0, outstanding: 1, invoiced: 0, toBill: 1, amount: 60,
         serviceChargeAmount: 0, packagingFeeAmount: 0, vatAmount: 7.8, total: 67.8, isTakeAway: false, parcelledFromLineId: null, movedIn: 0, movedOut: 0,
-        discountPct: 0, gross: 60, discountPerUnit: 0, orderDiscountShare: 0 },
+        discountPct: 0, gross: 60, discountPerUnit: 0, orderDiscountShare: 0, partDiscount: 0 },
     ],
     tickets: [ticket(1, 'Kitchen', [['Chicken Momo', 2]]), ticket(1, 'Default', [['Coke 250ml', 1]])],
     ...overrides,
@@ -150,10 +150,10 @@ describe('PosOrderPage', () => {
         return of({
           orderId: 'ord-1', orderCode: 'ORD0001', amount: 460, serviceCharge: 40, packagingFee: 0, vat: 65, unrounded: 565, roundOff: 0,
           total: 565, billsTheRest: true, orderTotal: 565, billedBefore: 0, leftAfter: 0,
-          gross: 460, discount: 0, discountPct: 0, serviceChargeWaived: false, discountAmount: 0,
+          gross: 460, discount: 0, discountPct: 0, serviceChargeWaived: false, discountAmount: 0, partDiscount: 0,
           lines: [{ orderLineId: 'l-Chicken Momo', lineNo: 1, productName: 'Chicken Momo', unitName: 'plt', note: null,
             quantity: 2, rate: 200, serviceChargeRate: 10, amount: 400, serviceChargeAmount: 40, packagingFeeAmount: 0, vatAmount: 57.2,
-            total: 497.2, remainingAfter: 0, discountPct: 0, gross: 400, discountPerUnit: 0, billDiscountShare: 0 }],
+            total: 497.2, remainingAfter: 0, discountPct: 0, gross: 400, discountPerUnit: 0, billDiscountShare: 0, partDiscountShare: 0 }],
         });
       },
       printTicket: (_o: string, _id: string, ticketId: string): Observable<PosKitchenTicketPrint> => {
@@ -287,6 +287,22 @@ describe('PosOrderPage', () => {
     expect(p.text()).toContain("The order's discount fell by 20.00 to 32.00.");
   });
 
+  it('caps a discard at what is not yet billed, and offers none once a dish is all billed', () => {
+    // Phase 83 (phase 82 § 5) -- one momo of two billed: one can be discarded, the other is refunded.
+    const billed = order();
+    billed.lines = billed.lines.map((l) => l.productName === 'Chicken Momo'
+      ? { ...l, invoiced: 1, toBill: 1 }
+      : { ...l, invoiced: 1, toBill: 0 });
+    const p = page({ orderId: 'ord-1', order: billed });
+
+    expect([...p.element.querySelectorAll('button')].some((b) => b.textContent?.trim() === 'Discard Coke 250ml')).toBe(false);
+    p.press('Discard Chicken Momo');
+    const input = p.element.querySelector<HTMLInputElement>('#pos-order-panel-first')!;
+    expect(input.max).toBe('1');
+    expect(p.element.querySelector('label[for="pos-order-panel-first"]')?.textContent?.replace(/\s+/g, ' ').trim())
+      .toBe('Discard (of 1 not yet billed; 1 billed is refunded, not discarded)');
+  });
+
   it("says nothing of a share before the first bill, when the amount is still the tab's", () => {
     const live = order({ discountAmount: 52 });
     live.lines = live.lines.map((l) => ({ ...l, orderDiscountShare: l.productName === 'Chicken Momo' ? 40 : 12 }));
@@ -323,7 +339,7 @@ describe('PosOrderPage', () => {
 
     p.press('Print Estimate');
 
-    expect(p.previews).toEqual([{ split: 'Whole', items: [], parts: null }]);
+    expect(p.previews).toEqual([{ split: 'Whole', items: [], parts: null, discountPct: null, discountAmount: null }]);
     const paper = p.element.querySelector('.pos-print-root')!.textContent!.replace(/\s+/g, ' ');
     expect(paper).toContain('Estimate Bill');
     expect(paper).toContain('NOT A TAX INVOICE');
@@ -466,10 +482,10 @@ describe('PosOrderPage', () => {
       preview: {
         orderId: 'ord-1', orderCode: 'ORD0001', amount: 342, serviceCharge: 0, packagingFee: 0, vat: 44.46, unrounded: 386.46,
         roundOff: -0.46, total: 386, billsTheRest: true, orderTotal: 386, billedBefore: 0, leftAfter: 0,
-        gross: 400, discount: 58, discountPct: 5, serviceChargeWaived: true, discountAmount: 0,
+        gross: 400, discount: 58, discountPct: 5, serviceChargeWaived: true, discountAmount: 0, partDiscount: 0,
         lines: [{ orderLineId: 'l-Chicken Momo', lineNo: 1, productName: 'Chicken Momo', unitName: 'plt', note: null,
           quantity: 2, rate: 200, serviceChargeRate: 0, amount: 342, serviceChargeAmount: 0, packagingFeeAmount: 0, vatAmount: 44.46,
-          total: 386.46, remainingAfter: 0, discountPct: 10, gross: 400, discountPerUnit: 0, billDiscountShare: 0 }],
+          total: 386.46, remainingAfter: 0, discountPct: 10, gross: 400, discountPerUnit: 0, billDiscountShare: 0, partDiscountShare: 0 }],
       },
     });
 

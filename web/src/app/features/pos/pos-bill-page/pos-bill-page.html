@@ -130,6 +130,30 @@
               <p class="small text-body-secondary">Everything still to bill, on one bill.</p>
             }
 
+            <!-- Phase 83 -- one guest's discount, on this bill only. -->
+            <label class="form-label small fw-bold mb-1 mt-3 d-block" for="pos-bill-discount">Discount on this bill</label>
+            <div class="d-flex gap-2 mb-1 pos-bill-discount">
+              <input class="form-control form-control-sm pos-qty" id="pos-bill-discount" type="number" min="0" step="0.01"
+                inputmode="decimal" [attr.max]="billDiscountKind() === 'Percent' ? 100 : null" [value]="billDiscountText()"
+                [disabled]="!restaurant()?.canDiscount" aria-describedby="pos-bill-discount-note"
+                (input)="onBillDiscountInput($event)" />
+              <label class="visually-hidden" for="pos-bill-discount-kind">Discount on this bill as</label>
+              <!-- [selected] per option, never [value] on the select (phases 5-7). -->
+              <select class="form-select form-select-sm pos-discount-kind" id="pos-bill-discount-kind"
+                [disabled]="!restaurant()?.canDiscount" (change)="onBillDiscountKind($event)">
+                <option value="Percent" [selected]="billDiscountKind() === 'Percent'">%</option>
+                <option value="Amount" [selected]="billDiscountKind() === 'Amount'">Rs</option>
+              </select>
+            </div>
+            <p class="small text-body-secondary mb-0" id="pos-bill-discount-note">
+              @if (restaurant()?.canDiscount) {
+                For this guest's bill only, after the order's own discount; the rest of the order keeps its prices.
+                Leave it empty for none.
+              } @else {
+                Giving a discount needs the Sales.Invoice.TillDiscount permission at this location.
+              }
+            </p>
+
             <app-status-banner [message]="previewError()" tone="warning" spacing="mt-2 mb-0" [small]="true" />
 
             @if (preview(); as p) {
@@ -164,7 +188,12 @@
               <dl class="pos-totals small">
                 @if (p.discount > 0) {
                   <dt>Gross</dt><dd>{{ p.gross | amount }}</dd>
-                  <dt>Discount{{ p.discountPct > 0 ? ' (' + p.discountPct + '% on the order)' : '' }}@if (p.discountAmount > 0) { (incl. {{ p.discountAmount | amount }} off the order) }</dt><dd>{{ p.discount | amount }}</dd>
+                  @if (orderDiscountOnPart() > 0) {
+                    <dt>Discount{{ p.discountPct > 0 ? ' (' + p.discountPct + '% on the order)' : '' }}@if (p.discountAmount > 0) { (incl. {{ p.discountAmount | amount }} off the order) }</dt><dd>{{ orderDiscountOnPart() | amount }}</dd>
+                  }
+                  @if (p.partDiscount > 0) {
+                    <dt>Discount on this bill</dt><dd>{{ p.partDiscount | amount }}</dd>
+                  }
                 }
                 <dt>Sub total</dt><dd>{{ p.amount | amount }}</dd>
                 @if (p.serviceCharge > 0) {

@@ -503,11 +503,16 @@ public sealed class Invoice
     ///
     /// <para>Phase 74 -- the line's Amount discount per unit beside its percentage, and
     /// <paramref name="billDiscountShare"/>, what this part carries of the order's Amount discount: the bill's own
-    /// <see cref="DiscountAmount"/> is the sum of its lines' shares.</para></summary>
+    /// <see cref="DiscountAmount"/> is the sum of its lines' shares.</para>
+    ///
+    /// <para>Phase 83 -- <paramref name="partDiscountShare"/> is what this bill's own discount (one guest's) took off
+    /// the line. It is inside <paramref name="billDiscountShare"/>, so the bill's <see cref="DiscountAmount"/>, a
+    /// refund and every reader see one Amount discount per line; and it may stand beside the order's percentage,
+    /// because it is the bill's term and the percentage is the order's.</para></summary>
     public void AddPosOrderLine(
         Guid posOrderLineId, Guid productId, decimal quantity, decimal rate, VatRate vatRate, decimal discountPerUnit,
-        decimal discountPct, decimal billDiscountShare, Guid? unitId, decimal conversionFactor, decimal serviceChargeRate,
-        PackagingFee packagingFee, PosLineArithmetic.Figures figures)
+        decimal discountPct, decimal billDiscountShare, decimal partDiscountShare, Guid? unitId, decimal conversionFactor,
+        decimal serviceChargeRate, PackagingFee packagingFee, PosLineArithmetic.Figures figures)
     {
         EnsureDraft();
         EnsurePos();
@@ -526,14 +531,15 @@ public sealed class Invoice
         EnsureValidDiscountPct(discountPct);
         EnsureOneKindOfLineDiscount(discountPct, discountPerUnit);
 
-        if (billDiscountShare != 0m && DiscountPct != 0m)
+        // The order's own discount is a percentage or an amount, never both (phase 74); a guest's is neither of those.
+        if (billDiscountShare - partDiscountShare != 0m && DiscountPct != 0m)
         {
             throw new InvalidOperationException("A bill's discount is a percentage or an amount, not both.");
         }
 
         _lines.Add(InvoiceLine.CreatePosOrderPart(
             Id, posOrderLineId, productId, quantity, rate, vatRate, discountPerUnit, discountPct, billDiscountShare,
-            unitId, conversionFactor, serviceChargeRate, packagingFee, figures));
+            partDiscountShare, unitId, conversionFactor, serviceChargeRate, packagingFee, figures));
 
         DiscountAmount += billDiscountShare;
         RoundOff = 0m;

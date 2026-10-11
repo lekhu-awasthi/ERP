@@ -114,6 +114,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 80: the export's remaining documents (four new sheets: Bills of Materials, Orders, Goods Notes, Production; Document No and Reference on both ledger sheets via `GlSourceDocumentResolver.LoadEveryAsync`; an additional cost's Allocation Method). Before adding an export category, or naming the document behind a ledger row — `docs/phase-80-status.md`
 - Phase 81: the ERP's price keys (`Sales.Invoice.Discount` / `.ChangeRate` on Quotation, Sales Order and Invoice drafts at the location, Admin+Member and backfilled; what the draft or its source quotation carried needs neither; the vendor's ERP has no such key; a picked unit's rate through the price basis). Before gating a value on a document, or judging what an edit changed — `docs/phase-81-status.md`
 - Phase 82: a discarded dish takes its share of the order's Amount discount with it (once frozen at the first bill; before it the amount stays whole), exactly what billing and refunding it gave; no new key. Before lifting a refusal that has a legal way round — `docs/phase-82-status.md`
+- Phase 83: a discount on one guest's part (on the bill, not the order: % or Rs after the order's terms, `PartDiscountAmount` kept apart on each line so the last part never takes it back; `TillDiscount` from whoever bills) + the ERP forms' Remove, the note's "in this organization", the discard cap. Before pricing one part of a split apart from the rest, or a control that removes itself — `docs/phase-83-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -301,6 +302,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A share moved off a part-billed line is the quantity's part of what its bills left (frozen − billed share), all of it with the last of the food; prorating the whole line drifts a paisa (phase-77).
 - A till refund names its sale by `ReferrerType`/`ReferrerId`, not `AgainstInvoiceId`; "the note's invoice" joins on the coalesce of both (phase-77).
 - A refusal with a legal way round has its spec written: a discard with a share equals bill-and-refund, and a test holds them to the same bill (phase-82).
+- A part priced apart from the whole keeps the order's share and the bill's own apart: price the whole less what bills not voided gave, never a counter on the order (phase-83).
 
 - Rich text is sanitised on write, in the Domain setter, by re-emission from a parsed tree, never by filtering; `Sanitize` must stay idempotent (phase-39).
 - A rich-text grammar is its **renderer's capability list**: decide what `RichTextPdfRenderer` can draw, then build the toolbar, or the field looks one way on screen and another in the PDF the customer receives (phase-39).
@@ -361,6 +363,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - Read an uploaded image's format and size from its bytes (`Domain/Common/ImageHeader`), never its content type; QuestPDF throws for an undecodable image after composition (phase-39).
 - A new column on a printed table narrows the others: money wrapped in ruled cells and a quantity ran into its unit, and extracted text read both as fine. Look at the rendered PDF (phase-73).
 - Rupees printed under a total they are already inside read as a second subtraction: a bill's Amount prints above its Sub Total. No poppler? `Windows.Data.Pdf` renders a page (phase-74).
+- …and so does a percentage: beside a guest's rupees, the order's 10% under the Sub Total read as 10% more off. With both kinds it prints first (phase-83).
 - QuestPDF's default font has no Devanagari: Nepali needs the embedded Noto (`PdfFonts`), and tests set `CheckIfAllTextGlyphsAreAvailable` so a missing glyph throws (phase-67).
 - A `ConstantItem` row that fits a full page throws `DocumentLayoutException` inside a half-page box, in that layout only; use relative widths and render every layout × shape (phase-79).
 - A narrow page wants a different shape, not fewer columns: dropping VAT/discount leaves an Amount that is not Qty × Rate. The roll stacks each line; no-break spaces keep a pair whole (phase-79).
@@ -554,24 +557,26 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 
 ## Current status
 
-**Phases 0-82 are complete. Next: not yet scheduled** (the user picks; candidates in `docs/roadmap.md`).
+**Phases 0-83 are complete. Next: not yet scheduled** (the user picks; candidates in `docs/roadmap.md`).
 Each phase's story is in its `docs/phase-N-status.md`, and finished planning entries are archived in
 `docs/roadmap-history.md`.
 
-**Phase 82 let a dish carrying a frozen share of an order's Amount discount be discarded.**
+**Phase 83 let one guest's part of a split bill carry a discount of its own.**
 
-- Its share leaves with it: the order's amount falls by what the quantity carries (`ShareCarriedBy`), and every other
-  dish keeps its price. That is exactly what billing it and refunding it gave, and a Domain test holds the two equal.
-- Before the first bill a discard leaves the amount whole. No key changed (`Pos.Order.Void`); the vendor has no per-dish
-  share (phase 74's live read), so there was nothing to copy.
-- The discard panel says the rule; the message names what the discount fell by, from the server's figures.
+- The discount is the bill's, not the order's: % or Rs after the order's terms, stored apart on each invoice line
+  (`PartDiscountAmount`, inside `BillDiscountAmount`). The planner prices the whole of a line less what its bills not
+  voided gave, so the next guest pays exactly what they would have; a twin-tab Domain test holds that.
+- Whoever takes the payment needs `Sales.Invoice.TillDiscount` at the location; the preview needs no key. No new keys,
+  one migration (`Phase83PartDiscount`), no live read (the vendor has no per-part discount).
+- Bundled: the ERP forms offer a clerk *Remove* on a discount, the price note says "in this organization" for a
+  document with no location (`AtLocation`), and the discard panel is capped at what is unbilled.
 
 **Next:** not yet scheduled. Candidates: phase 79 § 5 (positioning, renames, the vendor's DN/GRN/WT HTML templates,
-lakh grouping, the money receipt on the roll), phase 71 § 5, phase 72 § 5 (a discount on one guest's part after
-splitting), phase 81 § 5.
+lakh grouping, the money receipt on the roll), phase 71 § 5 (is a money receipt a bill?), phase 83 § 5 (a per-part
+service charge waiver), phase 63 § 5.
 
-Tests: Domain **1019**, Application.UnitTests **1760**, Infrastructure.UnitTests 14,
-Api.IntegrationTests 71, Angular **844**. Everything was green at phase 82's close with Docker up.
+Tests: Domain **1028**, Application.UnitTests **1765**, Infrastructure.UnitTests 14,
+Api.IntegrationTests 71, Angular **848**. Everything was green at phase 83's close with Docker up.
 The bundle sits at **652.58 kB** against `build-budget.spec.ts`'s 680 kB; every POS screen is lazy.
 
 - `Api.IntegrationTests` needs Docker Desktop running. Without it the Testcontainers-backed tests

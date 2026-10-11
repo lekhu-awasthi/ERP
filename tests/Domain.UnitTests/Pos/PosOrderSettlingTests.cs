@@ -286,15 +286,15 @@ public class PosOrderSettlingTests
         var figures = new PosLineArithmetic.Figures(200m, 20m, 0m, 28.60m);
 
         Assert.Throws<InvalidOperationException>(() => invoice.AddPosOrderLine(
-            Guid.NewGuid(), Guid.NewGuid(), 1m, 200m, VatRate.ThirteenPercentVat, 0m, 0m, 0m, null, 1m, 10m, PackagingFee.None, figures));
+            Guid.NewGuid(), Guid.NewGuid(), 1m, 200m, VatRate.ThirteenPercentVat, 0m, 0m, 0m, 0m, null, 1m, 10m, PackagingFee.None, figures));
 
         invoice.BillPosOrder(Guid.NewGuid());
         Assert.Throws<InvalidOperationException>(() => invoice.BillPosOrder(Guid.NewGuid()));
         Assert.Throws<InvalidOperationException>(() => invoice.AddPosOrderLine(
-            Guid.NewGuid(), Guid.NewGuid(), 1m, 200m, VatRate.ThirteenPercentVat, 0m, 0m, 0m, null, 1m, 10m,
+            Guid.NewGuid(), Guid.NewGuid(), 1m, 200m, VatRate.ThirteenPercentVat, 0m, 0m, 0m, 0m, null, 1m, 10m,
             PackagingFee.None, new PosLineArithmetic.Figures(200.001m, 20m, 0m, 28.60m)));
 
-        invoice.AddPosOrderLine(Guid.NewGuid(), Guid.NewGuid(), 1m, 200m, VatRate.ThirteenPercentVat, 0m, 0m, 0m, null, 1m, 10m, PackagingFee.None, figures);
+        invoice.AddPosOrderLine(Guid.NewGuid(), Guid.NewGuid(), 1m, 200m, VatRate.ThirteenPercentVat, 0m, 0m, 0m, 0m, null, 1m, 10m, PackagingFee.None, figures);
         Assert.Equal(248.60m, invoice.GrandTotal);
         Assert.Equal(20m, invoice.ServiceChargeTotal);
 

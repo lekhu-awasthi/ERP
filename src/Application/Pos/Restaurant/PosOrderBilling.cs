@@ -70,7 +70,10 @@ internal static class PosOrderBilling
                 g => new PosOrderLineBilled(
                     g.Sum(x => x.Quantity),
                     g.Aggregate(PosLineArithmetic.Figures.Zero, (sum, x) => sum + x.Figures),
-                    g.Sum(x => x.BillDiscountAmount)));
+                    // Phase 83 -- a line's bill discount is the order's share plus its bill's own discount; the
+                    // planner needs the two apart, because only the first is the order's to spread.
+                    g.Sum(x => x.BillDiscountAmount - x.PartDiscountAmount),
+                    g.Sum(x => x.PartDiscountAmount)));
 
         var totals = new PosOrderBilledTotals(
             live.Sum(x => x.Lines.Sum(l => l.LineTotal)),

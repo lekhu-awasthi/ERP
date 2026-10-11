@@ -417,3 +417,13 @@ beside a 200 from the same user, and create a fresh Organization per phase.
   once billed). Its 403-not-404 pair, with a valid body: **404** "Order not found." as Admin and **403 naming
   `Pos.Order.Void`** from a role holding `Pos.Order.View` + `.Operate` + `Tenancy.BillingLocation.View`. In SQL a
   discard is a `pos.KitchenTickets` row of `Kind = 'Cancellation'` with its `Reason` and a negative line quantity.
+- Phase 83. A guest's discount is `discountPct` **or** `discountAmount` on both `POST /pos/orders/{id}/bill/preview`
+  and `POST /pos/orders/{id}/invoices` (both is a 400 naming `DiscountAmount`; null or 0 is none). The preview answers
+  `partDiscount` and each line's `partDiscountShare`; `GET /pos/orders/{id}` answers `partDiscount` and a `total` net of
+  it. `POST /pos/locations/{id}/areas` answers **200**, not 201, and a table must sit inside the 1100 by 800 floor
+  (`x + width <= 1100`). The bill with a discount from a role lacking `Sales.Invoice.TillDiscount` is **403** naming
+  `HO.Sales.Invoice.TillDiscount`; the 403-not-404 pair is the preview of a nonexistent order with a valid body: 404 as
+  Admin, **403 naming `Pos.Order.Operate`** from a role holding `Pos.Order.View` + `Tenancy.BillingLocation.View`.
+  A role holding every key but one: read Admin's grants from `GET /roles/{adminId}/permissions` (`groups[].permissions[]`
+  of `{permissionKey, isGranted}`) and `PUT` them back minus the key. In SQL, `sales.InvoiceLines.PartDiscountAmount`
+  sits inside `BillDiscountAmount`. `GET /sales/price-powers` answers `atLocation` too. There is no `audit.AuditEntries`.

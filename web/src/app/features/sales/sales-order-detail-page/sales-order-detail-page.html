@@ -193,7 +193,7 @@
               </tr>
             </thead>
             <tbody>
-              @for (line of lines(); track line.key) {
+              @for (line of lines(); track line.key; let i = $index) {
                 <tr>
                   <td>
                     @if (isDraft()) {
@@ -260,6 +260,18 @@
                         [disabled]="discountLocked()"
                         (input)="onDiscountPctChange(line.key, $event)"
                       />
+                      <!-- Phase 83 -- taking a discount off needs no key (phase 81 Decision F). -->
+                      @if (discountLocked() && (line.discountPct > 0 || removedDiscounts().has(line.key))) {
+                        <!-- It stays once used, saying so, or keyboard focus would fall onto the page (phase 72). -->
+                        <button type="button" class="btn btn-link btn-sm p-0" (click)="removeLineDiscount(line.key)"
+                          [attr.aria-disabled]="removedDiscounts().has(line.key) ? true : null">
+                          @if (removedDiscounts().has(line.key)) {
+                            Discount removed<span class="visually-hidden"> on line {{ i + 1 }}</span>
+                          } @else {
+                            Remove<span class="visually-hidden"> the discount on line {{ i + 1 }}</span>
+                          }
+                        </button>
+                      }
                     } @else {
                       {{ (line.discountPct | amount) }}
                     }
@@ -311,6 +323,16 @@
                       [disabled]="discountLocked()"
                       (input)="onHeaderDiscountPctChange($event)"
                     />
+                    @if (discountLocked() && (discountPct() > 0 || removedDiscounts().has('document'))) {
+                      <button type="button" class="btn btn-link btn-sm p-0 ms-2" (click)="removeHeaderDiscount()"
+                        [attr.aria-disabled]="removedDiscounts().has('document') ? true : null">
+                        @if (removedDiscounts().has('document')) {
+                          Discount removed<span class="visually-hidden"> from the document</span>
+                        } @else {
+                          Remove<span class="visually-hidden"> the document discount</span>
+                        }
+                      </button>
+                    }
                   }
                 </td>
                 <td class="text-end fw-bold">({{ (discountAmount() | amount) }})</td>

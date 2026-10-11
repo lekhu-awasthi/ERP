@@ -224,10 +224,9 @@ public sealed class CreditNote
         EnsureValidDiscountPct(line.DiscountPct);
         Invoice.EnsureOneKindOfLineDiscount(line.DiscountPct, line.DiscountPerUnit);
 
-        if (line.BillDiscountShare != 0m && DiscountPct != 0m)
-        {
-            throw new InvalidOperationException("A bill's discount is a percentage or an amount, not both.");
-        }
+        // Phase 83 -- no "a percentage or an amount, never both" here: a refund gives back what its sale line charged,
+        // and a restaurant bill may carry the order's percentage beside one guest's own discount. The sale decided
+        // what may be combined (Invoice.AddPosLines, Invoice.AddPosOrderLine).
 
         _lines.Add(CreditNoteLine.CreatePos(
             Id, line.ProductId, line.Quantity, line.Rate, line.VatRate, line.DiscountPerUnit, line.DiscountPct,

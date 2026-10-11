@@ -596,6 +596,26 @@ export class InvoiceDetailPage {
     this.discountPct.set(Number.isFinite(discountPct) ? discountPct : 0);
   }
 
+  /**
+   * Phase 83 -- taking a discount off needs no key (phase 81 Decision F: anyone who may draft may charge the full
+   * price), so a user whose discount inputs are disabled is still offered the removal of one already there. The
+   * button stays once used, saying "Discount removed": a control that removes itself drops keyboard focus onto the
+   * page (phase 72), and the input beside it is disabled, so it cannot take focus instead.
+   */
+  protected readonly removedDiscounts = signal<ReadonlySet<number | 'document'>>(new Set());
+
+  protected removeLineDiscount(key: number): void {
+    if (this.removedDiscounts().has(key)) return;
+    this.updateLine(key, { discountPct: 0 });
+    this.removedDiscounts.update((removed) => new Set(removed).add(key));
+  }
+
+  protected removeHeaderDiscount(): void {
+    if (this.removedDiscounts().has('document')) return;
+    this.discountPct.set(0);
+    this.removedDiscounts.update((removed) => new Set(removed).add('document'));
+  }
+
   protected addLine(): void {
     this.lines.update((lines) => [...lines, this.newLine()]);
   }

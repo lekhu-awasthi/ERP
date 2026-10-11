@@ -316,7 +316,8 @@
                           Discount<span class="visually-hidden"> {{ line.productName }}</span>
                         </button>
                       }
-                      @if (line.quantity > 0) {
+                      <!-- Phase 83 -- only what is not yet billed can be discarded; what is billed is refunded. -->
+                      @if (line.toBill > 0) {
                         @if (r.canVoid) {
                           <button type="button" class="btn btn-sm btn-outline-danger" [attr.aria-expanded]="isPanel('discard', line.id)"
                             [attr.aria-controls]="'pos-order-discard-' + line.id" (click)="openPanel({ kind: 'discard', lineId: line.id }, line)">
@@ -377,9 +378,15 @@
                     }
                     @if (isPanel('discard', line.id)) {
                       <form class="pos-panel" [id]="'pos-order-discard-' + line.id" (submit)="$event.preventDefault(); confirmPanel()">
-                        <label class="form-label small mb-1" for="pos-order-panel-first">Discard (of {{ line.quantity }} on the order)</label>
+                        <label class="form-label small mb-1" for="pos-order-panel-first">
+                          @if (line.invoiced > 0) {
+                            Discard (of {{ line.toBill }} not yet billed; {{ line.invoiced }} billed is refunded, not discarded)
+                          } @else {
+                            Discard (of {{ line.quantity }} on the order)
+                          }
+                        </label>
                         <input class="form-control form-control-sm pos-qty mb-2" id="pos-order-panel-first" type="number" min="1"
-                          [max]="line.quantity" [value]="panelQuantity()" (input)="onPanelQuantity($event)"
+                          [max]="line.toBill" [value]="panelQuantity()" (input)="onPanelQuantity($event)"
                           [attr.aria-describedby]="discardCarriesShare(o, line) ? 'pos-order-discard-share' : null" />
                         @if (discardCarriesShare(o, line)) {
                           <p class="small text-body-secondary mb-2" id="pos-order-discard-share">
@@ -426,7 +433,13 @@
             <dl class="pos-totals small">
               @if (o.discount > 0) {
                 <dt>Gross</dt><dd>{{ o.gross | amount }}</dd>
-                <dt>Discount{{ o.discountPct > 0 ? ' (' + o.discountPct + '% on the order)' : '' }}@if (o.discountAmount > 0) { ({{ o.discountAmount | amount }} on the order) }</dt><dd>{{ o.discount | amount }}</dd>
+                @if (orderOwnDiscount(o) > 0) {
+                  <dt>Discount{{ o.discountPct > 0 ? ' (' + o.discountPct + '% on the order)' : '' }}@if (o.discountAmount > 0) { ({{ o.discountAmount | amount }} on the order) }</dt><dd>{{ orderOwnDiscount(o) | amount }}</dd>
+                }
+                <!-- Phase 83 -- each a guest's discount, given on their own bill. -->
+                @if (o.partDiscount > 0) {
+                  <dt>Discounts on bills</dt><dd>{{ o.partDiscount | amount }}</dd>
+                }
               }
               <dt>Amount</dt><dd>{{ o.amount | amount }}</dd>
               @if (o.serviceCharge > 0) {

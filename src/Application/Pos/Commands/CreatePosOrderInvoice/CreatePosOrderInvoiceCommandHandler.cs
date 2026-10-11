@@ -61,8 +61,19 @@ public sealed class CreatePosOrderInvoiceCommandHandler(
 
         var till = await PosRestaurant.LoadAsync(db, request.OrganizationId, order.BillingLocationId, cancellationToken);
 
+        // Phase 83 -- a discount on this bill lowers it as the order's own discount would, so it needs the same key at
+        // the order's location (phase 76's Can Give Discount), from the one giving it: whoever takes the payment.
+        var discount = PosOrderBillPart.DiscountOf(request.DiscountPct, request.DiscountAmount);
+        if (discount is not null)
+        {
+            await GrantedPermissionReader.EnsureGrantedAtLocationAsync(
+                db, request.OrganizationId, currentUser.UserId, PermissionKeys.InvoiceTillDiscount,
+                order.BillingLocationId, cancellationToken);
+        }
+
         var (plan, billed) = await PosOrderBillPlanner.PlanAsync(
-            db, request.OrganizationId, order, till, new PosOrderBillPart(request.Split, request.Items, request.Parts),
+            db, request.OrganizationId, order, till,
+            new PosOrderBillPart(request.Split, request.Items, request.Parts, discount),
             cancellationToken);
 
         // The order's customer unless the cashier names one -- which is how a guest asks for a full tax
@@ -86,13 +97,14 @@ public sealed class CreatePosOrderInvoiceCommandHandler(
         invoice.BillPosOrder(order.Id);
 
         // Phase 74 -- and each part's share of the order's amount discount, which the bill's own DiscountAmount
-        // adds up.
+        // adds up. Phase 83 -- with this bill's own discount inside it, kept apart on the line.
         foreach (var line in plan.Lines)
         {
             invoice.AddPosOrderLine(
                 line.Line.Id, line.Line.ProductId, line.Quantity, line.Line.Rate, line.Line.VatRate,
-                line.Line.DiscountPerUnit, line.Line.DiscountPct, line.BillDiscountShare, line.Line.UnitId,
-                line.Line.ConversionFactor, order.ServiceChargeRateOf(line.Line), line.Line.PackagingFee, line.Figures);
+                line.Line.DiscountPerUnit, line.Line.DiscountPct, line.BillDiscountShare + line.PartDiscountShare,
+                line.PartDiscountShare, line.Line.UnitId, line.Line.ConversionFactor, order.ServiceChargeRateOf(line.Line),
+                line.Line.PackagingFee, line.Figures);
         }
 
         // Phase 74 -- the first bill freezes how the order's amount discount is spread (Decision B); the plan above

@@ -955,10 +955,18 @@ public sealed class PosOrder
     /// order line is priced -- the estimate, the screens and the bill planner all come here -- so no reader can
     /// price a line without the order's terms.
     /// </summary>
-    public PosLineArithmetic.Figures FiguresOf(PosOrderLine line, decimal quantity) =>
+    public PosLineArithmetic.Figures FiguresOf(PosOrderLine line, decimal quantity) => FiguresOf(line, quantity, 0m);
+
+    /// <summary>
+    /// Phase 83 -- the same, less <paramref name="partDiscount"/> rupees taken off it by the bills' own discounts (a
+    /// discount on one guest's part, <see cref="PosOrderBill"/>), after every term of the order. A part is priced at
+    /// its own; the <b>whole</b> line is priced at what every bill not voided gave of it, so the last part, which takes
+    /// what is left of the whole, never takes back a discount an earlier guest was given.
+    /// </summary>
+    public PosLineArithmetic.Figures FiguresOf(PosOrderLine line, decimal quantity, decimal partDiscount) =>
         PosLineArithmetic.Compute(
             quantity, line.Rate, line.VatRate.ToPercent(), line.DiscountPerUnit, line.DiscountPct, DiscountPct,
-            DiscountShareOf(line, quantity), ServiceChargeRateOf(line), line.PackagingFee);
+            DiscountShareOf(line, quantity) + partDiscount, ServiceChargeRateOf(line), line.PackagingFee);
 
     /// <summary>Counts one more print of a ticket and returns its number: 1 is the original, and the
     /// paper marks anything after it a reprint, so a kitchen does not cook one ticket twice.</summary>
@@ -1164,8 +1172,14 @@ public sealed class PosOrder
     /// <summary>The order's running figures before any bill: each line's net quantity priced by phase
     /// 63's <see cref="PosLineArithmetic"/> (<see cref="FiguresOf"/>). Unrounded to the rupee -- the bill
     /// (phase 65) rounds.</summary>
-    public PosLineArithmetic.Figures Estimate() =>
-        _lines.Aggregate(PosLineArithmetic.Figures.Zero, (sum, line) => sum + FiguresOf(line, QuantitiesOf(line).Net));
+    public PosLineArithmetic.Figures Estimate() => Estimate(new Dictionary<Guid, PosOrderLineBilled>());
+
+    /// <summary>Phase 83 -- the order's figures once its bills have given part discounts: each line whole, less what
+    /// the bills not voided gave off it (<see cref="PosOrderLineBilled.PartDiscountAmount"/>). What the bills add up
+    /// to once the last is paid, before rounding.</summary>
+    public PosLineArithmetic.Figures Estimate(IReadOnlyDictionary<Guid, PosOrderLineBilled> billed) =>
+        _lines.Aggregate(PosLineArithmetic.Figures.Zero, (sum, line) => sum + FiguresOf(
+            line, QuantitiesOf(line).Net, billed.GetValueOrDefault(line.Id)?.PartDiscountAmount ?? 0m));
 
     public static string Describe(PosTab orderType) => orderType switch
     {
@@ -1269,7 +1283,7 @@ public sealed class PosOrder
 
     /// <summary>Phase 74 -- an amount discount is whole paisa and never negative; what it may not exceed is the
     /// caller's to say.</summary>
-    private static decimal RequireDiscountAmount(decimal amount)
+    internal static decimal RequireDiscountAmount(decimal amount)
     {
         if (amount < 0m || decimal.Round(amount, Invoice.PosMoneyScale) != amount)
         {
@@ -1281,7 +1295,7 @@ public sealed class PosOrder
 
     /// <summary>Phase 72 -- a discount is a percentage from 0 to 100 with at most two decimal places, as a
     /// cashier types one.</summary>
-    private static decimal RequireDiscountPct(decimal discountPct)
+    internal static decimal RequireDiscountPct(decimal discountPct)
     {
         if (discountPct < 0m || discountPct > 100m)
         {

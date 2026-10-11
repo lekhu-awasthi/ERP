@@ -874,4 +874,9 @@ export type PricedSalesDocumentType = 'Quotation' | 'SalesOrder' | 'Invoice';
 export interface SalesPricePowers {
   canDiscount: boolean;
   canChangeRate: boolean;
+  /**
+   * Phase 83 -- whether the answer is about the location the document will carry, or (the type carries none under
+   * the tenant's scope) the whole organization, so the note says which.
+   */
+  atLocation: boolean;
 }

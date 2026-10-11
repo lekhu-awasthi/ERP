@@ -5,7 +5,7 @@ import { switchMap } from 'rxjs';
 import { extractErrorMessage, extractWarningKind } from '../../../core/auth/api-error';
 import { Contact } from '../../../core/contacts/contacts.models';
 import { fromPaisa, toPaisa } from '../../../core/pos/pos-bill';
-import { POS_TAB_LABELS, PosReceipt, PosTill, PosTillPaymentMode } from '../../../core/pos/pos.models';
+import { POS_TAB_LABELS, PosDiscountKind, PosReceipt, PosTill, PosTillPaymentMode } from '../../../core/pos/pos.models';
 import {
   CreatePosOrderInvoiceResult,
   PosOrder,
@@ -63,6 +63,12 @@ interface BillWarning {
  * customer may leave what is still to pay on their account, under the Retail till's rules (phase 61 Decisions F
  * and G): never the walk-in, and only for a cashier who may approve invoices here. The order's discount and a
  * waived service charge are set on the order screen; this screen shows what the server priced with them.</p>
+ *
+ * <p><b>Phase 83 -- a discount on this bill only</b>: one guest's, once splitting has begun or before, a percentage
+ * of what the part comes to or rupees off it. The order's own terms stay fixed, so the next guest's bill is priced
+ * as it would have been. Giving it needs Sales.Invoice.TillDiscount here (`canDiscount`), so the field is disabled
+ * for a cashier without it, with one line naming the key; the server decides regardless. It is cleared after each
+ * payment: the next part is another guest's.</p>
  */
 @Component({
   selector: 'app-pos-bill-page',
@@ -96,6 +102,9 @@ export class PosBillPage {
   protected readonly preview = signal<PosOrderBillPreview | null>(null);
   protected readonly previewError = signal<string | null>(null);
   protected readonly previewing = signal(false);
+  /** Phase 83 -- this bill's own discount as typed, and its kind, kept apart: "0" as % and as Rs look alike. */
+  protected readonly billDiscountText = signal('');
+  protected readonly billDiscountKind = signal<PosDiscountKind>('Percent');
   private previewTimer: ReturnType<typeof setTimeout> | null = null;
   private previewSeq = 0;
 
@@ -176,6 +185,12 @@ export class PosBillPage {
         ? this.tenders().length > 0 || this.totalPaisa() === 0
         : this.creditRefusal() === null && this.creditAccepted()),
   );
+
+  /** Phase 83 -- the order's own discount on this part, apart from this bill's: both are inside `discount`. */
+  protected readonly orderDiscountOnPart = computed(() => {
+    const p = this.preview();
+    return p ? fromPaisa(toPaisa(p.discount) - toPaisa(p.partDiscount)) : 0;
+  });
 
   protected readonly selectedMode = computed(
     () => this.till()?.paymentModes.find((x) => x.id === this.selectedModeId()) ?? null,
@@ -268,6 +283,7 @@ export class PosBillPage {
   }
 
   protected request(): PosOrderBillRequest {
+    const discount = this.billDiscount();
     switch (this.split()) {
       case 'Items':
         return {
@@ -276,12 +292,38 @@ export class PosBillPage {
             .filter(([, c]) => c.checked && c.quantity > 0)
             .map(([lineId, c]) => ({ lineId, quantity: c.quantity })),
           parts: null,
+          ...discount,
         };
       case 'Equal':
-        return { split: 'Equal', items: [], parts: this.parts() };
+        return { split: 'Equal', items: [], parts: this.parts(), ...discount };
       default:
-        return { split: 'Whole', items: [], parts: null };
+        return { split: 'Whole', items: [], parts: null, ...discount };
     }
+  }
+
+  /**
+   * Phase 83 -- this bill's discount for the request: the typed figure as its kind, or neither when nothing (or 0)
+   * is typed. A figure the server would refuse is sent as typed, so its own message names what is wrong.
+   */
+  private billDiscount(): Pick<PosOrderBillRequest, 'discountPct' | 'discountAmount'> {
+    const text = this.billDiscountText().trim();
+    const value = Number(text);
+    if (text === '' || value === 0 || !Number.isFinite(value)) {
+      return { discountPct: null, discountAmount: null };
+    }
+    return this.billDiscountKind() === 'Amount'
+      ? { discountPct: null, discountAmount: value }
+      : { discountPct: value, discountAmount: null };
+  }
+
+  protected onBillDiscountInput(event: Event): void {
+    this.billDiscountText.set((event.target as HTMLInputElement).value);
+    this.schedulePreview();
+  }
+
+  protected onBillDiscountKind(event: Event): void {
+    this.billDiscountKind.set((event.target as HTMLSelectElement).value as PosDiscountKind);
+    this.schedulePreview();
   }
 
   private schedulePreview(): void {
@@ -419,11 +461,15 @@ export class PosBillPage {
           this.lastBill.set(result);
           this.tenders.set([]);
           const buyer = this.buyer();
-          // The next part goes to the order's own customer again unless the cashier names another.
+          const discounted = this.preview()?.partDiscount ?? 0;
+          // The next part goes to the order's own customer again unless the cashier names another, and (phase 83)
+          // carries no discount of its own unless one is given for it: it is another guest's.
           this.chosenCustomer.set(null);
+          this.billDiscountText.set('');
           this.creditAccepted.set(false);
           this.announcement.set(
             `Bill ${result.code} paid, ${result.grandTotal.toFixed(2)}.`
+              + (discounted > 0 ? ` ${discounted.toFixed(2)} off this bill.` : '')
               + (result.changeAmount > 0 ? ` Change ${result.changeAmount.toFixed(2)}.` : '')
               + (result.creditAmount > 0 && buyer ? ` ${result.creditAmount.toFixed(2)} left on ${buyer.name}'s account.` : '')
               + (result.orderStatus === 'Settled' ? ' The order is settled and the table is free.' : ` ${result.orderToBill.toFixed(2)} still to bill.`),

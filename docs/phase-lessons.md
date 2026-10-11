@@ -2210,3 +2210,19 @@ rest of the tab to the same bill lines the workaround produced. Before the first
 No key changed (`Pos.Order.Void`), and the vendor has no per-dish share to copy (phase 74's live read). The panel says
 the rule in words; the message names what the discount fell by from the server's two figures, because the share
 depends on the dish's bills.
+
+## Phase 83 — A discount on one guest's part, and three small fixes
+
+**Read `phase-83-status.md` before a figure that prices one part of a split apart from the rest, or a control that
+removes itself.**
+
+Phase 72 fixed an order's discount at its first bill so every part is priced at the same terms, which left no way to
+discount one guest once splitting had begun. The discount now lives on the bill: a % or Rs taken after the order's
+terms, spread over the part's lines and kept apart on each invoice line (`PartDiscountAmount`, inside
+`BillDiscountAmount`). The planner prices the whole of a line less what its bills not voided gave off it, so the last
+part of a dish takes what is left at the order's terms and never an earlier guest's discount. A void gives it up with
+nothing written back. The test is phase 82's: a twin tab billed without the discount, and the next guest's bill
+identical on both. Whoever takes the payment needs `Sales.Invoice.TillDiscount` at the location; the preview needs no
+key. A PDF with both kinds prints the percentage first (below a Sub Total it read as a second 10%). The bundle also gave
+the ERP forms a *Remove* for a clerk (it stays as "Discount removed" so focus is not dropped), the price note "in this
+organization" from the server's `AtLocation`, and the discard capped at what is unbilled.

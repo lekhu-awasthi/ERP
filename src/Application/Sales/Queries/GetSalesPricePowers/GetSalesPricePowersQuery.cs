@@ -34,7 +34,9 @@ public sealed record GetSalesPricePowersQuery(Guid OrganizationId, DocumentType 
     };
 }
 
-public sealed record SalesPricePowersDto(bool CanDiscount, bool CanChangeRate);
+/// <param name="AtLocation">Phase 83 -- whether the answer is about a location (the one the document will carry) or,
+/// when the type carries none under the tenant's scope, the whole organization: what the form's note says.</param>
+public sealed record SalesPricePowersDto(bool CanDiscount, bool CanChangeRate, bool AtLocation);
 
 public sealed class GetSalesPricePowersQueryValidator : AbstractValidator<GetSalesPricePowersQuery>
 {
@@ -60,6 +62,7 @@ public sealed class GetSalesPricePowersQueryHandler(IAppDbContext db, ICurrentUs
                 cancellationToken),
             await SalesPriceGate.IsGrantedAsync(
                 db, request.OrganizationId, currentUser.UserId, PermissionKeys.InvoiceChangeRate, locationId,
-                cancellationToken));
+                cancellationToken),
+            locationId is not null);
     }
 }

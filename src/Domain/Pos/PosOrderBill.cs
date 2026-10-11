@@ -18,8 +18,23 @@ public enum PosOrderSplit
 }
 
 /// <summary>What is already billed of one order line, over its invoices not voided. Phase 74 --
-/// <paramref name="BillDiscountAmount"/> is what those parts carried of the order's Amount discount.</summary>
-public sealed record PosOrderLineBilled(decimal Quantity, PosLineArithmetic.Figures Figures, decimal BillDiscountAmount = 0m);
+/// <paramref name="BillDiscountAmount"/> is what those parts carried of the order's Amount discount. Phase 83 --
+/// <paramref name="PartDiscountAmount"/> is what their bills' own discounts took off them (a discount on one guest's
+/// part), which <paramref name="Figures"/> are already net of and <paramref name="BillDiscountAmount"/> never
+/// includes: the order's share and a guest's discount are two figures, because only the first is the order's.</summary>
+public sealed record PosOrderLineBilled(
+    decimal Quantity, PosLineArithmetic.Figures Figures, decimal BillDiscountAmount = 0m, decimal PartDiscountAmount = 0m);
+
+/// <summary>
+/// Phase 83 -- a discount on the part being billed now, and on nothing else (phase-83-status.md Decision A): a
+/// percentage of what the part comes to at the order's terms, or rupees off it, spread over its lines as a bill's
+/// Amount is (<see cref="PosLineArithmetic.Spread"/>). The order's own terms stay fixed (phase 72), so every other
+/// guest's part is priced as before.
+/// </summary>
+public sealed record PosPartDiscount(PosDiscountKind Kind, decimal Value)
+{
+    public bool IsNone => Value == 0m;
+}
 
 /// <summary>The order's invoices not voided, as one sum: before rounding, and as billed.</summary>
 public sealed record PosOrderBilledTotals(decimal Unrounded, decimal GrandTotal)
@@ -30,8 +45,11 @@ public sealed record PosOrderBilledTotals(decimal Unrounded, decimal GrandTotal)
 /// <param name="RemainingAfter">What of the line is still to be billed once this part is paid.</param>
 /// <param name="BillDiscountShare">Phase 74 -- what this part carries of the order's Amount discount, already taken
 /// off <paramref name="Figures"/>.</param>
+/// <param name="PartDiscountShare">Phase 83 -- what this bill's own discount took off the line, already taken off
+/// <paramref name="Figures"/> too.</param>
 public sealed record PosOrderBillLine(
-    PosOrderLine Line, decimal Quantity, PosLineArithmetic.Figures Figures, decimal RemainingAfter, decimal BillDiscountShare)
+    PosOrderLine Line, decimal Quantity, PosLineArithmetic.Figures Figures, decimal RemainingAfter, decimal BillDiscountShare,
+    decimal PartDiscountShare = 0m)
 {
     public decimal Total => Figures.Total;
 }
@@ -54,6 +72,9 @@ public sealed record PosOrderBillPlan(
     public decimal ServiceCharge => Lines.Sum(x => x.Figures.ServiceChargeAmount);
 
     public decimal PackagingFee => Lines.Sum(x => x.Figures.PackagingFeeAmount);
+
+    /// <summary>Phase 83 -- what this bill's own discount took off it.</summary>
+    public decimal PartDiscount => Lines.Sum(x => x.PartDiscountShare);
 
     /// <summary>What is left for later parts after this one: the order's total less everything billed.</summary>
     public decimal LeftAfter => OrderTotal - BilledBefore - Total;
@@ -80,6 +101,13 @@ public sealed record PosOrderBillPlan(
 /// round-off is under a rupee either way, and the parts add up to the order's own rounded total exactly
 /// -- 633 paid in halves is 316 then 317, the same answer phase 63's last refund gives, reached without
 /// a special case for the last part.</para>
+///
+/// <para><b>Phase 83 -- a part may carry a discount of its own</b>, taken after every term of the order and spread
+/// over the part's lines by what each comes to. Each line stores it (<see cref="PosOrderLineBilled.PartDiscountAmount"/>),
+/// and the whole of a line is priced less every such discount its bills not voided gave, so the last part's "what is
+/// left" is the remaining food at the order's terms: no later guest takes an earlier guest's discount back, and a void
+/// of the discounted bill gives it up with nothing written back (phase 65's rule for anything a void must undo). The
+/// bills then add up to the order less the discounts they gave.</para>
 /// </summary>
 public static class PosOrderBill
 {
@@ -90,7 +118,8 @@ public static class PosOrderBill
         PosOrderSplit split,
         IReadOnlyList<PosOrderLineQuantity> items,
         int parts,
-        bool roundOff)
+        bool roundOff,
+        PosPartDiscount? partDiscount = null)
     {
         if (order.Status != PosOrderStatus.Open)
         {
@@ -114,22 +143,39 @@ public static class PosOrderBill
             throw new InvalidOperationException("Choose something to bill.");
         }
 
-        var lines = chosen
+        // Each line at the order's terms first: what the part's own discount is a share of.
+        var priced = chosen
             .Select(x =>
             {
                 var left = remaining[x.Line.Id];
                 var already = billed.GetValueOrDefault(x.Line.Id);
+                var last = x.Quantity == left;
 
                 // Phase 74 -- the share of the order's amount discount goes the same way as the money: the last part
                 // takes what is left of the line's share, any other its quantity's.
-                return x.Quantity == left
-                    ? new PosOrderBillLine(
-                        x.Line, x.Quantity, WhatIsLeft(order, x.Line, already), 0m,
-                        order.DiscountShareOf(x.Line) - (already?.BillDiscountAmount ?? 0m))
-                    : new PosOrderBillLine(
-                        x.Line, x.Quantity, order.FiguresOf(x.Line, x.Quantity), left - x.Quantity,
-                        order.DiscountShareOf(x.Line, x.Quantity));
+                return (
+                    x.Line, x.Quantity, Left: left, Already: already, Last: last,
+                    Figures: last ? WhatIsLeft(order, x.Line, already, 0m) : order.FiguresOf(x.Line, x.Quantity),
+                    Share: last
+                        ? order.DiscountShareOf(x.Line) - (already?.BillDiscountAmount ?? 0m)
+                        : order.DiscountShareOf(x.Line, x.Quantity));
             })
+            .ToList();
+
+        var partShares = PartShares(partDiscount, [.. priced.Select(x => Math.Max(0m, x.Figures.Amount))]);
+
+        var lines = priced
+            .Select((x, i) => new PosOrderBillLine(
+                x.Line,
+                x.Quantity,
+                partShares[i] == 0m
+                    ? x.Figures
+                    : x.Last
+                        ? WhatIsLeft(order, x.Line, x.Already, partShares[i])
+                        : order.FiguresOf(x.Line, x.Quantity, partShares[i]),
+                x.Last ? 0m : x.Left - x.Quantity,
+                x.Share,
+                partShares[i]))
             .ToList();
 
         var unrounded = lines.Sum(x => x.Total);
@@ -148,9 +194,11 @@ public static class PosOrderBill
                 return 0m;
             }
 
-            var already = lines.Where(l => l.Line.Id == line.Id)
-                .Aggregate(billed.GetValueOrDefault(line.Id)?.Figures ?? PosLineArithmetic.Figures.Zero, (sum, l) => sum + l.Figures);
-            var whole = order.FiguresOf(line, order.QuantitiesOf(line).Net);
+            var thisPart = lines.Where(l => l.Line.Id == line.Id).ToList();
+            var before = billed.GetValueOrDefault(line.Id);
+            var already = thisPart.Aggregate(before?.Figures ?? PosLineArithmetic.Figures.Zero, (sum, l) => sum + l.Figures);
+            var given = (before?.PartDiscountAmount ?? 0m) + thisPart.Sum(l => l.PartDiscountShare);
+            var whole = order.FiguresOf(line, order.QuantitiesOf(line).Net, given);
             return (whole - already).Total;
         });
 
@@ -244,10 +292,42 @@ public static class PosOrderBill
 
     /// <summary>The whole line at its net quantity, less what earlier bills took of it: each figure on
     /// its own, so the line's service charge, packaging fee and VAT add up across its parts as exactly as
-    /// its amount.</summary>
-    private static PosLineArithmetic.Figures WhatIsLeft(PosOrder order, PosOrderLine line, PosOrderLineBilled? billed)
+    /// its amount. Phase 83 -- the whole is priced less every part discount its bills gave and the one this part
+    /// gives (<paramref name="partDiscount"/>), so what is left is the remaining food at the order's terms less this
+    /// guest's own discount.</summary>
+    private static PosLineArithmetic.Figures WhatIsLeft(
+        PosOrder order, PosOrderLine line, PosOrderLineBilled? billed, decimal partDiscount)
     {
-        var whole = order.FiguresOf(line, order.QuantitiesOf(line).Net);
+        var whole = order.FiguresOf(line, order.QuantitiesOf(line).Net, (billed?.PartDiscountAmount ?? 0m) + partDiscount);
         return billed is null ? whole : whole - billed.Figures;
+    }
+
+    /// <summary>
+    /// Phase 83 -- the part's own discount as each line's share, in proportion to what each line of the part comes to
+    /// at the order's terms (<paramref name="bases"/>, before VAT). A percentage is of their sum, to the paisa; neither
+    /// kind may be more than the part.
+    /// </summary>
+    private static IReadOnlyList<decimal> PartShares(PosPartDiscount? discount, IReadOnlyList<decimal> bases)
+    {
+        if (discount is null || discount.IsNone)
+        {
+            return new decimal[bases.Count];
+        }
+
+        var comesTo = bases.Sum();
+        var amount = discount.Kind switch
+        {
+            PosDiscountKind.Percent => PosLineArithmetic.RoundMoney(comesTo * PosOrder.RequireDiscountPct(discount.Value) / 100m),
+            PosDiscountKind.Amount => PosOrder.RequireDiscountAmount(discount.Value),
+            _ => throw new InvalidOperationException($"'{discount.Kind}' is not a kind of discount."),
+        };
+
+        if (amount > comesTo)
+        {
+            throw new InvalidOperationException(
+                $"This bill comes to {comesTo:0.00} before VAT, so a discount of {amount:0.00} is more than the bill.");
+        }
+
+        return PosLineArithmetic.Spread(amount, bases);
     }
 }

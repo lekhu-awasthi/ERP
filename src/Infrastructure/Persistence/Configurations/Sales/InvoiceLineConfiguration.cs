@@ -24,6 +24,8 @@ public sealed class InvoiceLineConfiguration : IEntityTypeConfiguration<InvoiceL
         // neither, so the defaults are true of every row. Sent on every insert (phase 70's arrangement).
         builder.Property(x => x.DiscountPerUnit).HasPrecision(18, 4).IsRequired().HasDefaultValue(0m).ValueGeneratedNever();
         builder.Property(x => x.BillDiscountAmount).HasPrecision(18, 4).IsRequired().HasDefaultValue(0m).ValueGeneratedNever();
+        // Phase 83 -- 0 is true of every existing line: no bill gave a discount of its own before this phase.
+        builder.Property(x => x.PartDiscountAmount).HasPrecision(18, 4).IsRequired().HasDefaultValue(0m).ValueGeneratedNever();
         builder.Property(x => x.Amount).HasPrecision(18, 4).IsRequired();
         builder.Property(x => x.VatAmount).HasPrecision(18, 4).IsRequired();
 

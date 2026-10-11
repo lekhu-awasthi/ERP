@@ -6229,6 +6229,11 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasColumnType("decimal(9,2)")
                         .HasDefaultValue(0m);
 
+                    b.Property<decimal>("PartDiscountAmount")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)")
+                        .HasDefaultValue(0m);
+
                     b.Property<Guid?>("PosOrderLineId")
                         .HasColumnType("uniqueidentifier");
 
