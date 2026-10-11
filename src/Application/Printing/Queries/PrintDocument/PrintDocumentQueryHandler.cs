@@ -1122,10 +1122,8 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
             TaxDocuments.Applies(request.DocumentType) ? null : RequestCalendar.DisclosureLine,
             code_)
         {
-            // Phase 73 -- in rupees only: the words name the currency, and AmountInWords knows one.
-            AmountInWords = amountInWordsTotal is { } total && total >= 0 && CurrencyCatalog.IsBase(code_)
-                ? Domain.Common.AmountInWords.Rupees(total)
-                : null,
+            // Phase 73 -- the words name the currency; phase 79 -- in the document's own currency, not only rupees.
+            AmountInWords = amountInWordsTotal is { } total ? Domain.Common.AmountInWords.For(total, code_) : null,
         };
     }
 

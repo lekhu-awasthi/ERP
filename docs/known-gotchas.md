@@ -4489,3 +4489,30 @@ did the same for TDS (withheld from the supplier, so what is owed is Amount + VA
 which also needs its own column because it is not owed to the supplier at all and must never be summed into Amount.
 Order a document's rows by kind (lines, then what it adds outside them, then what it withholds), so a reader can find
 each.
+
+## A fixed width inside a relative half throws only in the layout that halves it (phase 79)
+
+QuestPDF sizes a `ConstantItem` exactly and refuses a page it cannot fit: `DocumentLayoutException` ("conflicting size
+constraints") at `GeneratePdf`, after composition, so no `try` around the draw call sees it. Phase 79's signature line
+was two `ConstantItem(140)` rules with a gap. That fits a full A4 width (Modern), and it threw on every document in
+Classic, which draws the same line inside a box half the page wide. Nothing about the line changed between the two;
+only its container did. Use relative widths for anything a layout may place in a narrower container, and render every
+layout over every shape of document (with and without a party, a summary, words), since only a render of that layout
+finds it.
+
+## A narrow page wants a different shape, not fewer columns (phase 79)
+
+The vendor's 80 mm layout fits a line table into 72 mm of print by dropping the discount and VAT columns. The line's
+Amount then includes a discount and a tax the paper no longer shows, so Qty × Rate stops equalling Amount with nothing
+saying why. Phase 79's roll keeps every column and changes the shape: the first cell on a line of its own, every other
+non-empty cell as "Header value" in small type, the last cell (the amount) on the right. That is generic over any
+section, so the renderer still never asks for a document type. Keep each pair whole with no-break spaces (QuestPDF
+breaks at an ordinary space, so "Disc %" ended one line and "10" began the next), and look at the paper.
+
+## A vendor's settings key no client writes is a default, not a control (phase 79)
+
+Phase 73 recorded `_sorts` (an order for the organization, contact and document-detail fields) in every template
+configuration, and phase 75 carried "ordering of the header blocks" as unbuilt work. Searching all eleven client scripts
+found the string `_sorts` in none of them: no screen ever orders anything, and the arrays are server-side defaults.
+Phase 54's question ("what writes this field?") retired the item outright. Ask it of any key read from a payload before
+scoping the feature it seems to imply.

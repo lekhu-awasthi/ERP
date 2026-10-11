@@ -4,6 +4,7 @@ import { Observable, of } from 'rxjs';
 import {
   CustomFieldDefinition,
   PrintElementsForType,
+  PrintLayoutOption,
   PrintingTemplate,
   PrintingTemplateLayoutRequest,
   PrintingTemplatePreviewRequest,
@@ -12,7 +13,7 @@ import { ConfigurationService } from '../../../core/configuration/configuration.
 import { PrintingTemplateLayoutEditor } from './printing-template-layout-editor';
 
 /**
- * Phase 73 -- the layout editor. What matters is what it sends: checked means printed, so an unticked box is a
+ * Phase 73 -- the layout editor (phase 79: its layouts, and what each leaves out, from the server's table too). What matters is what it sends: checked means printed, so an unticked box is a
  * hidden element; a locked element (a tax document's PAN) is drawn checked and disabled and never sent as hidden;
  * custom fields go in the definitions' order; and only the server's table decides which boxes exist.
  */
@@ -37,13 +38,27 @@ describe('PrintingTemplateLayoutEditor', () => {
     };
   }
 
+  const a4 = [
+    { layout: 'Standard', omits: [] },
+    { layout: 'Traditional', omits: [] },
+    { layout: 'Minimal', omits: ['OrganizationLogo'] },
+    { layout: 'Modern', omits: [] },
+    { layout: 'Classic', omits: [] },
+  ] as const satisfies PrintLayoutOption[];
+
   const table: PrintElementsForType[] = [
     {
       documentType: 'Invoice',
       elements: ['OrganizationLogo', 'OrganizationAddress', 'OrganizationPan', 'PartyAddress', 'Unit', 'VatColumn', 'SignatureLine'],
       locked: ['OrganizationAddress', 'OrganizationPan', 'PartyAddress'],
+      layouts: [...a4, { layout: 'Retail', omits: ['OrganizationLogo', 'SignatureLine'] }],
     },
-    { documentType: 'JournalVoucher', elements: ['OrganizationLogo', 'OrganizationPan', 'SignatureLine'], locked: [] },
+    {
+      documentType: 'JournalVoucher',
+      elements: ['OrganizationLogo', 'OrganizationPan', 'SignatureLine'],
+      locked: [],
+      layouts: [...a4],
+    },
   ];
 
   function field(id: string, name: string, over: Partial<CustomFieldDefinition> = {}): CustomFieldDefinition {
@@ -196,6 +211,45 @@ describe('PrintingTemplateLayoutEditor', () => {
     expect(footer.getAttribute('aria-invalid')).toBe('true');
     expect(button('Save Layout').disabled).toBe(true);
     expect(button('Preview').disabled).toBe(true);
+  });
+
+  // ---- Phase 79: the layouts come from the server, and the roll leaves out what it has no room for ----
+
+  it("offers the layouts the server lists for the type, the roll only where it is offered", async () => {
+    await render(template());
+    const invoice = Array.from(el().querySelectorAll<HTMLInputElement>('input[name="print-layout"]')).map((i) => i.id);
+    expect(invoice).toEqual([
+      'print-layout-Standard', 'print-layout-Traditional', 'print-layout-Minimal', 'print-layout-Modern',
+      'print-layout-Classic', 'print-layout-Retail',
+    ]);
+
+    TestBed.resetTestingModule();
+    await render(template({ documentType: 'JournalVoucher' }));
+    expect(el().querySelector('#print-layout-Retail')).toBeNull();
+    expect(el().querySelector('#print-layout-Classic')).not.toBeNull();
+  });
+
+  it('greys out what the roll never prints, says why, and keeps the saved choice for when the layout changes back', async () => {
+    // The signature line was hidden on purpose; the logo was not.
+    await render(template({ hiddenElements: ['SignatureLine'] }));
+
+    click('print-layout-Retail');
+
+    const logo = box('print-element-OrganizationLogo');
+    expect(logo.checked).toBe(false);
+    expect(logo.disabled).toBe(true);
+    expect(logo.getAttribute('aria-describedby')).toBe('print-element-OrganizationLogo-omitted');
+    expect(el().querySelector('#print-element-OrganizationLogo-omitted')?.textContent).toContain('not on this layout');
+    expect(box('print-element-Unit').disabled).toBe(false);
+
+    button('Save Layout').click();
+    expect(saved[0].request.layout).toBe('Retail');
+    expect(saved[0].request.hiddenElements).toEqual(['SignatureLine']);
+
+    click('print-layout-Classic');
+    expect(box('print-element-OrganizationLogo').checked).toBe(true);
+    expect(box('print-element-OrganizationLogo').disabled).toBe(false);
+    expect(box('print-element-SignatureLine').checked).toBe(false);
   });
 
   it('previews the unsaved settings for its own type and shows the PDF in a titled frame', async () => {

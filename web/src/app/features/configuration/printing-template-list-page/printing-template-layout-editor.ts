@@ -15,11 +15,15 @@ import {
 import { ConfigurationService } from '../../../core/configuration/configuration.service';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
 
-/** The three fixed layouts (phase 73 Decision A), each with the one line that tells them apart. */
+/** The fixed layouts (phase 73 Decision A, phase 79), each with the one line that tells them apart. How each reads
+ * lives here; which of them a type is offered comes from the server's element table, never from this list. */
 export const PRINT_LAYOUTS: readonly { value: PrintLayout; label: string; description: string }[] = [
   { value: 'Standard', label: 'Standard', description: 'Centred header with the logo beside it, plain tables. What every document printed before.' },
   { value: 'Traditional', label: 'Traditional', description: 'Every block ruled: a boxed header, a gridded table, totals in a ruled column.' },
   { value: 'Minimal', label: 'Minimal', description: 'Flush-left header, no logo, no rules but the table header, smaller type.' },
+  { value: 'Modern', label: 'Modern', description: 'Light flush-left header, details as a list opposite the customer, a rule under every line.' },
+  { value: 'Classic', label: 'Classic', description: 'Centred header over a rule, a gridded table, notes and signature boxed beside the totals.' },
+  { value: 'Retail', label: 'Retail (80 mm roll)', description: 'For a thermal printer: one column, each line\'s figures under its name. No logo or signature line.' },
 ];
 
 /** How each element reads on the screen, and the group it sits in. Which elements a type offers, and which it may
@@ -81,7 +85,6 @@ export class PrintingTemplateLayoutEditor implements OnInit, AfterViewInit, OnDe
   readonly saved = output<void>();
   readonly closed = output<void>();
 
-  protected readonly layouts = PRINT_LAYOUTS;
   protected readonly footerMaxLength = FOOTER_TEXT_MAX_LENGTH;
 
   protected readonly layout = signal<PrintLayout>('Standard');
@@ -102,17 +105,35 @@ export class PrintingTemplateLayoutEditor implements OnInit, AfterViewInit, OnDe
   private readonly forType = computed(() =>
     this.elementTable().find((row) => row.documentType === this.template().documentType) ?? null);
 
+  /** Phase 79 -- the layouts this type is offered, in the server's order. The till roll is offered to three types. */
+  protected readonly offeredLayouts = computed(() => {
+    const offered = this.forType()?.layouts.map((option) => option.layout) ?? [];
+    return offered
+      .map((value) => PRINT_LAYOUTS.find((option) => option.value === value))
+      .filter((option) => option !== undefined);
+  });
+
+  /** Phase 79 -- what the chosen layout never draws (the roll has no logo or signature line). */
+  private readonly omitted = computed(() =>
+    new Set(this.forType()?.layouts.find((option) => option.layout === this.layout())?.omits ?? []));
+
   /** The groups, narrowed to what this type prints; an empty group is not drawn. */
   protected readonly groups = computed(() => {
     const row = this.forType();
     const offered = new Set(row?.elements ?? []);
     const locked = new Set(row?.locked ?? []);
+    const omitted = this.omitted();
     return ELEMENT_GROUPS
       .map((group) => ({
         legend: group.legend,
         elements: group.elements
           .filter((element) => offered.has(element))
-          .map((element) => ({ element, label: ELEMENT_LABELS[element], locked: locked.has(element) })),
+          .map((element) => ({
+            element,
+            label: ELEMENT_LABELS[element],
+            locked: locked.has(element),
+            omitted: omitted.has(element),
+          })),
       }))
       .filter((group) => group.elements.length > 0);
   });

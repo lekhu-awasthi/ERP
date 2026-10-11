@@ -2150,3 +2150,21 @@ its Unit (the line's, else the product's primary), Exchange Rate and Location; n
 once per tenant. The guards hold every `decimal` on eight purchase types and on the sales headers. A drawer's Cash In /
 Out are Payments rows numbered by the session. The export screen's selection is now the ticked list; "all" is only
 what the request sends when every box is ticked.
+
+## Phase 79 — Print layouts: Modern, Classic, an 80 mm ERP invoice, and the total in words in any currency
+
+**Read `phase-79-status.md` before adding a print layout, printing on a narrow page, or printing an amount in words.**
+
+**A layout is drawing code plus two Domain facts.** `PrintLayouts.OfferedFor(type)` says who may choose it: the five
+A4 layouts are offered to every printable type, the roll (`Retail`) only to Invoice, Credit Note and Sales Order.
+`PrintLayouts.Omits(layout)` says what it never draws: Minimal's logo, the roll's logo and signature line, never a
+locked element (a guard test holds that). `PrintingTemplateSettings.Shows` reads both, so the applier, the logo read,
+the save's and the preview's 400 naming `Layout`, and the editor's radios and "(not on this layout)" boxes (through
+`GET .../elements`'s `layouts`) all agree. A template moved to a type not offered its layout falls back to Standard.
+
+**The roll stacks, it does not drop.** `DocumentPdfRenderer.RenderRoll` is one `ContinuousSize(80 mm)` page that prints
+each row's first cell over its other cells, so every figure a line's amount is made of stays on the paper, and it keeps
+both statutory dates the vendor's Retail omits. Modern and Classic share the Standard frame's pieces (organization
+block, title, party, summary row, notes and terms) and print the details as a label/value list with a fixed label
+column. `AmountInWords.For(amount, currency)` reads every catalogue currency: NPR exactly as before, millions abroad,
+lakhs for INR, no words for a fraction of a currency without a minor unit.

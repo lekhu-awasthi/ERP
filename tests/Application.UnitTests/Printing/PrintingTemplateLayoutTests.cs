@@ -2,6 +2,7 @@ using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Application.Configuration.Commands.UpdatePrintingTemplateLayout;
 using ErpApp.Application.Printing;
+using ErpApp.Application.Printing.Queries.ListPrintElements;
 using ErpApp.Application.Printing.Queries.PreviewPrintingTemplate;
 using ErpApp.Application.Printing.Queries.PrintDocument;
 using ErpApp.Application.UnitTests.TestSupport;
@@ -169,13 +170,14 @@ public class PrintingTemplateLayoutTests
     }
 
     [Fact]
-    public async Task A_foreign_currency_document_prints_no_amount_in_words()
+    public async Task A_foreign_currency_document_prints_its_amount_in_words_in_its_own_currency()
     {
+        // Phase 79 -- phase 73's Decision F printed none here; the words now name the document's currency.
         var (db, organizationId, quotation, _) = await SeedQuotationAsync(hsCode: null, currency: "USD");
 
         var dto = await Print(db, organizationId, quotation.Id);
 
-        Assert.Null(dto.AmountInWords);
+        Assert.Equal("US Dollars Six Hundred Only", dto.AmountInWords);
     }
 
     // ---- The save ------------------------------------------------------------------------------------
@@ -333,6 +335,106 @@ public class PrintingTemplateLayoutTests
                 CancellationToken.None));
 
         Assert.Equal("HiddenElements", Assert.Single(refused.Errors).PropertyName);
+    }
+
+    // ---- Phase 79: Modern, Classic and the 80 mm roll --------------------------------------------------
+
+    [Fact]
+    public void Applier_on_the_roll_drops_the_logo_and_the_signature_line_whatever_the_template_hides()
+    {
+        var printed = PrintTemplateApplier.Apply(SampleDto(DocumentType.Invoice), Settings(hidden: [], layout: PrintLayout.Retail));
+
+        Assert.Null(printed.OrganizationLogo);
+        Assert.False(printed.ShowSignatureLine);
+        Assert.Equal(PrintLayout.Retail, printed.Layout);
+        // The roll keeps every column: it stacks them, it does not drop them.
+        Assert.Equal(7, printed.Sections.Single().Columns.Count);
+        Assert.Equal("PAN12345", printed.OrganizationPan);
+    }
+
+    [Theory]
+    [InlineData(PrintLayout.Modern)]
+    [InlineData(PrintLayout.Classic)]
+    public void Applier_on_the_new_a4_layouts_keeps_the_logo_and_the_signature_line(PrintLayout layout)
+    {
+        var printed = PrintTemplateApplier.Apply(SampleDto(DocumentType.Quotation), Settings(hidden: [], layout: layout));
+
+        Assert.NotNull(printed.OrganizationLogo);
+        Assert.True(printed.ShowSignatureLine);
+    }
+
+    [Fact]
+    public async Task Save_stores_the_roll_on_an_invoice()
+    {
+        var db = TestAppDbContext.Create();
+        var organizationId = Guid.NewGuid();
+        var template = PrintingTemplate.Create(organizationId, "Roll", DocumentType.Invoice, isDefault: true);
+        db.PrintingTemplates.Add(template);
+        await db.SaveChangesAsync(CancellationToken.None);
+
+        var result = await new UpdatePrintingTemplateLayoutCommandHandler(db).Handle(
+            new UpdatePrintingTemplateLayoutCommand(organizationId, template.Id, PrintLayout.Retail, [], [], null, false),
+            CancellationToken.None);
+
+        Assert.Equal(PrintLayout.Retail, result.Layout);
+        Assert.Equal(PrintLayout.Retail, db.PrintingTemplates.Single().Layout);
+    }
+
+    [Fact]
+    public async Task Save_refuses_the_roll_on_a_quotation_as_a_400_naming_the_layout()
+    {
+        var db = TestAppDbContext.Create();
+        var organizationId = Guid.NewGuid();
+        var template = PrintingTemplate.Create(organizationId, "Quote", DocumentType.Quotation, isDefault: true);
+        db.PrintingTemplates.Add(template);
+        await db.SaveChangesAsync(CancellationToken.None);
+
+        var refused = await Assert.ThrowsAsync<ValidationException>(() => new UpdatePrintingTemplateLayoutCommandHandler(db).Handle(
+            new UpdatePrintingTemplateLayoutCommand(organizationId, template.Id, PrintLayout.Retail, [], [], null, false),
+            CancellationToken.None));
+
+        var failure = Assert.Single(refused.Errors);
+        Assert.Equal("Layout", failure.PropertyName);
+        Assert.Contains("not offered for Quotation", failure.ErrorMessage);
+        Assert.Equal(PrintLayout.Standard, db.PrintingTemplates.Single().Layout);
+    }
+
+    [Fact]
+    public async Task Preview_on_the_roll_draws_no_signature_line_and_refuses_a_type_not_offered_it()
+    {
+        var db = TestAppDbContext.Create();
+        var organization = NewOrganization(db);
+        await db.SaveChangesAsync(CancellationToken.None);
+        var handler = new PreviewPrintingTemplateQueryHandler(db, new FakeFileStorage());
+
+        var roll = await handler.Handle(
+            new PreviewPrintingTemplateQuery(organization.Id, DocumentType.SalesOrder, PrintLayout.Retail, [], [], null, false),
+            CancellationToken.None);
+
+        Assert.Equal(PrintLayout.Retail, roll.Layout);
+        Assert.False(roll.ShowSignatureLine);
+
+        var refused = await Assert.ThrowsAsync<ValidationException>(() => handler.Handle(
+            new PreviewPrintingTemplateQuery(organization.Id, DocumentType.PurchaseBill, PrintLayout.Retail, [], [], null, false),
+            CancellationToken.None));
+        Assert.Equal("Layout", Assert.Single(refused.Errors).PropertyName);
+    }
+
+    [Fact]
+    public async Task The_element_table_lists_each_types_layouts_and_what_each_leaves_out()
+    {
+        var types = await new ListPrintElementsQueryHandler().Handle(new ListPrintElementsQuery(Guid.NewGuid()), CancellationToken.None);
+
+        var invoice = types.Single(x => x.DocumentType == DocumentType.Invoice);
+        Assert.Equal(
+            [PrintLayout.Standard, PrintLayout.Traditional, PrintLayout.Minimal, PrintLayout.Modern, PrintLayout.Classic, PrintLayout.Retail],
+            invoice.Layouts.Select(x => x.Layout));
+        Assert.Equal([PrintElement.OrganizationLogo, PrintElement.SignatureLine], invoice.Layouts.Single(x => x.Layout == PrintLayout.Retail).Omits);
+        Assert.Equal([PrintElement.OrganizationLogo], invoice.Layouts.Single(x => x.Layout == PrintLayout.Minimal).Omits);
+        Assert.Empty(invoice.Layouts.Single(x => x.Layout == PrintLayout.Classic).Omits);
+
+        var bill = types.Single(x => x.DocumentType == DocumentType.PurchaseBill);
+        Assert.DoesNotContain(bill.Layouts, x => x.Layout == PrintLayout.Retail);
     }
 
     // ---- Helpers --------------------------------------------------------------------------------------

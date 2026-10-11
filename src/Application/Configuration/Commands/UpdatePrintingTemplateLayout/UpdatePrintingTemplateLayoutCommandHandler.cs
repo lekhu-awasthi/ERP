@@ -21,7 +21,7 @@ public sealed class UpdatePrintingTemplateLayoutCommandHandler(IAppDbContext db)
         var customFields = request.PrintedCustomFieldIds!;
 
         await PrintingTemplateChecks.EnsureValidAsync(
-            db, request.OrganizationId, template.DocumentType, hidden, customFields, cancellationToken);
+            db, request.OrganizationId, template.DocumentType, request.Layout!.Value, hidden, customFields, cancellationToken);
 
         template.UpdateLayout(request.Layout!.Value, hidden, customFields, request.FooterText, request.CompactMargins!.Value);
         await db.SaveChangesAsync(cancellationToken);

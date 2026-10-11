@@ -77,7 +77,10 @@ public sealed class PrintingTemplate : ITenantLookupEntity
     ///
     /// <para>Phase 73 -- the same move keeps only the hidden elements the new type may still hide, and drops the
     /// custom fields: a field applies to a set of types, so the old type's choice says nothing about the new one, and an
-    /// Invoice must never inherit a Quotation template's hidden PAN.</para></summary>
+    /// Invoice must never inherit a Quotation template's hidden PAN.</para>
+    ///
+    /// <para>Phase 79 -- and a layout the new type is not offered (the till roll, moved off an invoice) falls back to
+    /// Standard, so no stored row holds a choice the save would refuse.</para></summary>
     public void Update(string name, DocumentType documentType, bool isActive)
     {
         if (DocumentType != documentType)
@@ -85,6 +88,10 @@ public sealed class PrintingTemplate : ITenantLookupEntity
             IsDefault = false;
             HiddenElements = HiddenElements.Where(x => PrintElements.CanHide(documentType, x)).ToList();
             PrintedCustomFieldIds = new List<Guid>();
+            if (!PrintLayouts.IsOffered(Layout, documentType))
+            {
+                Layout = PrintLayout.Standard;
+            }
         }
 
         Name = name;
@@ -107,6 +114,11 @@ public sealed class PrintingTemplate : ITenantLookupEntity
         if (!Enum.IsDefined(layout))
         {
             throw new ArgumentOutOfRangeException(nameof(layout), layout, "Not a print layout.");
+        }
+
+        if (!PrintLayouts.IsOffered(layout, DocumentType))
+        {
+            throw new InvalidOperationException($"The {layout} layout is not offered for {DocumentType}.");
         }
 
         var hidden = hiddenElements.Distinct().OrderBy(x => x).ToList();
@@ -156,5 +168,8 @@ public sealed record PrintingTemplateSettings(
     /// <summary>No template at all: what every document printed before phase 73.</summary>
     public static PrintingTemplateSettings Default { get; } = new("Default", PrintLayout.Standard, [], [], null, false);
 
-    public bool Shows(PrintElement element) => !HiddenElements.Contains(element);
+    /// <summary>Whether the print draws this element: the template does not hide it, and (phase 79) its layout has room
+    /// for it. Everything that skips an element -- the applier, the logo read -- asks this one question.</summary>
+    public bool Shows(PrintElement element) =>
+        !HiddenElements.Contains(element) && !PrintLayouts.Omits(Layout).Contains(element);
 }

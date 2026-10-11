@@ -58,6 +58,9 @@ public class Phase75LocationPrintPdfTests
     [InlineData(PrintLayout.Standard)]
     [InlineData(PrintLayout.Traditional)]
     [InlineData(PrintLayout.Minimal)]
+    [InlineData(PrintLayout.Modern)]
+    [InlineData(PrintLayout.Classic)]
+    [InlineData(PrintLayout.Retail)]
     public void Every_layout_prints_the_location_under_the_registered_address(PrintLayout layout)
     {
         var text = PdfText.Extract(DocumentPdfRenderer.Render(Invoice(layout, "Lakeside", "Pokhara-6")));

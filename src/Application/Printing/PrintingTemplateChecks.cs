@@ -8,7 +8,8 @@ using Microsoft.EntityFrameworkCore;
 namespace ErpApp.Application.Printing;
 
 /// <summary>
-/// Phase 73 -- the two checks a template's settings need that depend on its document type: each hidden element must
+/// Phase 73 -- the checks a template's settings need that depend on its document type (phase 79 adds the layout, which
+/// must be one the type is offered): each hidden element must
 /// be one the type prints and may hide, and each custom field must be this organization's, active, and applicable to
 /// the type. Shared by the save and the preview, and thrown as FluentValidation failures so both answer a 400 naming
 /// the field (phase 39: a Domain refusal reached through an endpoint is a 500 that tells a caller nothing).
@@ -19,11 +20,18 @@ public static class PrintingTemplateChecks
         IAppDbContext db,
         Guid organizationId,
         DocumentType documentType,
+        PrintLayout layout,
         IReadOnlyList<PrintElement> hiddenElements,
         IReadOnlyList<Guid> printedCustomFieldIds,
         CancellationToken ct)
     {
         var failures = new List<ValidationFailure>();
+
+        // Phase 79 -- the till roll is offered to three types only.
+        if (!PrintLayouts.IsOffered(layout, documentType))
+        {
+            failures.Add(new ValidationFailure("Layout", $"The {layout} layout is not offered for {documentType}."));
+        }
 
         foreach (var element in hiddenElements.Distinct())
         {

@@ -25,7 +25,7 @@ public sealed class PreviewPrintingTemplateQueryHandler(IAppDbContext db, IFileS
         var customFieldIds = request.PrintedCustomFieldIds!;
 
         await PrintingTemplateChecks.EnsureValidAsync(
-            db, request.OrganizationId, type, hidden, customFieldIds, cancellationToken);
+            db, request.OrganizationId, type, request.Layout!.Value, hidden, customFieldIds, cancellationToken);
 
         var organization = await db.Organizations.SingleAsync(x => x.Id == request.OrganizationId, cancellationToken);
         var settings = new PrintingTemplateSettings(

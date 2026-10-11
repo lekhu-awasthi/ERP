@@ -12,7 +12,7 @@
 
     <fieldset class="mb-4">
       <legend class="form-label small fw-semibold">Layout</legend>
-      @for (option of layouts; track option.value) {
+      @for (option of offeredLayouts(); track option.value) {
         <div class="form-check mb-2">
           <input
             class="form-check-input"
@@ -45,14 +45,16 @@
                   class="form-check-input"
                   type="checkbox"
                   [id]="'print-element-' + item.element"
-                  [checked]="item.locked || shows(item.element)"
-                  [disabled]="item.locked"
-                  [attr.aria-describedby]="item.locked ? 'print-element-' + item.element + '-locked' : null"
+                  [checked]="item.locked || (shows(item.element) && !item.omitted)"
+                  [disabled]="item.locked || item.omitted"
+                  [attr.aria-describedby]="item.locked ? 'print-element-' + item.element + '-locked' : item.omitted ? 'print-element-' + item.element + '-omitted' : null"
                   (change)="toggleElement(item.element, $event)"
                 />
                 <label class="form-check-label small" [for]="'print-element-' + item.element">{{ item.label }}</label>
                 @if (item.locked) {
                   <span class="small text-muted ms-1" [id]="'print-element-' + item.element + '-locked'">(required on a tax document)</span>
+                } @else if (item.omitted) {
+                  <span class="small text-muted ms-1" [id]="'print-element-' + item.element + '-omitted'">(not on this layout)</span>
                 }
               </div>
             }

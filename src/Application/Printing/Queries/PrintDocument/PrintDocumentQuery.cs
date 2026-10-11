@@ -177,8 +177,9 @@ public sealed record PrintableDocumentDto(
     bool ShowSignatureLine = true,
     /// <summary>Phase 73 -- the template's free footer line, or null.</summary>
     string? FooterText = null,
-    /// <summary>Phase 73 -- the grand total in words ("Rupees ... Only"), printed under the summary. Null on a
-    /// foreign-currency document, whose total is not in rupees, and wherever the template hides it.</summary>
+    /// <summary>Phase 73 -- the grand total in words ("Rupees ... Only"), printed under the summary. Phase 79 -- in the
+    /// document's own currency ("US Dollars ... Only"). Null wherever the template hides it, and where no words can be
+    /// right (a fraction of yen).</summary>
     string? AmountInWords = null,
     /// <summary>Phase 73 -- the custom fields the template prints, label and value, in the template's order. Null or
     /// empty prints none, as before this phase.</summary>

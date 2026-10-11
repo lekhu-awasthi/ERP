@@ -267,8 +267,9 @@ export interface CustomFieldDefinition {
 
 // Phase 20d -- Printing Templates (config): a Name + one IsDefault flag per (OrganizationId, DocumentType).
 // Phase 73 -- and a real layout: one of three fixed layouts, the elements it hides, the custom fields it prints,
-// a footer line and compact margins (see PrintingTemplate's backend doc comment).
-export type PrintLayout = 'Standard' | 'Traditional' | 'Minimal';
+// a footer line and compact margins (see PrintingTemplate's backend doc comment). Phase 79 -- Modern, Classic and the
+// 80 mm Retail roll (offered to Invoice, Credit Note and Sales Order only; the server's element table says which).
+export type PrintLayout = 'Standard' | 'Traditional' | 'Minimal' | 'Modern' | 'Classic' | 'Retail';
 
 export type PrintElement =
   | 'OrganizationLogo' | 'OrganizationAddress' | 'OrganizationPhone' | 'OrganizationEmail' | 'OrganizationPan'
@@ -297,11 +298,19 @@ export interface PrintingTemplateLocationChoice {
   printingTemplateId: string;
 }
 
-/** Phase 73 -- the server's table of which elements a type prints and which it may not hide. */
+/** Phase 79 -- one layout a type may choose, and which of the type's elements it never draws. */
+export interface PrintLayoutOption {
+  layout: PrintLayout;
+  omits: PrintElement[];
+}
+
+/** Phase 73 -- the server's table of which elements a type prints and which it may not hide. Phase 79 -- and which
+ * layouts it is offered. */
 export interface PrintElementsForType {
   documentType: DocumentType;
   elements: PrintElement[];
   locked: PrintElement[];
+  layouts: PrintLayoutOption[];
 }
 
 export interface PrintingTemplateLayoutRequest {

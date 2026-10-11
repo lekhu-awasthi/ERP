@@ -156,8 +156,12 @@ fee, both kinds of discount, round-off on a row of its own, the order and the in
 till's tenders, change and refund payouts. Phase 78 finished the export (`phase-78-status.md`): the Purchase Documents
 sheet carries expenses, TDS and additional costs as rows of their own and a debit note's bill and inherited
 classification; every sheet names its unit, exchange rate and location; a drawer's Cash In / Cash Out are Payments rows;
-and the export screen sends only the categories left ticked. **Next: not yet scheduled**; the candidates are phase 75
-§ 5's (and the rest of phase 73 § 5 it carries), phase 76 § 5's, phase 77 § 5's discard-with-a-share and phase 71 § 5's.
+and the export screen sends only the categories left ticked. Phase 79 finished the print layouts
+(`phase-79-status.md`): Modern and Classic on A4, an 80 mm roll for Invoice, Credit Note and Sales Order that keeps
+everything a tax invoice must carry (each line stacked, so its figures still add up), and the total in words in the
+document's own currency; the vendor's block ordering was found to be no control at all and retired. **Next: not yet
+scheduled**; the candidates are phase 76 § 5's, phase 77 § 5's discard-with-a-share, phase 78 § 5's export items, phase
+79 § 5's (positioning and renames, the custom HTML templates) and phase 71 § 5's.
 
 Open question for the tax advisor, not to be guessed (carried from the PAN fix): whether IRD expects a buyer PAN
 on a high-value sale to an unregistered buyer. If it does, it would be a warning on approve, never a block.
@@ -176,12 +180,16 @@ calendar is still open.
 the custom fields to print; no date-system toggle (phase 71), no renamed labels, one template per type.
 
 **Carried from phase 73** (§ 5 there): per-location templates and the location's name and address were done in phase
-75; the Modern and Classic layouts and label renames (never on a statutory label); an 80 mm ERP invoice; the vendor's
-custom HTML templates for Delivery Note, GRN and Warehouse Transfer (unread in depth); ordering and placement of the
-header blocks; amount in words for a foreign currency.
+75; the Modern and Classic layouts, the 80 mm ERP invoice and amount in words for a foreign currency in phase 79, which
+also retired the ordering of header blocks (the vendor's `_sorts` is written by nothing). Label renames (never on a
+statutory label), quadrant placement and the vendor's custom HTML templates for Delivery Note, GRN and Warehouse
+Transfer remain, in phase 79 § 5.
 
 **Carried from phase 75** (§ 5 there): which address a branch-issued tax invoice must carry (the tax advisor's); the
 till receipt's location line is unconditional; a location's template has no channel axis.
+
+**Carried from phase 79** (§ 5 there): quadrant positioning and label renames; the vendor's DN/GRN/WT custom HTML
+templates; lakh grouping for BDT, PKR, LKR and BTN (one flag each); the vendor's own words for a dollar bill (unread).
 
 **Carried from phase 67** (§ 5 there): the print race on both print tables is still unraced on SQL Server. The
 standalone credit note was settled by phase 69, and the count note beside Print was looked at in phase 69 (it

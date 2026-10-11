@@ -14,6 +14,9 @@ namespace ErpApp.Application.Printing;
 /// <para>It never removes a tax document's statutory content, whatever the settings say: the Domain refuses to store
 /// such a template, and this re-checks with <see cref="PrintElements.CanHide"/> rather than trusting the row, so a
 /// template written by any other door still prints the seller's PAN.</para>
+///
+/// <para>Phase 79 -- what the layout itself never draws (the roll's logo and signature line) reaches this through
+/// <see cref="PrintingTemplateSettings.Shows"/>, under the same <c>CanHide</c> re-check.</para>
 /// </summary>
 public static class PrintTemplateApplier
 {

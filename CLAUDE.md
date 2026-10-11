@@ -110,6 +110,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 76: separate till keys (a discount, a waiver and a changed price each their own location-scoped `Sales.Invoice.Till*` key instead of Approve; existing Approve grants backfilled at the same scope; credit stays on Approve). Before borrowing a key for a new power, or splitting one — `docs/phase-76-status.md`
 - Phase 77: an order's Amount discount moves with its food (a transfer or parcel takes its share, read from the line's bills once billed; discard still refused) + the export carries every part of a sale's money and the till's tenders, change and payouts. Before moving a quantity that carries a share, reading a credit note's invoice, or adding money to a sales line — `docs/phase-77-status.md`
 - Phase 78: the export finished (Purchase Documents carry expenses, TDS and additional costs as rows of their own and a debit note's bill and inherited classification; Unit, Exchange Rate and Location on every sheet; a drawer's Cash In/Out on Payments) + the export screen sending only what is ticked. Before adding a row kind or column to an export sheet, or a "select some" control whose empty state means all — `docs/phase-78-status.md`
+- Phase 79: print layouts finished (Modern, Classic, an 80 mm roll for Invoice/Credit Note/Sales Order that stacks each line and keeps both statutory dates; `PrintLayouts` says who is offered what and what each omits; the total in words in any catalogue currency; the vendor's block ordering retired as no control). Before adding a print layout, printing on a narrow page, or an amount in words — `docs/phase-79-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -352,6 +353,8 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A new column on a printed table narrows the others: money wrapped in ruled cells and a quantity ran into its unit, and extracted text read both as fine. Look at the rendered PDF (phase-73).
 - Rupees printed under a total they are already inside read as a second subtraction: a bill's Amount prints above its Sub Total. No poppler? `Windows.Data.Pdf` renders a page (phase-74).
 - QuestPDF's default font has no Devanagari: Nepali needs the embedded Noto (`PdfFonts`), and tests set `CheckIfAllTextGlyphsAreAvailable` so a missing glyph throws (phase-67).
+- A `ConstantItem` row that fits a full page throws `DocumentLayoutException` inside a half-page box, in that layout only; use relative widths and render every layout × shape (phase-79).
+- A narrow page wants a different shape, not fewer columns: dropping VAT/discount leaves an Amount that is not Qty × Rate. The roll stacks each line; no-break spaces keep a pair whole (phase-79).
 - A PDF's text is deflated glyph ids, not bytes you can search; assert through `TestSupport/PdfText` (CMap sections parsed separately), and look at Devanagari with the Read tool (phase-67).
 - Executing `Results.Stream` against a bare `DefaultHttpContext` needs a `ServiceProvider` with `AddLogging()` (`MigratedRegisterTemplateRoundTripTests`).
 - A `MultipartFormDataContent` under `using` in a helper that returns the `Task` unawaited is disposed mid-send (`ObjectDisposedException` from `TestHost`); await inside the helper (phase-22).
@@ -525,6 +528,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - When a generator script emits Angular templates through `str.format`, interpolation braces need escaping in the *format string* but not in a substituted value — `{{{{ x }}}}` in a value ships literally and fails as NG5002 (phase-26b).
 - A benchmark against an empty tenant looks fast (20 ms p95, all 200); a harness must assert its target is populated before timing it (phase-34c).
 - A route is not a feature: the vendor ships `/sales/recurring-invoices` with full list chrome over an endpoint that 404s and a key that does not exist. Census its **permission keys**, not its screens (phase-53).
+- A settings key no client writes is a default, not a control: the vendor's `_sorts` is in every print template and in none of its scripts, so "block ordering" was retired, not built (phase-79).
 - A census is evidence only when it **reproduces to the row**: 162 against phase 53's 166 was four `-alter` keys the stricter regex did not list, on a byte-identical bundle (phase-57).
 - A feature gated on a flag the tenant lacks is invisible to a screen pass and plain in the bundle; a diff landing inside an existing deferral is what that deferral **owes**, not new scope (phase-57).
 - …and a **screen is not a feature either**: `/config/import-statement` is a generic CSV grid whose Delivery Note columns are its *default*, not stale state. Read the client's endpoint map, not the furniture (phase-55).
@@ -541,24 +545,26 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 
 ## Current status
 
-**Phases 0-78 are complete. Next: not yet scheduled** (the user picks; candidates in `docs/roadmap.md`).
+**Phases 0-79 are complete. Next: not yet scheduled** (the user picks; candidates in `docs/roadmap.md`).
 Each phase's story is in its `docs/phase-N-status.md`, and finished planning entries are archived in
 `docs/roadmap-history.md`.
 
-**Phase 78 finished the full-tenant export.**
+**Phase 79 finished the print layouts.**
 
-- *Purchase Documents* gains twelve appended columns. Expenses are on it (an *Account* column), TDS and an additional
-  cost are rows of their own, and a debit note names its bill and takes its classification. What a supplier is owed is
-  Amount + VAT − TDS.
-- Every sheet names its Unit, Exchange Rate and Location. *Payments* gains the drawer's Cash In / Cash Out.
-- The export screen used to export every category whatever was unticked (since phase 38). It now sends what is ticked.
+- Two more A4 layouts, *Modern* and *Classic*, drawn from the vendor's previews. Each serves every printable type.
+- An 80 mm roll (*Retail*) for Invoice, Credit Note and Sales Order. Each line is stacked so its figures stay on the
+  paper, and it keeps both statutory dates, which the vendor's roll drops.
+- The total in words prints in the document's own currency (millions abroad, lakhs for NPR and INR).
+- The vendor's header "ordering" is written by none of its screens, so it was retired. Positioning and renames wait in
+  phase 79 § 5.
+- `tools/pdf/pdf2png.ps1` renders a PDF to PNG without poppler.
 
-**Next:** not yet scheduled. Candidates: phase 75 § 5 (with the rest of phase 73 § 5: ordering of header blocks, the
-Modern/Classic layouts, amount in words for a foreign currency), phase 76 § 5 (a discount ceiling per role, the ERP
-invoice form's discount/rate gating), phase 77 § 5 (discard with a share), phase 78 § 5, phase 71 § 5.
+**Next:** not yet scheduled. Candidates: phase 76 § 5 (a discount ceiling per role, the ERP invoice form's
+discount/rate gating), phase 77 § 5 (discard with a share), phase 78 § 5 (the export's remaining sheets), phase 79 § 5
+(positioning, renames, the vendor's DN/GRN/WT HTML templates), phase 71 § 5.
 
-Tests: Domain **995**, Application.UnitTests **1722**, Infrastructure.UnitTests 13,
-Api.IntegrationTests 57, Angular 836. Everything was green at phase 78's close with Docker up.
+Tests: Domain **1014**, Application.UnitTests **1729**, Infrastructure.UnitTests 13,
+Api.IntegrationTests 71, Angular 838. Everything was green at phase 79's close with Docker up.
 The bundle sits at **652.58 kB** against `build-budget.spec.ts`'s 680 kB; every POS screen is lazy.
 
 - `Api.IntegrationTests` needs Docker Desktop running. Without it the Testcontainers-backed tests
