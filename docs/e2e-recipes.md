@@ -126,13 +126,12 @@ beside a 200 from the same user, and create a fresh Organization per phase.
   - `GET /tills/{locationId}/sales?search=` finds approved till sales of that location by number
     (newest 20). Phase 84: plus another location's sale whose number is **exactly** `search`, only for a
     caller holding `Sales.CreditNote.Create` and `.Approve` at `locationId`; each row has
-    `soldAtLocationName` (null at home), `fullyRefunded` and `refundableHere` (false for another
-    location's sale carrying service charge or packaging fee).
+    `soldAtLocationName` (null at home) and `fullyRefunded` (phase 85 removed `refundableHere`: a
+    restaurant bill from another location is refunded there too).
   - `GET /tills/{locationId}/sales/{invoiceId}/refundable` (phase 84; was `/sales/{id}/refundable`)
     returns the lines with `invoiceLineId`, `sold`, `remaining`, plus `owed`, `priorRefunds`,
     `canRefund`, `soldAtLocationName` and `returnWarehouseName`. A home sale needs `Sales.Invoice.View`
-    at the till; an away one the two refund keys there (a 403 naming the missing one). An away sale
-    with service charge is a 409; a refunding location with no default warehouse is a 409 naming it.
+    at the till; an away one the two refund keys there (a 403 naming the missing one). A refunding location with no default warehouse is a 409 naming it.
   - Phase 84: `POST /products` must send **`availableForSale: true`** for a till seed; absent, it binds to false and
     `POST /pos/sales` is a 409 "'Coke 250ml' is not available for sale.". In SQL a till refund's warehouse is
     `sales.CreditNotes.WarehouseId` (NULL on older and ERP notes, meaning the sale's). The 403-not-404 pair for the
@@ -440,3 +439,9 @@ beside a 200 from the same user, and create a fresh Organization per phase.
   A role holding every key but one: read Admin's grants from `GET /roles/{adminId}/permissions` (`groups[].permissions[]`
   of `{permissionKey, isGranted}`) and `PUT` them back minus the key. In SQL, `sales.InvoiceLines.PartDiscountAmount`
   sits inside `BillDiscountAmount`. `GET /sales/price-powers` answers `atLocation` too. There is no `audit.AuditEntries`.
+- Phase 85. A restaurant bill for a refund: `POST /pos/orders {locationId, orderType: "DineIn", tableId, covers, contactId,
+  items: [{productId, quantity, unitId, note}]}` (200, the order with `lines[].id`), `POST /pos/orders/{id}/take-away
+  {lineId, quantity}` (200), the preview's `total`, then `POST /pos/orders/{id}/invoices` with exactly that in cash.
+  Location settings take `packagingFeeBasis: "PerUnit"`, `packagingFeeValue` and `packagingFeeAccountId`. Pick a
+  refund's lines from `sales.InvoiceLines` by `PackagingFeeAmount`. `GET /credit-notes/{id}` answers
+  `posRefund.warehouseName`; a till sale's tenders are `sales.InvoiceTenders` (`PaymentModeId`, `Amount`).

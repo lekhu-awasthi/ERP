@@ -6,7 +6,7 @@ Guiding rule for phase sizing: each phase ends with something *runnable and demo
 
 ---
 
-## Completed phases (0–84)
+## Completed phases (0–85)
 
 One line each; phase *N*'s full story is `docs/phase-N-status.md`. The verbose index as it stood on
 2026-09-28 is archived verbatim in `roadmap-history.md` ("Completed-phases index, verbose form").
@@ -70,6 +70,7 @@ One line each; phase *N*'s full story is `docs/phase-N-status.md`. The verbose i
 | 82 | A dish carrying a frozen share of an order's Amount discount can be discarded: its share leaves with it (the order's amount falls by what the quantity carries, every other dish keeps its price), exactly what billing and refunding it gave; before the first bill a discard leaves the amount whole; the panel says so and the message names what the discount fell by |
 | 83 | A discount on one guest's part: a restaurant bill takes its own % or Rs after the order's terms, kept apart on each line (`PartDiscountAmount`) so the last part of a dish never takes it back and a void gives it up; `Sales.Invoice.TillDiscount` at the location from whoever bills; a PDF with both kinds prints the percentage first. Plus the ERP forms' *Remove* for a clerk, "in this organization" on a document with no location, and the discard capped at what is unbilled |
 | 84 | Returns at another branch: a till refunds another location's retail sale (none with service charge or packaging fee), found by its full number under the refund's own keys there, out of that branch's drawer, its goods into that branch's warehouse (`CreditNote.WarehouseId`). Split payouts and *Fully refunded* on the refund screen; the money receipt's date in BS with AD beside it (`BillDatedTypes`, not a tax document) |
+| 85 | A restaurant bill refunded at another branch: its service charge and packaging fee come back out of the selling location's accounts, in one entry stamped with the refunding branch, so its lines equal the same refund at home. The ERP credit note names a till refund's warehouse; removing a tender on the till or a restaurant bill keeps focus |
 
 ---
 
@@ -259,11 +260,13 @@ applied to a second charge); a receipt prints the fee's total, not which items c
 fee, service charge and round-off were done in phase 77.
 
 **Carried from phase 63** (§ 5 there): cross-branch returns, split payouts on the refund screen and the fully refunded
-bill's mark were done in phase 84 (a restaurant bill still comes back only where it was sold).
+bill's mark were done in phase 84, and a restaurant bill at another branch in phase 85.
 
-**Carried from phase 84** (§ 5 there): a restaurant bill refunded at another branch (two locations' accounts in one
-entry); the ERP credit-note page showing a till refund's warehouse; the till's tender list dropping focus on *Remove*;
-the money receipt on the roll and the annex exports in BS are still open.
+**Carried from phase 84** (§ 5 there): the restaurant bill at another branch, the credit-note page's warehouse and the
+till's *Remove* focus were done in phase 85; the money receipt on the roll and the annex exports in BS are still open.
+
+**Carried from phase 85** (§ 5 there): a refund reads the selling location's *current* fee accounts, home or away, not
+the account the sale posted to; the ERP credit-note list has no warehouse column.
 
 **Carried from phase 62** (§ 5 there):
 

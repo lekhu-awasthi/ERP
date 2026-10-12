@@ -4620,3 +4620,19 @@ A patch script written with the Write tool carried a placeholder line containing
 triple-quoted Python string. Python turned it into a real NUL byte and wrote it into a TypeScript spec. It is the same
 family as phase 62's `\b` (a backspace inside a regex string): any escape in a non-raw string becomes the character it
 names. Assert `'\x00' not in s` before writing a file, and use raw strings for anything carrying backslashes.
+
+## A reversal resolves an account where the original posted, not where it is reversed (phase 85)
+
+`PosAccountResolver` answers "which account does this location keep its service charge in". A refund at another branch
+asked it for the refunding branch, which would leave the selling branch's account in credit and the refunding branch's
+in debit forever, while every total balanced. Phase 84 refused such refunds instead, and recorded the problem as "two
+locations in one entry". The entry's location stamp and the account's location are different questions: the stamp says
+where the action happened (the refunding branch), the account says where the figure is kept (the selling branch).
+Reverse into the account the original credited; stamp the entry with where the reversal happened.
+
+## A focus test passes without the fix when focus never left (phase 85)
+
+The till's spec for *Remove* on a tender asserted focus landed in the amount field, and passed with the fix commented
+out. Opening Pay had already focused that field, and `HTMLElement.click()` in a test moves no focus, so focus never
+left. A keyboard user's focus is on the button that removes itself, and goes to `<body>` with it. Focus the control in
+the test, assert it has focus, then press it; and prove the test fails with the fix removed.

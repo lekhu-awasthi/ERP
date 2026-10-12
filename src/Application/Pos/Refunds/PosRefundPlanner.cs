@@ -152,15 +152,9 @@ internal static class PosRefundPlanner
             throw new ConflictException($"Invoice {invoice.Code} has been voided, so there is nothing to refund.");
         }
 
-        // Phase 84 -- another branch's sale comes back here only when nothing on it is held in a per-location
-        // account: a service charge or packaging fee reversed at this branch would leave the selling branch's account
-        // in credit and this one's in debit (PosAccountResolver reads both per location).
-        if (!IsHere(invoice, till) && (invoice.ServiceChargeTotal != 0m || invoice.PackagingFeeTotal != 0m))
-        {
-            throw new ConflictException(
-                $"Invoice {invoice.Code} was sold at another location and carries a service charge or packaging fee, "
-                + "which that location's accounts hold. Refund it at a till of the location that sold it.");
-        }
+        // Phase 85 -- phase 84 refused another branch's sale carrying a service charge or packaging fee here. It now
+        // comes back like any other: CreditNoteApprovalPosting reverses both into the accounts of the location that
+        // sold it, so nothing is left to refuse.
     }
 
     /// <summary>Phase 84 -- whether <paramref name="invoice"/> was sold at this till's location.</summary>

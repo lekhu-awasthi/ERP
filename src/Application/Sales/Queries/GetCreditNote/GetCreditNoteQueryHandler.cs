@@ -2,6 +2,7 @@ using ErpApp.Application.Inventory.Stock;
 using ErpApp.Application.Accounting.Posting;
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Domain.Catalog;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Sales;
 using MediatR;
@@ -126,6 +127,40 @@ public sealed class GetCreditNoteQueryHandler(IAppDbContext db) : IRequestHandle
             [.. creditNote.Payouts.Select(x => new CreditNotePayoutDto(
                 x.PaymentModeId, modeNames.GetValueOrDefault(x.PaymentModeId, ""), x.Kind, x.Amount))],
             creditNote.PaidOutAmount,
-            creditNote.ToAccountAmount);
+            creditNote.ToAccountAmount)
+        {
+            WarehouseName = await ReadReturnWarehouseNameAsync(creditNote, cancellationToken),
+        };
+    }
+
+    /// <summary>Phase 85 -- where a till refund's goods went back into stock: the rule
+    /// <c>CreditNoteApprovalPosting</c> restocked by (the note's warehouse, else the sale's), asked only when a line is
+    /// Goods.</summary>
+    private async Task<string?> ReadReturnWarehouseNameAsync(CreditNote creditNote, CancellationToken cancellationToken)
+    {
+        var productIds = creditNote.Lines.Select(x => x.ProductId).Distinct().ToList();
+        var anyGoods = await db.Products.AnyAsync(
+            x => x.OrganizationId == creditNote.OrganizationId && productIds.Contains(x.Id) && x.Type == ProductType.Goods,
+            cancellationToken);
+        if (!anyGoods)
+        {
+            return null;
+        }
+
+        var warehouseId = creditNote.WarehouseId;
+        if (warehouseId is null && creditNote.ReferrerType == DocumentType.Invoice && creditNote.ReferrerId is { } invoiceId)
+        {
+            warehouseId = await db.Invoices
+                .Where(x => x.Id == invoiceId && x.OrganizationId == creditNote.OrganizationId)
+                .Select(x => (Guid?)x.WarehouseId)
+                .SingleOrDefaultAsync(cancellationToken);
+        }
+
+        return warehouseId is { } id
+            ? await db.Warehouses
+                .Where(x => x.Id == id && x.OrganizationId == creditNote.OrganizationId)
+                .Select(x => x.Name)
+                .SingleOrDefaultAsync(cancellationToken)
+            : null;
     }
 }

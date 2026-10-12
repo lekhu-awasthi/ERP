@@ -46,7 +46,6 @@ describe('PosRefundPage', () => {
   const match: PosSaleMatch = {
     invoiceId: 'inv-1', code: '0001', date: '2026-10-01', soldAt: '2026-10-01T04:00:00Z', sessionCode: 'SES0001',
     customerName: 'Cash Customer', isWalkIn: true, grandTotal: 633, soldAtLocationName: null, fullyRefunded: false,
-    refundableHere: true,
   };
 
   const sale = (overrides: Partial<PosRefundableSale> = {}): PosRefundableSale => ({
@@ -317,20 +316,25 @@ describe('PosRefundPage', () => {
     expect(p.element.querySelector<HTMLInputElement>('#pos-refund-payout-amount')!.value).toBe('136.00');
   });
 
-  it('names another location’s sale, marks a fully refunded one, and offers no refund of either it cannot make', () => {
+  it('names another location’s sale, restaurant bills included, and marks a fully refunded one', () => {
     const p = page({
       matches: [
         { ...match, invoiceId: 'inv-away', code: 'INV0009/1003', soldAtLocationName: 'POS Retail' },
         { ...match, invoiceId: 'inv-done', code: '0002', fullyRefunded: true },
-        { ...match, invoiceId: 'inv-sc', code: 'INV0004/1002', soldAtLocationName: 'POS Restaurant', refundableHere: false },
+        // Phase 85 -- a restaurant bill from another branch is refunded here like any other.
+        { ...match, invoiceId: 'inv-sc', code: 'INV0004/1002', soldAtLocationName: 'POS Restaurant' },
       ],
     });
 
     expect(p.text()).toContain('sold at POS Retail');
+    expect(p.text()).toContain('sold at POS Restaurant');
     expect(p.text()).toContain('Fully refunded');
-    expect(p.text()).toContain('Refund it at POS Restaurant');
+    expect(p.text()).not.toContain('Refund it at');
     const refundButtons = [...p.element.querySelectorAll<HTMLButtonElement>('table button')];
-    expect(refundButtons.map((x) => x.textContent?.replace(/\s+/g, ' ').trim())).toEqual(['Refund bill INV0009/1003']);
+    expect(refundButtons.map((x) => x.textContent?.replace(/\s+/g, ' ').trim())).toEqual([
+      'Refund bill INV0009/1003',
+      'Refund bill INV0004/1002',
+    ]);
   });
 
   it('says where another location’s sale was sold and where its goods go back', () => {

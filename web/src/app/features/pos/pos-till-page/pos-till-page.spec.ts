@@ -286,6 +286,37 @@ describe('PosTillPage', () => {
     expect(p.service.sent[0].changeAmount).toBe(0);
   });
 
+  it('hands focus to the amount field when a tender is removed, prefilled with what is left, and sends what remains', () => {
+    const p = page();
+    p.tile('Chicken Momo');
+    p.tile('Coke 250ml');
+
+    p.press('Pay (F9)');
+    p.tender('card', '16');
+    p.tender('cash', '200');
+    // As a keyboard user does: focus the button, then press it.
+    const remove = p.element.querySelector<HTMLButtonElement>('[aria-label="Remove Card tender"]')!;
+    remove.focus();
+    expect(document.activeElement).toBe(remove);
+    remove.click();
+    p.render();
+
+    // Phase 85 -- the button went with its tender; the keyboard lands where the next tender is entered.
+    expect(p.element.querySelector('[aria-label="Remove Card tender"]')).toBeNull();
+    const amount = p.element.querySelector<HTMLInputElement>('#pos-tender-amount')!;
+    expect(document.activeElement).toBe(amount);
+    expect(amount.value).toBe('116.00');
+    expect(p.text()).toContain('Card 16.00 removed.');
+
+    p.tender('cash', '116');
+    p.complete().click();
+    p.render();
+    expect(p.service.sent[0].tenders).toEqual([
+      { paymentModeId: 'cash', amount: 200 },
+      { paymentModeId: 'cash', amount: 116 },
+    ]);
+  });
+
   it('refuses a card taken for more than the bill, because only cash gives change', () => {
     const p = page();
     p.tile('Coke 250ml');

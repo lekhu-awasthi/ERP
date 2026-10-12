@@ -2243,3 +2243,17 @@ different. The refundable read moved under the till, because its key now depends
 refund screen splits a payout the way the till takes tenders, and marks a fully refunded sale. The money receipt joined
 a new BS-dated list (`PrintElements.BillDatedTypes`) rather than the tax documents, which also lock template elements
 and print two statutory dates.
+
+## Phase 85 — A restaurant bill refunded at another branch
+
+**Read `phase-85-status.md` before reversing a figure that a location's settings route to an account, or writing a test
+that a control hands focus on.**
+
+Phase 84 refused another branch's sale carrying a service charge or packaging fee, recording that reversing them
+elsewhere meant "two locations in one entry". It did not: the entry's location is one stamp, already decided to be the
+refunding branch's, while a per-location account is where a figure is kept. A reversal takes a figure back out of the
+account it went into, so `CreditNoteApprovalPosting` resolves the fee accounts at the sale's location and nothing else
+moved. The twin test from phase 84 held unchanged, now on a restaurant bill with per-branch fee accounts: identical
+lines, only the stamp different. The ERP credit note names a till refund's warehouse (the note's, else the sale's, none
+for services), and *Remove* on the till's and the restaurant bill's tenders keeps focus in the amount field. That fix's
+first test passed without it, because the opener had already focused the field and a scripted click moves no focus.

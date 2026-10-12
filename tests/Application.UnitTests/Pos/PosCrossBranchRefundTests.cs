@@ -1,11 +1,17 @@
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Security;
+using ErpApp.Application.Pos.Commands.CreatePosOrderInvoice;
+using ErpApp.Application.Pos.Commands.CreatePosRefund;
+using ErpApp.Application.Pos.Commands.UpdatePosOrderTakeAway;
 using ErpApp.Application.Pos.Queries.FindPosSales;
 using ErpApp.Application.Pos.Queries.GetPosRefundableSale;
 using ErpApp.Application.Pos.Queries.GetPosSession;
+using ErpApp.Application.Sales.Queries.GetCreditNote;
 using ErpApp.Application.Sales.Queries.SalesMasterReport;
 using ErpApp.Application.UnitTests.TestSupport;
+using ErpApp.Domain.Accounting;
 using ErpApp.Domain.Common;
+using ErpApp.Domain.Pos;
 using ErpApp.Domain.Sales;
 using ErpApp.Domain.Tenancy;
 using Microsoft.EntityFrameworkCore;
@@ -127,32 +133,147 @@ public sealed class PosCrossBranchRefundTests
         Assert.Equal(-36m, await home.BalanceAsync(home.BankAccountId));
     }
 
-    // ---- What may not come back elsewhere ---------------------------------------------------------
+    // ---- Phase 85: a restaurant bill, its service charge and packaging fee ---------------------------
 
     [Fact]
-    public async Task A_bill_carrying_a_service_charge_is_refunded_only_where_it_was_sold()
+    public async Task A_restaurant_bill_refunded_at_another_branch_takes_its_fees_out_of_the_selling_branchs_accounts()
+    {
+        var r = await PosTestRestaurant.CreateAsync([.. PosTestRestaurant.WaiterKeys.Union(PosTestTill.CashierKeys)]);
+        var home = r.Till;
+        var branch = await home.AddBranchAsync();
+
+        // Each branch keeps its fees in its own accounts; the tenant defaults are a third pair.
+        var homeServiceCharge = await AddAccountAsync(home, "4101", "Service Charge - Thamel");
+        var homePackaging = await AddAccountAsync(home, "4301", "Packaging - Thamel");
+        var branchServiceCharge = await AddAccountAsync(home, "4102", "Service Charge - Lakeside");
+        var branchPackaging = await AddAccountAsync(home, "4302", "Packaging - Lakeside");
+        await SetFeesAsync(home, serviceCharge: true, homeServiceCharge, TwentyABox, homePackaging);
+        await SetFeesAsync(branch, serviceCharge: true, branchServiceCharge, TwentyABox, branchPackaging);
+
+        var homeSession = await home.OpenAsync();
+        var branchSession = await branch.OpenAsync();
+
+        // Two identical tables at home, one Momo eaten in and one taken away: 248.60 + 271.20 = 519.80, rounded to 520,
+        // with 40 of service charge and 20 of packaging fee.
+        var away = await BillWithAParcelAsync(r, r.T1, homeSession.Id);
+        var twin = await BillWithAParcelAsync(r, r.T2, homeSession.Id);
+        Assert.Equal((40m, 20m, 520m), (away.ServiceCharge, away.PackagingFee, away.GrandTotal));
+        Assert.Equal(-80m, await home.BalanceAsync(homeServiceCharge));
+        Assert.Equal(-40m, await home.BalanceAsync(homePackaging));
+
+        // The search offers it at the branch, and the branch reads it as refundable.
+        var match = Assert.Single(await FindAsync(branch, away.Code));
+        Assert.Equal(home.Location.Name, match.SoldAtLocationName);
+        Assert.True((await RefundableAsync(branch, away.Id)).CanRefund);
+
+        // The parcel comes back at the branch; the twin's parcel at home.
+        var refundedAway = await RefundLineAsync(branch, branchSession.Id, away.Id, parcel: true);
+        var refundedHome = await RefundLineAsync(home, homeSession.Id, twin.Id, parcel: true);
+
+        Assert.Equal(refundedHome.GrandTotal, refundedAway.GrandTotal);
+        Assert.Equal(refundedHome.RoundOff, refundedAway.RoundOff);
+        Assert.Equal(refundedHome.PaidOut, refundedAway.PaidOut);
+        Assert.Equal(await PostedAsync(home, refundedHome.Id), await PostedAsync(home, refundedAway.Id));
+
+        // The selling branch's accounts gave both back; the refunding branch's and the tenant's were never touched.
+        Assert.Equal(-80m + 40m, await home.BalanceAsync(homeServiceCharge));
+        Assert.Equal(-40m + 40m, await home.BalanceAsync(homePackaging));
+        foreach (var untouched in new[] { branchServiceCharge, branchPackaging, home.ServiceChargeAccountId, home.PackagingFeeAccountId })
+        {
+            Assert.Equal(0m, await home.BalanceAsync(untouched));
+        }
+
+        // Every entry the away refund posted is the branch's, where the money left (phase 84 Decision D).
+        var entries = await home.EntriesForAsync(DocumentType.CreditNote, refundedAway.Id);
+        Assert.All(entries, x => Assert.Equal(branch.Location.Id, x.LocationId));
+
+        // The rest of each bill comes back at home: each sale ties out to the paisa either way.
+        var lastAway = await RefundLineAsync(home, homeSession.Id, away.Id, parcel: false);
+        var lastTwin = await RefundLineAsync(home, homeSession.Id, twin.Id, parcel: false);
+        Assert.Equal(lastTwin.GrandTotal, lastAway.GrandTotal);
+        Assert.Equal(520m, refundedAway.GrandTotal + lastAway.GrandTotal);
+        Assert.Equal(0m, await home.BalanceAsync(homeServiceCharge));
+        Assert.Equal(0m, await home.BalanceAsync(homePackaging));
+        Assert.Equal(0m, await home.BalanceAsync(await home.ReceivableAccountIdAsync()));
+        Assert.True(Assert.Single(await FindAsync(branch, away.Code)).FullyRefunded);
+
+        // Voiding the away refund puts its fees back where the sale had them, under the branch's stamp.
+        await branch.VoidRefundAsync(refundedAway.Id);
+        Assert.Equal(-20m, await home.BalanceAsync(homeServiceCharge));
+        Assert.Equal(-20m, await home.BalanceAsync(homePackaging));
+        Assert.Equal(0m, await home.BalanceAsync(branchServiceCharge));
+        Assert.All(
+            await home.EntriesForAsync(DocumentType.CreditNote, refundedAway.Id),
+            x => Assert.Equal(branch.Location.Id, x.LocationId));
+    }
+
+    [Fact]
+    public async Task A_branch_that_charges_no_fees_and_has_no_accounts_for_them_still_refunds_a_bill_that_carried_them()
+    {
+        var r = await PosTestRestaurant.CreateAsync([.. PosTestRestaurant.WaiterKeys.Union(PosTestTill.CashierKeys)]);
+        var home = r.Till;
+        var branch = await home.AddBranchAsync();
+
+        var homeServiceCharge = await AddAccountAsync(home, "4101", "Service Charge - Thamel");
+        var homePackaging = await AddAccountAsync(home, "4301", "Packaging - Thamel");
+        await SetFeesAsync(home, serviceCharge: true, homeServiceCharge, TwentyABox, homePackaging);
+        // The branch is a shop: no service charge, no fee, no account for either here or as a tenant default. The
+        // round-off still has the tenant's.
+        await SetFeesAsync(branch, serviceCharge: false, null, PackagingFee.None, null);
+        var settings = await home.Db.TenantSettings.SingleAsync(x => x.OrganizationId == home.OrganizationId);
+        settings.SetPosDefaults(null, home.RoundingAccountId, home.OverShortAccountId, null);
+        await home.Db.SaveChangesAsync();
+
+        var homeSession = await home.OpenAsync();
+        var branchSession = await branch.OpenAsync();
+        var sale = await BillWithAParcelAsync(r, r.T1, homeSession.Id);
+
+        var refund = await RefundLineAsync(branch, branchSession.Id, sale.Id, parcel: true);
+
+        Assert.True(refund.GrandTotal > 0m);
+        Assert.Equal(-40m + 20m, await home.BalanceAsync(homeServiceCharge));
+        Assert.Equal(-20m + 20m, await home.BalanceAsync(homePackaging));
+    }
+
+    [Fact]
+    public async Task The_credit_note_page_names_the_warehouse_a_refunds_goods_went_back_into()
     {
         var home = await PosTestTill.CreateAsync();
         var branch = await home.AddBranchAsync();
         var homeSession = await home.OpenAsync();
         var branchSession = await branch.OpenAsync();
-        // Chicken Momo carries the location's 10% service charge.
-        var sale = await home.SellAsync(homeSession.Id, [home.Momo(1)], [home.Cash(249m)]);
-        var line = await branch.ReturnAsync(sale.Id, home.MomoId, 1m);
+        // 2 Coke 135.60 + a Momo 248.60 = 384.20, rounded to 384.
+        var sale = await home.SellAsync(homeSession.Id, [home.Coke(2), home.Momo(1)], [home.Cash(384m)]);
 
-        var preview = await Assert.ThrowsAsync<ConflictException>(() => branch.PreviewRefundAsync(branchSession.Id, sale.Id, [line]));
-        Assert.Contains("service charge", preview.Message, StringComparison.Ordinal);
-        await Assert.ThrowsAsync<ConflictException>(() => branch.RefundAsync(branchSession.Id, sale.Id, [line], [branch.Cash(249m)]));
-        await Assert.ThrowsAsync<ConflictException>(() => RefundableAsync(branch, sale.Id));
+        async Task<CreatePosRefundResult> BackAsync(PosTestTill till, Guid sessionId, Guid productId)
+        {
+            var line = await till.ReturnAsync(sale.Id, productId, 1m);
+            var preview = await till.PreviewRefundAsync(sessionId, sale.Id, [line]);
+            return await till.RefundAsync(sessionId, sale.Id, [line], [till.Cash(preview.RequiredPayout)]);
+        }
 
-        // The search still names it, and says it is not refundable here.
-        var match = Assert.Single(await FindAsync(branch, sale.Code));
-        Assert.False(match.RefundableHere);
-        Assert.Equal(home.Location.Name, match.SoldAtLocationName);
+        var away = await BackAsync(branch, branchSession.Id, home.CokeId);
+        var atHome = await BackAsync(home, homeSession.Id, home.CokeId);
+        // A Momo is a service: nothing goes back into stock, so no warehouse is named.
+        var momo = await BackAsync(home, homeSession.Id, home.MomoId);
 
-        // At home it refunds as ever.
-        await home.RefundAsync(homeSession.Id, sale.Id, [line], [home.Cash(249m)]);
+        async Task<string?> WarehouseOfAsync(Guid id) =>
+            (await new GetCreditNoteQueryHandler(home.Db).Handle(
+                new GetCreditNoteQuery(home.OrganizationId, id), CancellationToken.None)).PosRefund!.WarehouseName;
+
+        var homeWarehouse = await home.Db.Warehouses.Where(x => x.Id == home.Seed.WarehouseId).Select(x => x.Name).SingleAsync();
+        Assert.Equal("Lakeside Branch Store", await WarehouseOfAsync(away.Id));
+        Assert.Equal(homeWarehouse, await WarehouseOfAsync(atHome.Id));
+        Assert.Null(await WarehouseOfAsync(momo.Id));
+
+        // A refund from before phase 84 names no warehouse of its own; the page reads the sale's, where it went.
+        var note = await home.Db.CreditNotes.SingleAsync(x => x.Id == atHome.Id);
+        ((DbContext)home.Db).Entry(note).Property(nameof(CreditNote.WarehouseId)).CurrentValue = null;
+        await home.Db.SaveChangesAsync();
+        Assert.Equal(homeWarehouse, await WarehouseOfAsync(atHome.Id));
     }
+
+    // ---- What may not come back elsewhere ---------------------------------------------------------
 
     [Fact]
     public async Task A_branch_with_no_default_warehouse_cannot_take_back_another_branchs_goods()
@@ -187,7 +308,6 @@ public sealed class PosCrossBranchRefundTests
         var match = Assert.Single(await FindAsync(branch, sale.Code));
         Assert.Equal(sale.Id, match.InvoiceId);
         Assert.Equal(home.Location.Name, match.SoldAtLocationName);
-        Assert.True(match.RefundableHere);
         Assert.False(match.FullyRefunded);
 
         // At home it is an ordinary match: no location named.
@@ -294,6 +414,51 @@ public sealed class PosCrossBranchRefundTests
     }
 
     // ---- Helpers ---------------------------------------------------------------------------------
+
+    private static readonly PackagingFee TwentyABox = PackagingFee.Create(PackagingFeeBasis.PerUnit, 20m);
+
+    private static async Task<Guid> AddAccountAsync(PosTestTill till, string code, string name)
+    {
+        var account = Account.Create(till.OrganizationId, code, name, AccountRootType.Income, Guid.NewGuid());
+        till.Db.Accounts.Add(account);
+        await till.Db.SaveChangesAsync();
+        return account.Id;
+    }
+
+    /// <summary>One location's service charge (10%, on take-away too) and packaging fee, each with its own account.</summary>
+    private static async Task SetFeesAsync(
+        PosTestTill till, bool serviceCharge, Guid? serviceChargeAccountId, PackagingFee fee, Guid? packagingFeeAccountId)
+    {
+        var s = await till.Db.PosLocationSettings.SingleAsync(x => x.BillingLocationId == till.Location.Id);
+        s.Update(
+            till.Location.PosMode, serviceCharge, s.ServiceChargeRate, serviceChargeAccountId, s.ServiceChargeOnTakeAway,
+            fee, packagingFeeAccountId, s.RoundOffEnabled, s.RoundOffAccountId, s.CashVerificationRequired, s.Denominations,
+            s.DefaultTab, s.PrintEstimateBill, s.PrintInvoice, s.PrintCreditNote, s.PrintKot, s.AbbreviatedTaxInvoiceEnabled);
+        await till.Db.SaveChangesAsync();
+    }
+
+    /// <summary>Two Momo at a table, one of them marked as a parcel, billed whole and paid in cash.</summary>
+    private static async Task<CreatePosOrderInvoiceResult> BillWithAParcelAsync(PosTestRestaurant r, Guid table, Guid sessionId)
+    {
+        var order = await r.SeatAsync(table, [r.Momo(2)]);
+        await new UpdatePosOrderTakeAwayCommandHandler(r.Till.Db, r.CurrentUser()).Handle(
+            new UpdatePosOrderTakeAwayCommand(r.OrganizationId, order.Id, order.Lines.Single().Id, 1m),
+            CancellationToken.None);
+        var preview = await r.PreviewAsync(order.Id, PosOrderSplit.Whole);
+        return await r.BillAsync(sessionId, order.Id, PosOrderSplit.Whole, [r.Till.Cash(preview.Total)]);
+    }
+
+    /// <summary>Refunds the sale's parcel line (the one carrying a packaging fee) or its other line, paid out in cash
+    /// at whatever the till's own preview says is owed back.</summary>
+    private static async Task<CreatePosRefundResult> RefundLineAsync(PosTestTill till, Guid sessionId, Guid invoiceId, bool parcel)
+    {
+        var line = await till.Db.InvoiceLines
+            .Where(x => x.InvoiceId == invoiceId && (x.PackagingFeeAmount > 0m) == parcel)
+            .SingleAsync();
+        var input = new PosRefundLineInput(line.Id, line.Quantity);
+        var preview = await till.PreviewRefundAsync(sessionId, invoiceId, [input]);
+        return await till.RefundAsync(sessionId, invoiceId, [input], [till.Cash(preview.RequiredPayout)]);
+    }
 
     private static Task<IReadOnlyList<PosSaleMatchDto>> FindAsync(PosTestTill till, string? search) =>
         new FindPosSalesQueryHandler(till.Db, till.CurrentUser()).Handle(

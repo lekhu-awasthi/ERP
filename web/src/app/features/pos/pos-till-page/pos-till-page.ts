@@ -524,8 +524,18 @@ export class PosTillPage {
     this.announce(`${mode.name} ${amount.toFixed(2)} added.`);
   }
 
+  /**
+   * Phase 85 -- its own button goes with it, so focus goes to the amount field, prefilled with what is now left to pay
+   * (phase 84's refund screen, the same shape): the keyboard is never dropped onto the page.
+   */
   protected removeTender(key: number): void {
+    const removed = this.tenders().find((x) => x.key === key);
     this.tenders.set(this.tenders().filter((x) => x.key !== key));
+    this.amountText.set(fromPaisa(this.remainingPaisa()).toFixed(2));
+    if (removed) {
+      this.announce(`${removed.mode.name} ${fromPaisa(removed.paisa).toFixed(2)} removed.`);
+    }
+    this.focusIn('#pos-tender-amount');
   }
 
   protected onCreditToggle(event: Event): void {

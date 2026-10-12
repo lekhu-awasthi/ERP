@@ -63,7 +63,6 @@ public sealed class FindPosSalesQueryHandler(IAppDbContext db, ICurrentUserServi
             {
                 InvoiceId = g.Key,
                 Total = g.Sum(x => x.Amount + x.ServiceChargeAmount + x.PackagingFeeAmount + x.VatAmount),
-                Fees = g.Sum(x => x.ServiceChargeAmount + x.PackagingFeeAmount),
                 Sold = g.Sum(x => x.Quantity),
             })
             .ToDictionaryAsync(x => x.InvoiceId, cancellationToken);
@@ -113,9 +112,7 @@ public sealed class FindPosSalesQueryHandler(IAppDbContext db, ICurrentUserServi
                     contact?.IsWalkInCustomer ?? false,
                     (sums?.Total ?? 0m) + x.RoundOff,
                     isHere ? null : x.LocationId is { } l ? locationNames.GetValueOrDefault(l, "") : "",
-                    (sums?.Sold ?? 0m) - returned.GetValueOrDefault(x.Id) <= 0m,
-                    // The planner's rule (PosRefundPlanner.EnsureRefundable), read from the same figures.
-                    isHere || (sums?.Fees ?? 0m) == 0m);
+                    (sums?.Sold ?? 0m) - returned.GetValueOrDefault(x.Id) <= 0m);
             })
             .ToList();
     }

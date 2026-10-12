@@ -408,8 +408,6 @@ export interface PosSaleMatch {
   soldAtLocationName: string | null;
   /** Phase 84 -- nothing is left to give back. */
   fullyRefunded: boolean;
-  /** Phase 84 -- false for another location's sale carrying a service charge or packaging fee. */
-  refundableHere: boolean;
 }
 
 export interface PosRefundableLine {

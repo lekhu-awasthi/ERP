@@ -420,9 +420,15 @@ export class PosBillPage {
     this.announcement.set(`${mode.name} ${amount.toFixed(2)} added.`);
   }
 
+  /** Phase 85 -- its own button goes with it, so focus goes to the amount field, as on the till and the refund screen. */
   protected removeTender(key: number): void {
+    const removed = this.tenders().find((x) => x.key === key);
     this.tenders.set(this.tenders().filter((x) => x.key !== key));
     this.amountText.set(fromPaisa(this.remainingPaisa()).toFixed(2));
+    if (removed) {
+      this.announcement.set(`${removed.mode.name} ${fromPaisa(removed.paisa).toFixed(2)} removed.`);
+    }
+    afterNextRender(() => document.getElementById('pos-bill-amount')?.focus(), { injector: this.injector });
   }
 
   protected confirmWarning(): void {

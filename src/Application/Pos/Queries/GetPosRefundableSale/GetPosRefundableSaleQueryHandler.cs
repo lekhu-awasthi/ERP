@@ -37,8 +37,7 @@ public sealed class GetPosRefundableSaleQueryHandler(IAppDbContext db, ICurrentU
             await EnsureMayRefundHereAsync(request.OrganizationId, till.Location.Id, cancellationToken);
         }
 
-        // The refund's own rules (till sale, approved, and from another branch only without a per-location fee),
-        // so the screen refuses exactly what the refund would.
+        // The refund's own rules (a till sale, approved), so the screen refuses exactly what the refund would.
         PosRefundPlanner.EnsureRefundable(invoice, till);
         var returnWarehouseId = PosRefundPlanner.WarehouseFor(invoice, till);
 

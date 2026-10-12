@@ -209,6 +209,31 @@ describe('PosBillPage', () => {
     expect(document.activeElement?.id).toBe('pos-bill-done');
   });
 
+  it('hands focus to the amount field when a tender is removed, prefilled with what is left', () => {
+    const p = page();
+    const amount = () => p.element.querySelector<HTMLInputElement>('#pos-bill-amount')!;
+    const due = Number(amount().value);
+
+    p.click('#pos-bill-mode-card');
+    p.change('#pos-bill-amount', '100');
+    p.press('Add');
+    p.click('#pos-bill-mode-cash');
+    p.change('#pos-bill-amount', '50');
+    p.press('Add');
+    // As a keyboard user does: focus the button, then press it.
+    const remove = p.element.querySelector<HTMLButtonElement>('[aria-label="Remove Card tender"]')!;
+    remove.focus();
+    expect(document.activeElement).toBe(remove);
+    remove.click();
+    p.render();
+
+    // Phase 85 -- the button went with its tender; the keyboard lands where the next tender is entered.
+    expect(p.element.querySelector('[aria-label="Remove Card tender"]')).toBeNull();
+    expect(document.activeElement).toBe(amount());
+    expect(amount().value).toBe((due - 50).toFixed(2));
+    expect(p.text()).toContain('Card 100.00 removed.');
+  });
+
   // ---- Phase 72: a customer per bill, and credit ----------------------------------------------------
 
   const creditTill = (canSellOnCredit: boolean): PosTill =>

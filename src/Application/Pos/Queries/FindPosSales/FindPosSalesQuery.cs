@@ -16,8 +16,7 @@ public sealed record PosSaleMatchDto(
     bool IsWalkIn,
     decimal GrandTotal,
     string? SoldAtLocationName,
-    bool FullyRefunded,
-    bool RefundableHere);
+    bool FullyRefunded);
 
 /// <summary>
 /// Phase 63 -- the refund screen's "find a sale": approved till sales of one location whose number
@@ -36,8 +35,8 @@ public sealed record PosSaleMatchDto(
 /// where), to a caller who may refund here: <c>Sales.CreditNote.Create</c> and <c>.Approve</c> at this location, the
 /// two keys the refund itself asks for. No grant at the selling branch is needed; the customer is holding the bill.
 /// There is no browsing of another branch's sales, and a caller without those keys simply finds nothing more.
-/// <c>RefundableHere</c> is false for one carrying a service charge or packaging fee (it is refunded where it was
-/// sold), and <c>FullyRefunded</c> marks a sale with nothing left to give back.</para>
+/// <c>FullyRefunded</c> marks a sale with nothing left to give back. (Phase 84's <c>RefundableHere</c>, false for a
+/// sale carrying a service charge or packaging fee, went in phase 85: every sale found can now be refunded here.)</para>
 /// </summary>
 public sealed record FindPosSalesQuery(Guid OrganizationId, Guid LocationId, string? Search)
     : IRequest<IReadOnlyList<PosSaleMatchDto>>, IRequirePermission, IOrganizationScoped, IRequireAnyFeature,

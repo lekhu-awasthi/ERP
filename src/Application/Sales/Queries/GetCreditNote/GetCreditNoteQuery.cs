@@ -62,7 +62,15 @@ public sealed record CreditNotePosRefundDto(
     decimal GrandTotal,
     IReadOnlyList<CreditNotePayoutDto> Payouts,
     decimal PaidOutAmount,
-    decimal ToAccountAmount);
+    decimal ToAccountAmount)
+{
+    /// <summary>
+    /// Phase 85 -- the warehouse the refund's goods went back into: the note's own (phase 84, another branch's when the
+    /// sale was refunded there), else the sale's, which is where every refund before phase 84 put them. Null when the
+    /// refund carried no goods, because then nothing went back into stock anywhere.
+    /// </summary>
+    public string? WarehouseName { get; init; }
+}
 
 public sealed record PostedGlLineDto(Guid Id, Guid AccountId, decimal Debit, decimal Credit);
 

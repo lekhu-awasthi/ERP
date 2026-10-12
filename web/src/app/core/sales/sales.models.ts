@@ -612,6 +612,9 @@ export interface CreditNotePosRefundDto {
   payouts: CreditNotePayoutDto[];
   paidOutAmount: number;
   toAccountAmount: number;
+  /** Phase 85 -- the warehouse its goods went back into (another branch's when refunded there); null when it carried
+   * no goods. */
+  warehouseName?: string | null;
 }
 
 export interface CreditNoteDetail extends CreditNote {
