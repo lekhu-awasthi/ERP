@@ -1,3 +1,4 @@
+using ErpApp.Domain.Accounting;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Contacts;
 using ErpApp.Domain.Pos;
@@ -85,6 +86,18 @@ public sealed class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
         builder.HasOne<PosSession>()
             .WithMany()
             .HasForeignKey(x => x.PosSessionId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // Phase 86 -- the accounts the sale's service charge and packaging fee were credited to, frozen at approval so a
+        // refund reverses into them. Restrict, as for a tender's account: an account a sale posted to is history.
+        builder.HasOne<Account>()
+            .WithMany()
+            .HasForeignKey(x => x.ServiceChargeAccountId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne<Account>()
+            .WithMany()
+            .HasForeignKey(x => x.PackagingFeeAccountId)
             .OnDelete(DeleteBehavior.Restrict);
 
         // Phase 65 -- the restaurant order a till sale bills. Restrict: an order with bills is history,

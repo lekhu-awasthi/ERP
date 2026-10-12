@@ -27,6 +27,7 @@ import {
   CreateQuotationResult,
   CreateSalesOrderResult,
   CreditNote,
+  CreditNoteListItem,
   CreditNoteConversionTemplate,
   CreditableInvoice,
   CreditNoteDetail,
@@ -247,11 +248,11 @@ export class SalesService {
     page = 1,
     pageSize = 50,
     options?: ListQueryOptions,
-  ): Observable<PagedResult<CreditNote>> {
+  ): Observable<PagedResult<CreditNoteListItem>> {
     const params: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
     applyListOptions(params, options);
     if (status) params['status'] = status;
-    return this.http.get<PagedResult<CreditNote>>(`${this.baseUrl(organizationId)}/credit-notes`, {
+    return this.http.get<PagedResult<CreditNoteListItem>>(`${this.baseUrl(organizationId)}/credit-notes`, {
       withCredentials: true,
       params,
     });

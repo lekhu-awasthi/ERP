@@ -2257,3 +2257,18 @@ moved. The twin test from phase 84 held unchanged, now on a restaurant bill with
 lines, only the stamp different. The ERP credit note names a till refund's warehouse (the note's, else the sale's, none
 for services), and *Remove* on the till's and the restaurant bill's tenders keeps focus in the amount field. That fix's
 first test passed without it, because the opener had already focused the field and a scripted click moves no focus.
+
+## Phase 86 — A sale keeps the accounts its fees went into
+
+**Read `phase-86-status.md` before reversing anything into an account a setting chose, or giving a document list a
+figure its aggregate does not carry.**
+
+Phase 85 resolved a refund's fee accounts at refund time, so a branch that changed its Service Charge account between a
+sale and its refund debited the new account and left the old one in credit. "Read it off the sale's GL lines" could not
+fix it, because a GL line has no role and two legs may share an account. So the sale records the two accounts at its
+approval (`Invoice.ServiceChargeAccountId`, `.PackagingFeeAccountId`), the way a tender keeps its account, and a refund
+reverses into them. Sales from before the phase recorded nothing and keep the old rule, with no backfill. Every other
+account on a credit note is still resolved from today's settings, by the user's choice. The credit-note list names the
+warehouse each note's goods went back into through `CreditNoteReturnWarehouses`, which the note's page now shares. Asking
+when stock actually moved (approved, against an invoice, with a Goods line) also fixed the page naming a warehouse for a
+voided refund. The list now returns a row DTO, so a new header field must be added to it.

@@ -97,6 +97,9 @@ internal static class InvoiceApprovalPosting
         var code = await numberGenerator.GetNextNumberAsync(
             invoice.OrganizationId, DocumentType.Invoice, cancellationToken, invoice.LocationId);
 
+        // Phase 86 -- the two accounts the entry below credits, kept on the sale: a refund reverses into these, whatever the
+        // location's setting says by then (CreditNoteApprovalPosting). The round-off is not kept: a refund rounds its own.
+        invoice.RecordFeeAccounts(postingInput.ServiceChargeAccountId, postingInput.PackagingFeeAccountId);
         invoice.Approve(approvedByUserId, code);
 
         var totalCogs = 0m;

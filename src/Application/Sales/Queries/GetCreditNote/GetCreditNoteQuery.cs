@@ -67,7 +67,8 @@ public sealed record CreditNotePosRefundDto(
     /// <summary>
     /// Phase 85 -- the warehouse the refund's goods went back into: the note's own (phase 84, another branch's when the
     /// sale was refunded there), else the sale's, which is where every refund before phase 84 put them. Null when the
-    /// refund carried no goods, because then nothing went back into stock anywhere.
+    /// refund carried no goods, because then nothing went back into stock anywhere. Phase 86: read through
+    /// <c>CreditNoteReturnWarehouses</c>, the list's reader, so it is also null once the refund is voided.
     /// </summary>
     public string? WarehouseName { get; init; }
 }

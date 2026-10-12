@@ -6109,6 +6109,9 @@ namespace ErpApp.Infrastructure.Migrations
                     b.Property<Guid>("OrganizationId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid?>("PackagingFeeAccountId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid?>("PosOrderId")
                         .HasColumnType("uniqueidentifier");
 
@@ -6137,6 +6140,9 @@ namespace ErpApp.Infrastructure.Migrations
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("rowversion");
 
+                    b.Property<Guid?>("ServiceChargeAccountId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -6160,9 +6166,13 @@ namespace ErpApp.Infrastructure.Migrations
 
                     b.HasIndex("LocationId");
 
+                    b.HasIndex("PackagingFeeAccountId");
+
                     b.HasIndex("PosOrderId");
 
                     b.HasIndex("PosSessionId");
+
+                    b.HasIndex("ServiceChargeAccountId");
 
                     b.HasIndex("WarehouseId");
 
@@ -12606,6 +12616,11 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasForeignKey("LocationId")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.HasOne("ErpApp.Domain.Accounting.Account", null)
+                        .WithMany()
+                        .HasForeignKey("PackagingFeeAccountId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("ErpApp.Domain.Pos.PosOrder", null)
                         .WithMany()
                         .HasForeignKey("PosOrderId")
@@ -12614,6 +12629,11 @@ namespace ErpApp.Infrastructure.Migrations
                     b.HasOne("ErpApp.Domain.Pos.PosSession", null)
                         .WithMany()
                         .HasForeignKey("PosSessionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("ErpApp.Domain.Accounting.Account", null)
+                        .WithMany()
+                        .HasForeignKey("ServiceChargeAccountId")
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("ErpApp.Domain.Tenancy.Warehouse", null)

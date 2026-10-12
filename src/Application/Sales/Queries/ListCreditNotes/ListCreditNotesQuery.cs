@@ -2,10 +2,39 @@ using ErpApp.Application.Common.Filtering;
 using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Common.Security;
+using ErpApp.Domain.Common;
 using ErpApp.Domain.Sales;
 using MediatR;
 
 namespace ErpApp.Application.Sales.Queries.ListCreditNotes;
+
+/// <summary>
+/// Phase 86 -- one row of the list: the header fields the page shows, plus <see cref="ReturnWarehouseName"/>, which the
+/// aggregate cannot carry. Every other document list still returns its aggregate; this one stopped when a row needed a
+/// figure read from other rows (<c>CreditNoteReturnWarehouses</c>). A new header field must be added here to reach the
+/// list (phase 32's detail-DTO gotcha, now true of this list too).
+/// </summary>
+public sealed record CreditNoteListItemDto(
+    Guid Id,
+    Guid OrganizationId,
+    Guid ContactId,
+    string Code,
+    DateOnly Date,
+    string? Reference,
+    CreditNoteStatus Status,
+    Guid? ApprovedByUserId,
+    DateTimeOffset? ApprovedAt,
+    DateTimeOffset CreatedAt,
+    DocumentType? ReferrerType,
+    Guid? ReferrerId,
+    decimal DiscountPct,
+    string? Terms,
+    Guid? LocationId,
+    Guid? AgainstInvoiceId,
+    string? AgainstInvoiceNumber,
+    DateOnly? AgainstInvoiceDate,
+    string? Reason,
+    string? ReturnWarehouseName);
 
 public sealed record ListCreditNotesQuery(
     Guid OrganizationId,
@@ -26,7 +55,7 @@ public sealed record ListCreditNotesQuery(
     // keeps its behaviour. The two orderings are the two indexes `TenantIndexConvention` gives a
     // document -- see `ISortableQuery` for why that, and not taste, is what decides the menu.
     string? Sort = null)
-    : IRequest<PagedResult<CreditNote>>, IRequirePermission, IOrganizationScoped, ILocationFilteredQuery, ISearchableQuery, IDateRangeFilteredQuery, ISortableQuery
+    : IRequest<PagedResult<CreditNoteListItemDto>>, IRequirePermission, IOrganizationScoped, ILocationFilteredQuery, ISearchableQuery, IDateRangeFilteredQuery, ISortableQuery
 {
     public string PermissionKey => PermissionKeys.CreditNoteView;
 }

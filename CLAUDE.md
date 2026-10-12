@@ -117,6 +117,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 83: a discount on one guest's part (on the bill, not the order: % or Rs after the order's terms, `PartDiscountAmount` kept apart on each line so the last part never takes it back; `TillDiscount` from whoever bills) + the ERP forms' Remove, the note's "in this organization", the discard cap. Before pricing one part of a split apart from the rest, or a control that removes itself — `docs/phase-83-status.md`
 - Phase 84: returns at another branch (a retail sale refunded where it comes back, by its full number under the refund's keys there, its goods into that branch's warehouse: `CreditNote.WarehouseId`), split payouts and *Fully refunded* on the refund screen, the money receipt dated in BS (`BillDatedTypes`, not a tax document). Before letting a document act away from its source's location, or adding a member to a list that decides two things — `docs/phase-84-status.md`
 - Phase 85: a restaurant bill refunded at another branch (its service charge and packaging fee out of the selling location's accounts, one entry stamped with the refunding branch, lines equal to the home refund) + the credit note's warehouse, focus kept on a removed tender. Before reversing a figure a location's settings route to an account, or testing where focus lands — `docs/phase-85-status.md`
+- Phase 86: a sale records the accounts its service charge and packaging fee went into (`Invoice.ServiceChargeAccountId`/`.PackagingFeeAccountId`) and a refund reverses into them; older sales keep the old rule; the credit-note list names where returned goods went (`CreditNoteReturnWarehouses`, shared with the page). Before reversing into an account a setting chose, or giving a list a figure its aggregate lacks — `docs/phase-86-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -308,12 +309,14 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - No vendor control means the workaround is the spec: a refund at another branch must leave what the same refund at home leaves, every figure, only where differs (phase-84).
 - A list deciding two things answers one question with both: the money receipt joins the BS-dated list, not `TaxDocumentTypes`, which also locks elements and prints two dates (phase-84).
 - A reversal resolves a per-location account where the original posted, and stamps the entry where it happens: a refund's fees go back to the selling branch's accounts (phase-85).
+- A GL line has no role, so the account an original used cannot be read back from its entry; record it on the document when decided (`Invoice.ServiceChargeAccountId`, phase-86).
 
 - Rich text is sanitised on write, in the Domain setter, by re-emission from a parsed tree, never by filtering; `Sanitize` must stay idempotent (phase-39).
 - A rich-text grammar is its **renderer's capability list**: decide what `RichTextPdfRenderer` can draw, then build the toolbar, or the field looks one way on screen and another in the PDF the customer receives (phase-39).
 - A tenant-level field is reachable only if you can name the command that writes it and the screen that calls it; a read path proves nothing about the write path (phase-31).
 - A field an aggregate refuses to expose should be **absent** from the request record, not merely unwritten — present-and-ignored reads to a client as accepted (phase-43's `WorkspaceName`).
 - …and a **row** no read can apply is the same lie: a location's template for a type carrying no location under the scope is a 409, not a stored choice (phase-75).
+- The credit-note list returns `CreditNoteListItemDto`, not its aggregate: a new `CreditNote` header field reaches that list only if the DTO gains it (phase-86).
 - Before calling a tenant-level limit "enforcement", ask who can write it: `Tenancy.Subscription.Manage` sits on the tenant's own Admin, so a quota is a record and a guard, not a control (phase-41).
 - A field dead on two free-trial tenants is one sample, not two; read what the vendor publishes (its price list sells the "dead" fields) before asking for another tenant (phase-41).
 - …and the same about a **behaviour**: two trials are one sample of trial behaviour and zero of paid, so "the reference product deletes an expired tenant" never settles what ours does (phase-49).
@@ -564,25 +567,26 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 
 ## Current status
 
-**Phases 0-85 are complete. Next: not yet scheduled** (the user picks; candidates in `docs/roadmap.md`).
+**Phases 0-86 are complete. Next: not yet scheduled** (the user picks; candidates in `docs/roadmap.md`).
 Each phase's story is in its `docs/phase-N-status.md`, and finished planning entries are archived in
 `docs/roadmap-history.md`.
 
-**Phase 85 let another branch refund a restaurant bill.**
+**Phase 86 made a refund reverse its fees into the accounts the sale used.**
 
-- Phase 84's 409 on an away sale with a service charge or packaging fee is gone. Both are reversed out of the accounts
-  the selling location keeps them in (`CreditNoteApprovalPosting` resolves them at the sale's location), in one entry
-  stamped with the refunding branch: the same lines the refund at home posts. Round-off, drawer and warehouse stay the
-  refunding branch's. No migration, no new keys; `refundableHere` left the till's sale search.
-- The ERP credit note's *Refunded at the till* names the warehouse its goods went back into (`posRefund.warehouseName`).
-- *Remove* on a tender, on the till and on a restaurant bill, hands focus to the amount field and announces itself.
+- A sale records the accounts its service charge and packaging fee were credited to, at approval
+  (`Invoice.ServiceChargeAccountId`, `.PackagingFeeAccountId`), and a refund (home or away) reverses into them after the
+  location's setting changes. Sales from before the phase recorded nothing and refund as before; no backfill. One
+  migration (`Phase86InvoiceFeeAccounts`), no new keys. Every other credit-note account still follows today's settings.
+- The credit-note list returns rows (`CreditNoteListItemDto`) and names the warehouse each note's goods went back into,
+  through `CreditNoteReturnWarehouses`, which the note's page shares (none once voided, none for services).
 
-**Next:** not yet scheduled. Candidates: phase 85 § 5 (a refund reading the sale's own fee account, the credit-note
-list's warehouse), phase 83 § 5 (a per-part service charge waiver), phase 79 § 5 (positioning, renames, the vendor's
-DN/GRN/WT templates, lakh grouping, the money receipt on the roll), phase 71 § 5 (the annex exports in BS).
+**Next:** not yet scheduled. Candidates: phase 86 § 5 (every credit-note account frozen per invoice line, an ERP
+return's page naming its warehouse), phase 83 § 5 (a per-part service charge waiver), phase 79 § 5 (positioning,
+renames, the vendor's DN/GRN/WT templates, lakh grouping, the money receipt on the roll), phase 71 § 5 (the annex
+exports in BS).
 
-Tests: Domain 1029, Application.UnitTests **1780**, Infrastructure.UnitTests 14,
-Api.IntegrationTests 71, Angular **854**. Everything was green at phase 85's close with Docker up.
+Tests: Domain **1032**, Application.UnitTests **1782**, Infrastructure.UnitTests 14,
+Api.IntegrationTests 71, Angular **855**. Everything was green at phase 86's close with Docker up.
 The bundle sits at **652.58 kB** against `build-budget.spec.ts`'s 680 kB; every POS screen is lazy.
 
 - `Api.IntegrationTests` needs Docker Desktop running. Without it the Testcontainers-backed tests

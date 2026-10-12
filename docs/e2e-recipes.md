@@ -445,3 +445,7 @@ beside a 200 from the same user, and create a fresh Organization per phase.
   Location settings take `packagingFeeBasis: "PerUnit"`, `packagingFeeValue` and `packagingFeeAccountId`. Pick a
   refund's lines from `sales.InvoiceLines` by `PackagingFeeAmount`. `GET /credit-notes/{id}` answers
   `posRefund.warehouseName`; a till sale's tenders are `sales.InvoiceTenders` (`PaymentModeId`, `Amount`).
+- Phase 86. A sale's recorded fee accounts are `sales.Invoices.ServiceChargeAccountId` / `.PackagingFeeAccountId` (NULL on
+  sales before phase 86 and on a sale without that figure). Moving a location to new fee accounts is the whole
+  `PUT /pos/locations/{id}/settings` body again with the new ids. `GET /credit-notes` rows carry `returnWarehouseName`; a
+  credit note's void is `POST /credit-notes/{id}/void` with no body (200).

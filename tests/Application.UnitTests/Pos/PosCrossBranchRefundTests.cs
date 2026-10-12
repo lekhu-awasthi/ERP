@@ -7,6 +7,7 @@ using ErpApp.Application.Pos.Queries.FindPosSales;
 using ErpApp.Application.Pos.Queries.GetPosRefundableSale;
 using ErpApp.Application.Pos.Queries.GetPosSession;
 using ErpApp.Application.Sales.Queries.GetCreditNote;
+using ErpApp.Application.Sales.Queries.ListCreditNotes;
 using ErpApp.Application.Sales.Queries.SalesMasterReport;
 using ErpApp.Application.UnitTests.TestSupport;
 using ErpApp.Domain.Accounting;
@@ -235,6 +236,86 @@ public sealed class PosCrossBranchRefundTests
         Assert.Equal(-20m + 20m, await home.BalanceAsync(homePackaging));
     }
 
+    // ---- Phase 86: the accounts the sale used, after the setting changed --------------------------------
+
+    [Fact]
+    public async Task A_refund_after_the_location_changed_its_fee_accounts_reverses_into_the_accounts_the_sale_used()
+    {
+        var r = await PosTestRestaurant.CreateAsync([.. PosTestRestaurant.WaiterKeys.Union(PosTestTill.CashierKeys)]);
+        var home = r.Till;
+        var branch = await home.AddBranchAsync();
+
+        var oldServiceCharge = await AddAccountAsync(home, "4101", "Service Charge - Thamel");
+        var oldPackaging = await AddAccountAsync(home, "4301", "Packaging - Thamel");
+        var newServiceCharge = await AddAccountAsync(home, "4111", "Service Charge - Thamel 2083");
+        var newPackaging = await AddAccountAsync(home, "4311", "Packaging - Thamel 2083");
+        await SetFeesAsync(home, serviceCharge: true, oldServiceCharge, TwentyABox, oldPackaging);
+
+        var homeSession = await home.OpenAsync();
+        var branchSession = await branch.OpenAsync();
+        var away = await BillWithAParcelAsync(r, r.T1, homeSession.Id);
+        var twin = await BillWithAParcelAsync(r, r.T2, homeSession.Id);
+
+        // Each bill keeps the two accounts its approval credited.
+        foreach (var bill in new[] { away.Id, twin.Id })
+        {
+            var sale = await home.Db.Invoices.SingleAsync(x => x.Id == bill);
+            Assert.Equal((oldServiceCharge, oldPackaging), (sale.ServiceChargeAccountId, sale.PackagingFeeAccountId));
+        }
+
+        // The head office moves its fees to new accounts; a bill after that keeps the new ones.
+        await SetFeesAsync(home, serviceCharge: true, newServiceCharge, TwentyABox, newPackaging);
+        var later = await BillWithAParcelAsync(r, r.R1, homeSession.Id);
+        var laterSale = await home.Db.Invoices.SingleAsync(x => x.Id == later.Id);
+        Assert.Equal((newServiceCharge, newPackaging), (laterSale.ServiceChargeAccountId, laterSale.PackagingFeeAccountId));
+        Assert.Equal(-40m, await home.BalanceAsync(newServiceCharge));
+
+        // The two earlier parcels come back, one at the branch and one at home: both out of the old accounts, line for line.
+        var refundedAway = await RefundLineAsync(branch, branchSession.Id, away.Id, parcel: true);
+        var refundedHome = await RefundLineAsync(home, homeSession.Id, twin.Id, parcel: true);
+        Assert.Equal(await PostedAsync(home, refundedHome.Id), await PostedAsync(home, refundedAway.Id));
+
+        Assert.Equal(-80m + 40m, await home.BalanceAsync(oldServiceCharge));
+        Assert.Equal(-40m + 40m, await home.BalanceAsync(oldPackaging));
+        Assert.Equal(-40m, await home.BalanceAsync(newServiceCharge));
+        Assert.Equal(-20m, await home.BalanceAsync(newPackaging));
+
+        // The rest of both bills ties the old accounts out to nothing; the later bill is untouched.
+        await RefundLineAsync(home, homeSession.Id, away.Id, parcel: false);
+        await RefundLineAsync(home, homeSession.Id, twin.Id, parcel: false);
+        Assert.Equal(0m, await home.BalanceAsync(oldServiceCharge));
+        Assert.Equal(0m, await home.BalanceAsync(oldPackaging));
+        Assert.Equal(-40m, await home.BalanceAsync(newServiceCharge));
+        Assert.Equal(-20m, await home.BalanceAsync(newPackaging));
+    }
+
+    [Fact]
+    public async Task A_sale_that_recorded_no_accounts_refunds_through_the_selling_locations_current_setting()
+    {
+        var home = await PosTestTill.CreateAsync();
+        var branch = await home.AddBranchAsync();
+        var homeSession = await home.OpenAsync();
+        var branchSession = await branch.OpenAsync();
+
+        // A counter sale at a location with no service charge account of its own keeps the tenant default it posted to.
+        var sale = await home.SellAsync(homeSession.Id, [home.Momo(1)], [home.Cash(249m)]);
+        var invoice = await home.Db.Invoices.SingleAsync(x => x.Id == sale.Id);
+        Assert.Equal(home.ServiceChargeAccountId, invoice.ServiceChargeAccountId);
+        Assert.Null(invoice.PackagingFeeAccountId);
+
+        // As every sale approved before phase 86: nothing recorded. Then the location takes its own account.
+        ((DbContext)home.Db).Entry(invoice).Property(nameof(Invoice.ServiceChargeAccountId)).CurrentValue = null;
+        await home.Db.SaveChangesAsync();
+        var thamel = await AddAccountAsync(home, "4101", "Service Charge - Thamel");
+        await SetFeesAsync(home, serviceCharge: true, thamel, PackagingFee.None, null);
+
+        await RefundLineAsync(branch, branchSession.Id, sale.Id, parcel: false);
+
+        // Phase 85's rule: the selling location's account as it is now.
+        Assert.Equal(20m, await home.BalanceAsync(thamel));
+        Assert.Equal(-20m, await home.BalanceAsync(home.ServiceChargeAccountId));
+    }
+
     [Fact]
     public async Task The_credit_note_page_names_the_warehouse_a_refunds_goods_went_back_into()
     {
@@ -271,6 +352,22 @@ public sealed class PosCrossBranchRefundTests
         ((DbContext)home.Db).Entry(note).Property(nameof(CreditNote.WarehouseId)).CurrentValue = null;
         await home.Db.SaveChangesAsync();
         Assert.Equal(homeWarehouse, await WarehouseOfAsync(atHome.Id));
+
+        // Phase 86 -- the list names the same warehouse on each card, through the same reader.
+        async Task<Dictionary<Guid, string?>> ListedAsync() =>
+            (await new ListCreditNotesQueryHandler(home.Db, home.CurrentUser()).Handle(
+                new ListCreditNotesQuery(home.OrganizationId, null), CancellationToken.None))
+            .Items.ToDictionary(x => x.Id, x => x.ReturnWarehouseName);
+
+        var listed = await ListedAsync();
+        Assert.Equal("Lakeside Branch Store", listed[away.Id]);
+        Assert.Equal(homeWarehouse, listed[atHome.Id]);
+        Assert.Null(listed[momo.Id]);
+
+        // A voided refund has taken its goods back out: neither the card nor the page names a warehouse any more.
+        await branch.VoidRefundAsync(away.Id);
+        Assert.Null((await ListedAsync())[away.Id]);
+        Assert.Null(await WarehouseOfAsync(away.Id));
     }
 
     // ---- What may not come back elsewhere ---------------------------------------------------------

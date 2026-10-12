@@ -572,6 +572,12 @@ export interface CreditNote {
   reason: string | null;
 }
 
+/** Phase 86 -- a row of the credit-note list: the header, and the warehouse its goods went back into (null when the note
+ * moved no stock: a draft, a void, a standalone note, or services only). */
+export interface CreditNoteListItem extends CreditNote {
+  returnWarehouseName: string | null;
+}
+
 export interface CreditNoteLineDto extends CreditNoteLineInput {
   id: string;
   amount: number;

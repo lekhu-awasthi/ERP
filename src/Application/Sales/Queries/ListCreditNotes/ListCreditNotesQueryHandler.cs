@@ -10,9 +10,9 @@ using Microsoft.EntityFrameworkCore;
 namespace ErpApp.Application.Sales.Queries.ListCreditNotes;
 
 public sealed class ListCreditNotesQueryHandler(IAppDbContext db, ICurrentUserService currentUser)
-    : IRequestHandler<ListCreditNotesQuery, PagedResult<CreditNote>>
+    : IRequestHandler<ListCreditNotesQuery, PagedResult<CreditNoteListItemDto>>
 {
-    public async Task<PagedResult<CreditNote>> Handle(ListCreditNotesQuery request, CancellationToken cancellationToken)
+    public async Task<PagedResult<CreditNoteListItemDto>> Handle(ListCreditNotesQuery request, CancellationToken cancellationToken)
     {
         var query = db.CreditNotes.Where(x => x.OrganizationId == request.OrganizationId);
 
@@ -72,6 +72,16 @@ public sealed class ListCreditNotesQueryHandler(IAppDbContext db, ICurrentUserSe
             _ => source.OrderByDescending(x => x.CreatedAt),
         };
 
-        return await query.ToKeyPagedResultAsync(x => x.Id, Order, request.Page, request.PageSize, cancellationToken);
+        var page = await query.ToKeyPagedResultAsync(x => x.Id, Order, request.Page, request.PageSize, cancellationToken);
+
+        // Phase 86 -- projected after the page is fetched (phase 42), with the warehouse each row's goods went back into
+        // read for the page's rows only.
+        var warehouses = await CreditNoteReturnWarehouses.LoadAsync(db, request.OrganizationId, page.Items, cancellationToken);
+        return new PagedResult<CreditNoteListItemDto>(
+            [.. page.Items.Select(x => new CreditNoteListItemDto(
+                x.Id, x.OrganizationId, x.ContactId, x.Code, x.Date, x.Reference, x.Status, x.ApprovedByUserId, x.ApprovedAt,
+                x.CreatedAt, x.ReferrerType, x.ReferrerId, x.DiscountPct, x.Terms, x.LocationId, x.AgainstInvoiceId,
+                x.AgainstInvoiceNumber, x.AgainstInvoiceDate, x.Reason, warehouses.GetValueOrDefault(x.Id)))],
+            page.Page, page.PageSize, page.TotalCount);
     }
 }

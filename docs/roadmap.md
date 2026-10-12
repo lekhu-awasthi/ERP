@@ -6,7 +6,7 @@ Guiding rule for phase sizing: each phase ends with something *runnable and demo
 
 ---
 
-## Completed phases (0–85)
+## Completed phases (0–86)
 
 One line each; phase *N*'s full story is `docs/phase-N-status.md`. The verbose index as it stood on
 2026-09-28 is archived verbatim in `roadmap-history.md` ("Completed-phases index, verbose form").
@@ -71,6 +71,7 @@ One line each; phase *N*'s full story is `docs/phase-N-status.md`. The verbose i
 | 83 | A discount on one guest's part: a restaurant bill takes its own % or Rs after the order's terms, kept apart on each line (`PartDiscountAmount`) so the last part of a dish never takes it back and a void gives it up; `Sales.Invoice.TillDiscount` at the location from whoever bills; a PDF with both kinds prints the percentage first. Plus the ERP forms' *Remove* for a clerk, "in this organization" on a document with no location, and the discard capped at what is unbilled |
 | 84 | Returns at another branch: a till refunds another location's retail sale (none with service charge or packaging fee), found by its full number under the refund's own keys there, out of that branch's drawer, its goods into that branch's warehouse (`CreditNote.WarehouseId`). Split payouts and *Fully refunded* on the refund screen; the money receipt's date in BS with AD beside it (`BillDatedTypes`, not a tax document) |
 | 85 | A restaurant bill refunded at another branch: its service charge and packaging fee come back out of the selling location's accounts, in one entry stamped with the refunding branch, so its lines equal the same refund at home. The ERP credit note names a till refund's warehouse; removing a tender on the till or a restaurant bill keeps focus |
+| 86 | A sale records the accounts its service charge and packaging fee went into (`Invoice.ServiceChargeAccountId`, `.PackagingFeeAccountId`), and a refund reverses into them after the location's setting changes; older sales keep the old rule. The credit-note list names the warehouse each note's goods went back into, through one reader with the note's page |
 
 ---
 
@@ -265,8 +266,12 @@ bill's mark were done in phase 84, and a restaurant bill at another branch in ph
 **Carried from phase 84** (§ 5 there): the restaurant bill at another branch, the credit-note page's warehouse and the
 till's *Remove* focus were done in phase 85; the money receipt on the roll and the annex exports in BS are still open.
 
-**Carried from phase 85** (§ 5 there): a refund reads the selling location's *current* fee accounts, home or away, not
-the account the sale posted to; the ERP credit-note list has no warehouse column.
+**Carried from phase 85** (§ 5 there): the sale's own fee accounts and the credit-note list's warehouse were done in
+phase 86.
+
+**Carried from phase 86** (§ 5 there): every other account on a credit note (each line's Sales account, VAT, Receivable,
+Inventory, COGS) is still resolved from today's settings; sales approved before phase 86 recorded no fee account; an ERP
+return's own page does not name its warehouse.
 
 **Carried from phase 62** (§ 5 there):
 

@@ -165,6 +165,18 @@ public sealed class Invoice
     public decimal RoundOff { get; private set; }
 
     /// <summary>
+    /// Phase 86 -- the account this sale's service charge was credited to, recorded when it was approved, so a refund
+    /// takes it back out of the same account even after the location's setting changes. Null when the sale carried no
+    /// service charge, and on every sale approved before phase 86, whose refund resolves the account as before (the
+    /// selling location's current setting, then the tenant default).
+    /// </summary>
+    public Guid? ServiceChargeAccountId { get; private set; }
+
+    /// <summary>Phase 86 -- the packaging fee's account, recorded and read exactly as
+    /// <see cref="ServiceChargeAccountId"/>.</summary>
+    public Guid? PackagingFeeAccountId { get; private set; }
+
+    /// <summary>
     /// Phase 61 -- cash handed back to the customer. Always cash and always out of the session's
     /// drawer (Decision C of docs/phase-61-status.md): change can only be given out of cash that was
     /// tendered, so it is capped by the cash tenders, and it never leaves anything on credit.
@@ -723,6 +735,18 @@ public sealed class Invoice
     {
         EnsureDraft();
         _lines.Clear();
+    }
+
+    /// <summary>
+    /// Phase 86 -- the accounts the approval is about to credit with the service charge and packaging fee, frozen on the
+    /// sale (phase 68's rule: a value a setting decides is decided once, at the action). Draft only, because the approval
+    /// is the action; a figure the sale does not carry records no account.
+    /// </summary>
+    public void RecordFeeAccounts(Guid? serviceChargeAccountId, Guid? packagingFeeAccountId)
+    {
+        EnsureDraft();
+        ServiceChargeAccountId = ServiceChargeTotal != 0m ? serviceChargeAccountId : null;
+        PackagingFeeAccountId = PackagingFeeTotal != 0m ? packagingFeeAccountId : null;
     }
 
     public void Approve(Guid approvedByUserId, string code)

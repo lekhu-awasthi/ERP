@@ -4636,3 +4636,18 @@ The till's spec for *Remove* on a tender asserted focus landed in the amount fie
 out. Opening Pay had already focused that field, and `HTMLElement.click()` in a test moves no focus, so focus never
 left. A keyboard user's focus is on the button that removes itself, and goes to `<body>` with it. Focus the control in
 the test, assert it has focus, then press it; and prove the test fails with the fix removed.
+
+## A GL line has no role, so "the account the original used" must be recorded, not read back (phase 86)
+
+Phase 85 § 5 proposed that a refund read the account its sale credited with the service charge "from the sale's GL
+lines". A `GlLine` is an account, a debit and a credit. A tenant may point service charge, packaging fee and Sales at one
+account, and then nothing in the entry says which credit was which. When a later action needs the account an earlier
+one used, record it on the document at the moment it is decided: a tender's `AccountId`, an invoice line's
+`CogsUnitCost`, and now `Invoice.ServiceChargeAccountId` / `.PackagingFeeAccountId`.
+
+## A list that needs a figure from other rows stops returning its aggregate (phase 86)
+
+Every document list returned its aggregate, which carries a new column to the client for free. The credit-note list
+needed the warehouse each note's goods went back into, which depends on the note's lines, its invoice and its status, so
+it now returns `CreditNoteListItemDto`. From now on a header field added to `CreditNote` reaches that list only if the DTO
+gains it too: phase 32's detail-DTO gotcha, now true of one list.

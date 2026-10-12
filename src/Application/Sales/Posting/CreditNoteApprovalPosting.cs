@@ -67,19 +67,22 @@ internal static class CreditNoteApprovalPosting
             resolveInventoryAccounts: sourceInvoice is not null, cancellationToken);
 
         // Resolved before the number is drawn, so a missing account is a 409 that has consumed nothing.
-        // Phase 85 -- at the location that SOLD it: a refund at another branch takes the service charge and packaging fee
-        // back out of the accounts the sale put them in, and a refund at home reads the same location as before. The entry
-        // stays stamped with the note's location (phase 84 Decision D), and its round-off stays the note's below.
+        // Phase 85 -- out of the accounts the sale put them in, wherever the refund happens. Phase 86 -- the sale records
+        // those accounts at its approval, so a refund reverses into them even after the location's setting changed; a sale
+        // approved before phase 86 recorded none, and resolves them as phase 85 did (the selling location's current
+        // setting, then the tenant default). The entry stays stamped with the note's location (phase 84 Decision D), and its
+        // round-off stays the note's below.
         if (creditNote.ServiceChargeTotal > 0 || creditNote.PackagingFeeTotal > 0)
         {
-            var feeLocationId = await SoldAtLocationAsync(db, creditNote, sourceInvoice, cancellationToken);
+            var sale = await SaleFeeSourceAsync(db, creditNote, sourceInvoice, cancellationToken);
 
             if (creditNote.ServiceChargeTotal > 0)
             {
                 postingInput = postingInput with
                 {
-                    ServiceChargeAccountId = await PosAccountResolver.ServiceChargeAccountAsync(
-                        db, organizationId, feeLocationId, cancellationToken),
+                    ServiceChargeAccountId = sale.ServiceChargeAccountId
+                        ?? await PosAccountResolver.ServiceChargeAccountAsync(
+                            db, organizationId, sale.LocationId, cancellationToken),
                 };
             }
 
@@ -87,8 +90,9 @@ internal static class CreditNoteApprovalPosting
             {
                 postingInput = postingInput with
                 {
-                    PackagingFeeAccountId = await PosAccountResolver.PackagingFeeAccountAsync(
-                        db, organizationId, feeLocationId, cancellationToken),
+                    PackagingFeeAccountId = sale.PackagingFeeAccountId
+                        ?? await PosAccountResolver.PackagingFeeAccountAsync(
+                            db, organizationId, sale.LocationId, cancellationToken),
                 };
             }
         }
@@ -158,27 +162,33 @@ internal static class CreditNoteApprovalPosting
         return glEntry;
     }
 
+    /// <summary>Where a refund's fees go back to: the accounts its sale recorded (phase 86), and the sale's location for a
+    /// sale that recorded none.</summary>
+    private sealed record SaleFeeSource(Guid? LocationId, Guid? ServiceChargeAccountId, Guid? PackagingFeeAccountId);
+
     /// <summary>
-    /// Phase 85 -- the location whose accounts a note's service charge and packaging fee came out of: its invoice's.
-    /// Only a till refund carries either, and it always names its sale; a note naming none falls back to its own
-    /// location, the rule before this phase.
+    /// Phase 85/86 -- the sale a note's service charge and packaging fee came out of: its invoice's recorded accounts and
+    /// location. Only a till refund carries either, and it always names its sale; a note naming none falls back to its
+    /// own location and no recorded account, the rule before phase 85.
     /// </summary>
-    private static async Task<Guid?> SoldAtLocationAsync(
+    private static async Task<SaleFeeSource> SaleFeeSourceAsync(
         IAppDbContext db, CreditNote creditNote, Invoice? sourceInvoice, CancellationToken cancellationToken)
     {
         if (sourceInvoice is not null)
         {
-            return sourceInvoice.LocationId;
+            return new SaleFeeSource(
+                sourceInvoice.LocationId, sourceInvoice.ServiceChargeAccountId, sourceInvoice.PackagingFeeAccountId);
         }
 
         if (creditNote.ReferrerType != DocumentType.Invoice || creditNote.ReferrerId is not { } invoiceId)
         {
-            return creditNote.LocationId;
+            return new SaleFeeSource(creditNote.LocationId, null, null);
         }
 
         return await db.Invoices
             .Where(x => x.Id == invoiceId && x.OrganizationId == creditNote.OrganizationId)
-            .Select(x => x.LocationId)
-            .SingleOrDefaultAsync(cancellationToken);
+            .Select(x => new SaleFeeSource(x.LocationId, x.ServiceChargeAccountId, x.PackagingFeeAccountId))
+            .SingleOrDefaultAsync(cancellationToken)
+            ?? new SaleFeeSource(creditNote.LocationId, null, null);
     }
 }

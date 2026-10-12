@@ -3,7 +3,7 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { SalesService } from '../../../core/sales/sales.service';
-import { CreditNote, CreditNoteStatus } from '../../../core/sales/sales.models';
+import { CreditNoteListItem, CreditNoteStatus } from '../../../core/sales/sales.models';
 import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
 import { PaginationControl } from '../../../shared/pagination/pagination-control';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
@@ -31,7 +31,7 @@ export class CreditNoteListPage {
 
   protected readonly loading = signal(true);
   protected readonly errorMessage = signal<string | null>(null);
-  protected readonly items = signal<CreditNote[]>([]);
+  protected readonly items = signal<CreditNoteListItem[]>([]);
   protected readonly statusFilter = signal<StatusFilter>('All');
 
   protected readonly page = signal(1);
