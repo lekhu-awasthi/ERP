@@ -15,7 +15,11 @@ public sealed record GetPaymentQuery(Guid OrganizationId, Guid Id)
     public Guid LocationDocumentId => Id;
 }
 
-public sealed record PaymentAllocationDto(Guid Id, DocumentType TargetDocumentType, Guid TargetDocumentId, decimal Amount);
+/// <param name="TargetCode">Phase 88 -- the target's number. The form used to find it in the list it picked from, and
+/// that list now holds only open documents, so a settled target (every target of an approved payment, often) would
+/// have shown no number at all.</param>
+public sealed record PaymentAllocationDto(
+    Guid Id, DocumentType TargetDocumentType, Guid TargetDocumentId, decimal Amount, string? TargetCode);
 
 public sealed record PostedGlLineDto(Guid Id, Guid AccountId, decimal Debit, decimal Credit);
 

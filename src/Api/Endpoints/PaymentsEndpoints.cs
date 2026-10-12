@@ -10,6 +10,7 @@ using ErpApp.Application.Payments.Queries.GetDefaultPaymentAllocations;
 using ErpApp.Application.Payments.Queries.GetPayment;
 using ErpApp.Application.Payments.Queries.ListAllocatablePayments;
 using ErpApp.Application.Payments.Queries.ListCheques;
+using ErpApp.Application.Payments.Queries.ListOpenAllocationTargets;
 using ErpApp.Application.Payments.Queries.ListPayments;
 using ErpApp.Application.Payments.Queries.PreviewPaymentGlPosting;
 using ErpApp.Application.Common.Pagination;
@@ -89,10 +90,24 @@ public static class PaymentsEndpoints
             return Results.Ok(result);
         });
 
+        // Phase 88 -- currencyCode is required: a payment only settles documents in its own currency. A request without it
+        // is a 400 from the validator naming the field, never a silent "base currency".
         group.MapGet("/payments/default-allocations", async (
-            Guid organizationId, Guid contactId, decimal amount, PaymentDirection direction, ISender sender, CancellationToken ct) =>
+            Guid organizationId, Guid contactId, decimal amount, PaymentDirection direction, string? currencyCode,
+            ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new GetDefaultPaymentAllocationsQuery(organizationId, contactId, amount, direction), ct);
+            var result = await sender.Send(
+                new GetDefaultPaymentAllocationsQuery(organizationId, contactId, amount, direction, currencyCode ?? string.Empty), ct);
+            return Results.Ok(result);
+        });
+
+        // Phase 88 -- what a payment from this contact may still be allocated to (the four allocation pickers).
+        group.MapGet("/payments/open-allocation-targets", async (
+            Guid organizationId, Guid contactId, PaymentDirection direction, string? currencyCode,
+            ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new ListOpenAllocationTargetsQuery(organizationId, contactId, direction, currencyCode ?? string.Empty), ct);
             return Results.Ok(result);
         });
 
@@ -126,7 +141,10 @@ public static class PaymentsEndpoints
             Guid organizationId, PreviewPaymentGlPostingRequest request, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(
-                new PreviewPaymentGlPostingQuery(organizationId, request.AccountId, request.Amount, request.Direction), ct);
+                new PreviewPaymentGlPostingQuery(
+                    organizationId, request.AccountId, request.Amount, request.Direction, request.CurrencyCode,
+                    request.ExchangeRate, request.Allocations!),
+                ct);
             return Results.Ok(result);
         });
     }
@@ -182,7 +200,11 @@ public static class PaymentsEndpoints
         // record itself rather than only on the command.
         Guid? LocationId = null);
 
-    private sealed record PreviewPaymentGlPostingRequest(Guid AccountId, decimal Amount, PaymentDirection Direction);
+    // Phase 88 -- the currency pair and the allocations Approve's entry depends on. Allocations is nullable here only so
+    // a body that omits it is a 400 from the validator naming the field, never an empty list read as "no allocations".
+    private sealed record PreviewPaymentGlPostingRequest(
+        Guid AccountId, decimal Amount, PaymentDirection Direction, string? CurrencyCode, decimal? ExchangeRate,
+        IReadOnlyList<PaymentAllocationInput>? Allocations);
 
     private sealed record TransitionChequeStatusRequest(ChequeStatus NewStatus);
 

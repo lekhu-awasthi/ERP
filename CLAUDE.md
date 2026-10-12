@@ -119,6 +119,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 85: a restaurant bill refunded at another branch (its service charge and packaging fee out of the selling location's accounts, one entry stamped with the refunding branch, lines equal to the home refund) + the credit note's warehouse, focus kept on a removed tender. Before reversing a figure a location's settings route to an account, or testing where focus lands — `docs/phase-85-status.md`
 - Phase 86: a sale records the accounts its service charge and packaging fee went into (`Invoice.ServiceChargeAccountId`/`.PackagingFeeAccountId`) and a refund reverses into them; older sales keep the old rule; the credit-note list names where returned goods went (`CreditNoteReturnWarehouses`, shared with the page). Before reversing into an account a setting chose, or giving a list a figure its aggregate lacks — `docs/phase-86-status.md`
 - Phase 87: an invoice and a purchase bill record every account they post to (`RecordPostingAccounts`); credit notes, debit notes, a refund's payout, receipts and supplier payments use them (`RecordedSaleAccounts`, `RecordedBillAccounts`, `PaymentControlAccounts`); no backfill. Before writing anything that reverses, returns or settles a document — `docs/phase-87-status.md`
+- Phase 88: the FIFO Suggest had no membership check since phase 5 (now gated, and `OrganizationScopeSweepGuardTests` fails any request naming an organization unscoped); the payment preview and Approve share `PaymentGlLines`; the four allocation pickers list one contact's open documents (`ListOpenAllocationTargetsQuery`, the shared reader). Before a request that names an organization, a preview of an action, or a picker — `docs/phase-88-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -176,6 +177,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A FluentValidation rule built from a captured `Func` selector 500s every endpoint it guards (`Could not infer property name`) and no handler test can see it; take `Expression<Func<T, IEnumerable<TElement>>>` and cover it with a validator test (phase-25).
 - …and one member registered under two types (`IEnumerable<T>` in a helper, `IReadOnlyList<T>` in the validator) throws `InvalidCastException` when the validator is built: every endpoint 500s. Build every validator in a test (phase-64).
 - `AuditBehavior` writes a row only for a Create/Update/Approve/Void/Extract-prefixed request; `IAuditableRequest` on any other verb (Open, Close) is present-and-ignored (phase-61).
+- A request with an `OrganizationId` and neither marker never meets `AuthorizationBehavior`: Suggest was readable across tenants for 83 phases. `OrganizationScopeSweepGuardTests` keys on the property (phase-88).
 
 **EF Core, migrations and the InMemory provider**
 - `dotnet ef` needs `Microsoft.EntityFrameworkCore.Design` referenced by the `--startup-project` (`Api`), not just `Infrastructure`.
@@ -312,6 +314,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A reversal resolves a per-location account where the original posted, and stamps the entry where it happens: a refund's fees go back to the selling branch's accounts (phase-85).
 - A GL line has no role, so the account an original used cannot be read back from its entry; record it on the document when decided (`Invoice.ServiceChargeAccountId`, phase-86).
 - Today's settings are a hidden input to every reversal: test it with a default moved between the document and its reversal, against a twin reversed before the move (phase-87).
+- A preview built apart from its action drifts with every phase that changes the action: currency (28) and the split (87) never reached the payment preview. One builder, a test holding them equal (phase-88).
 - A posting that splits only sometimes must emit the old entry when it does not (`SplitLinesAsync` returns null), so the unchanged suite proves nothing else moved (phase-87).
 
 - Rich text is sanitised on write, in the Domain setter, by re-emission from a parsed tree, never by filtering; `Sanitize` must stay idempotent (phase-39).
@@ -411,6 +414,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - Don't share a `request$` variable across Create/Update when the result types differ; use an explicit `if/else` (phase-4 bug #3).
 - Never bind `[value]` on a signal-fed native `<select>`; bind `[selected]` per `<option>` — this persisted wrong `WarehouseId`s, not just display glitches (phase-5/6/7).
 - Footer totals on paginated screens come from a server-computed field over the full filtered set, never a client-side reduce over one page (phase-16c bug #1).
+- A picker that loads the organization's first N and filters by contact in the browser offers what is settled and loses the N+1th; ask the server for one contact's open rows (phase-88).
 - The app is zoneless: a `computed()` over a plain `FormControl.value` caches forever; track UI-driving values in their own `signal()` written by the control's event handler (phase-17).
 - A cached signal created lazily inside a `computed()` throws `NG0600` the moment its source resolves **synchronously** (a test double); real HTTP hides it. `untracked()` the subscribe and the writes (phase-35a's `BillingLocationStore`).
 - Bootstrap's JavaScript is not loaded anywhere (`angular.json` has no `scripts`), so `data-bs-toggle` does nothing; drive menus from a signal (phase-22).
@@ -570,26 +574,26 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 
 ## Current status
 
-**Phases 0-87 are complete. Next: not yet scheduled** (the user picks; candidates in `docs/roadmap.md`).
+**Phases 0-88 are complete. Next: not yet scheduled** (the user picks; candidates in `docs/roadmap.md`).
 Each phase's story is in its `docs/phase-N-status.md`, and finished planning entries are archived in
 `docs/roadmap-history.md`.
 
-**Phase 87 made every reversal and settlement use the accounts its original posted to.**
+**Phase 88 fixed the payment screens.**
 
-- An invoice and a purchase bill record every account their approval posts to (`RecordPostingAccounts`); credit notes
-  (returns, till refunds, price adjustments), debit notes, a till refund's payout, and receipts and supplier payments
-  use them, whatever the defaults say by then. A payment splits its control leg only when its targets sit on different
-  accounts; a later allocation moves its share in its own entry. Older documents keep today's rule (no backfill). One
-  migration (`Phase87RecordedPostingAccounts`, 12 nullable columns, no FKs), no new keys.
-- The Allocate Customer/Supplier Payment screen hands focus on from *Apply*, *Cancel* and *Confirm*.
+- `GET /payments/default-allocations` (Suggest) skipped `AuthorizationBehavior` from phase 5 to 87: any signed-in user
+  could read another organization's open documents. It now takes the target's view key; a guard covers the class.
+- The payment GL preview takes currency, rate and allocations and is built by Approve's own builder
+  (`PaymentGlLines`), so it shows phase 87's split and the forex. The four allocation pickers list one contact's
+  open documents in one currency, due date first (`GET /payments/open-allocation-targets`), and Suggest fills those
+  rows. No migration, no new keys.
 
-**Next:** not yet scheduled. Candidates: phase 87 § 5 (the payment GL preview with allocations, the Allocate picker
-listing settled documents), phase 86 § 5 (an ERP return's page naming its warehouse), phase 83 § 5 (a per-part service
-charge waiver), phase 79 § 5 (positioning, renames, the vendor's DN/GRN/WT templates, lakh grouping, the money receipt on
-the roll), phase 71 § 5 (the annex exports in BS).
+**Next:** not yet scheduled. Candidates: phase 86 § 5 (an ERP return's page naming its warehouse), phase 83 § 5 (a
+per-part service charge waiver), phase 79 § 5 (positioning, renames, the vendor's DN/GRN/WT templates, lakh grouping,
+the money receipt on the roll), phase 71 § 5 (the annex exports in BS), phase 88 § 5 (the vendor's per-row allocation
+table).
 
-Tests: Domain 1032, Application.UnitTests **1795**, Infrastructure.UnitTests 14,
-Api.IntegrationTests 71, Angular **861**. Everything was green at phase 87's close with Docker up.
+Tests: Domain 1032, Application.UnitTests **1805**, Infrastructure.UnitTests 14,
+Api.IntegrationTests 71, Angular **864**. Everything was green at phase 88's close with Docker up.
 The bundle sits at **652.58 kB** against `build-budget.spec.ts`'s 680 kB; every POS screen is lazy.
 
 - `Api.IntegrationTests` needs Docker Desktop running. Without it the Testcontainers-backed tests

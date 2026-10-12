@@ -74,8 +74,9 @@ public class CurrencyValidationRulesTests
                         && t != typeof(ICurrencyBearingCommand))
             .ToList();
 
-        // Twenty-seven since phase 58: Create/Update for Delivery Note and Goods Received Note.
-        Assert.Equal(27, commandTypes.Count);
+        // Twenty-seven since phase 58: Create/Update for Delivery Note and Goods Received Note. Twenty-eight since phase
+        // 88: the payment GL preview, which converts the amount and prices the forex exactly as Approve does.
+        Assert.Equal(28, commandTypes.Count);
 
         foreach (var commandType in commandTypes)
         {

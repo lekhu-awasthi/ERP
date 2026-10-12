@@ -5,16 +5,13 @@ import { CurrencyRateFields } from '../../../shared/currency/currency-rate-field
 
 import { extractErrorMessage, extractWarningKind } from '../../../core/auth/api-error';
 import { PaymentsService } from '../../../core/payments/payments.service';
-import { GlLinePreviewDto, PaymentAllocationInput, PaymentDetail } from '../../../core/payments/payments.models';
+import { GlLinePreviewDto, OpenAllocationTarget, PaymentAllocationInput, PaymentDetail } from '../../../core/payments/payments.models';
 import { ContactsService } from '../../../core/contacts/contacts.service';
 import { Contact } from '../../../core/contacts/contacts.models';
 import { AccountingService } from '../../../core/accounting/accounting.service';
 import { Account } from '../../../core/accounting/accounting.models';
 import { ConfigurationService } from '../../../core/configuration/configuration.service';
 import { PaymentMode } from '../../../core/configuration/configuration.models';
-import { SalesService } from '../../../core/sales/sales.service';
-import { Invoice } from '../../../core/sales/sales.models';
-import { MAX_PAGE_SIZE } from '../../../core/common/paged-result';
 import { SourceDocumentPanel } from '../../../shared/source-document/source-document-panel';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
@@ -60,7 +57,6 @@ export class PaymentDetailPage {
   private readonly contactsService = inject(ContactsService);
   private readonly accountingService = inject(AccountingService);
   private readonly configurationService = inject(ConfigurationService);
-  private readonly salesService = inject(SalesService);
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
 
@@ -86,7 +82,13 @@ export class PaymentDetailPage {
   protected readonly customers = signal<Contact[]>([]);
   protected readonly accounts = signal<Account[]>([]);
   protected readonly paymentModes = signal<PaymentMode[]>([]);
-  protected readonly approvedInvoices = signal<Invoice[]>([]);
+  /**
+   * Phase 88 -- this customer's invoices with something left to settle, in this payment's currency, oldest due first
+   * (`ListOpenAllocationTargetsQuery`). Until now the picker was the first 200 approved invoices of the whole
+   * organization filtered here, which offered settled invoices and lost every unpaid one past the 200th.
+   */
+  protected readonly openTargets = signal<OpenAllocationTarget[]>([]);
+  private targetsRequest = 0;
   protected readonly isNew = signal(false);
 
   protected readonly contactId = signal('');
@@ -110,14 +112,14 @@ export class PaymentDetailPage {
 
   protected readonly sortedAccounts = computed(() => [...this.accounts()].sort((a, b) => a.code.localeCompare(b.code)));
 
-  /** Phase 36 -- this customer's invoices **in this payment's currency**: a payment can only be
-   *  allocated to documents in its own currency (phase 28 Decision F), so offering the others was
-   *  offering a choice the server refuses at Approve. */
-  protected readonly customerInvoices = computed(() =>
-    this.approvedInvoices().filter(
-      (i) => i.contactId === this.contactId() && (i.currencyCode ?? BASE_CURRENCY_CODE) === this.currencyCode(),
-    ),
-  );
+  /**
+   * Phase 88 -- a target this draft already names that is no longer open (another payment settled it since) stays
+   * selectable under its number, or the row would silently show nothing chosen.
+   */
+  protected readonly savedClosedTargets = computed(() => {
+    const open = new Set(this.openTargets().map((t) => t.id));
+    return (this.payment()?.allocations ?? []).filter((a) => !open.has(a.targetDocumentId));
+  });
 
   protected readonly allocatedTotal = computed(() => this.round(this.allocations().reduce((sum, a) => sum + (a.amount || 0), 0)));
   protected readonly remaining = computed(() => this.round(this.amount() - this.allocatedTotal()));
@@ -140,9 +142,6 @@ export class PaymentDetailPage {
     this.contactsService.listAllContacts(this.organizationId, 'Customer').subscribe({ next: (c) => this.customers.set(c) });
     this.accountingService.listAllAccounts(this.organizationId).subscribe({ next: (a) => this.accounts.set(a) });
     this.configurationService.listPaymentModes(this.organizationId).subscribe({ next: (m) => this.paymentModes.set(m) });
-    this.salesService
-      .listInvoices(this.organizationId, 'Approved', 1, MAX_PAGE_SIZE)
-      .subscribe({ next: (result) => this.approvedInvoices.set(result.items) });
 
     this.route.paramMap.subscribe((params) => {
       this.routePaymentId = params.get('paymentId')!;
@@ -163,6 +162,7 @@ export class PaymentDetailPage {
         this.currencyCode.set(BASE_CURRENCY_CODE);
         this.exchangeRate.set(1);
         this.allocations.set([]);
+        this.refreshTargets();
       } else {
         this.load();
       }
@@ -176,6 +176,7 @@ export class PaymentDetailPage {
       const contactId = params.get('contactId');
       if (contactId && this.isNew()) {
         this.contactId.set(contactId);
+        this.refreshTargets();
       }
     });
   }
@@ -191,8 +192,43 @@ export class PaymentDetailPage {
   }
 
   protected invoiceLabel(invoiceId: string): string {
-    const invoice = this.approvedInvoices().find((i) => i.id === invoiceId);
-    return invoice ? invoice.code : '—';
+    const saved = this.payment()?.allocations.find((a) => a.targetDocumentId === invoiceId);
+    return saved?.targetCode ?? this.openTargets().find((t) => t.id === invoiceId)?.code ?? '—';
+  }
+
+  protected onContactChange(contactId: string): void {
+    this.contactId.set(contactId);
+    this.refreshTargets();
+  }
+
+  protected onCurrencyChange(currencyCode: string): void {
+    this.currencyCode.set(currencyCode);
+    this.refreshTargets();
+  }
+
+  /** Phase 88 -- reloads the picker for the current customer and currency; a reply to an older question is dropped. */
+  private refreshTargets(): void {
+    const request = ++this.targetsRequest;
+    if (!this.contactId()) {
+      this.openTargets.set([]);
+      return;
+    }
+
+    this.paymentsService
+      .listOpenAllocationTargets(this.organizationId, this.contactId(), 'Received', this.currencyCode())
+      .subscribe({
+        next: (targets) => {
+          if (request === this.targetsRequest) {
+            this.openTargets.set(targets);
+          }
+        },
+        error: (err: unknown) => {
+          if (request === this.targetsRequest) {
+            this.openTargets.set([]);
+            this.errorMessage.set(extractErrorMessage(err) ?? 'Could not load the open invoices.');
+          }
+        },
+      });
   }
 
   protected onAllocationInvoiceChange(key: number, event: Event): void {
@@ -222,7 +258,7 @@ export class PaymentDetailPage {
     this.suggesting.set(true);
     this.errorMessage.set(null);
 
-    this.paymentsService.getDefaultAllocations(this.organizationId, this.contactId(), this.amount(), 'Received').subscribe({
+    this.paymentsService.getDefaultAllocations(this.organizationId, this.contactId(), this.amount(), 'Received', this.currencyCode()).subscribe({
       next: (suggestions) => {
         this.suggesting.set(false);
         this.allocations.set(
@@ -245,7 +281,15 @@ export class PaymentDetailPage {
     this.previewingGl.set(true);
     this.errorMessage.set(null);
 
-    this.paymentsService.previewPaymentGlPosting(this.organizationId, this.accountId(), this.amount(), 'Received').subscribe({
+    // Phase 88 -- the currency, the rate and the allocations too: Approve's entry depends on all three.
+    this.paymentsService.previewPaymentGlPosting(this.organizationId, {
+      accountId: this.accountId(),
+      amount: this.amount(),
+      direction: 'Received',
+      currencyCode: this.currencyCode(),
+      exchangeRate: this.exchangeRate(),
+      allocations: this.allocationInputs(),
+    }).subscribe({
       next: (lines) => {
         this.previewingGl.set(false);
         this.glPreview.set(lines);
@@ -271,9 +315,7 @@ export class PaymentDetailPage {
       return;
     }
 
-    const allocations: PaymentAllocationInput[] = this.allocations()
-      .filter((a) => a.targetDocumentId && a.amount > 0)
-      .map((a) => ({ targetDocumentType: 'Invoice', targetDocumentId: a.targetDocumentId, amount: a.amount }));
+    const allocations = this.allocationInputs();
 
     this.saving.set(true);
     this.errorMessage.set(null);
@@ -374,6 +416,12 @@ Approve anyway?`)) {
     });
   }
 
+  private allocationInputs(): PaymentAllocationInput[] {
+    return this.allocations()
+      .filter((a) => a.targetDocumentId && a.amount > 0)
+      .map((a) => ({ targetDocumentType: 'Invoice', targetDocumentId: a.targetDocumentId, amount: a.amount }));
+  }
+
   private updateAllocation(key: number, patch: Partial<Omit<EditableAllocation, 'key'>>): void {
     this.allocations.update((rows) => rows.map((r) => (r.key === key ? { ...r, ...patch } : r)));
   }
@@ -404,6 +452,7 @@ Approve anyway?`)) {
           payment.allocations.map((a) => ({ key: nextAllocationKey++, targetDocumentId: a.targetDocumentId, amount: a.amount })),
         );
         this.loading.set(false);
+        this.refreshTargets();
       },
       error: (err: unknown) => {
         this.loading.set(false);

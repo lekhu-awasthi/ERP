@@ -6,7 +6,7 @@ import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { PagedResult } from '../common/paged-result';
 
-import { PaymentAllocationInput, PaymentDirection } from './payments.models';
+import { OpenAllocationTarget, PaymentAllocationInput, PaymentDirection, PaymentGlPreviewRequest } from './payments.models';
 import {
   AllocatablePaymentDto,
   ApplyPaymentAllocationResult,
@@ -88,9 +88,24 @@ export class PaymentsService {
     contactId: string,
     amount: number,
     direction: PaymentDirection,
+    currencyCode: string,
   ): Observable<PaymentAllocationInput[]> {
-    const params: Record<string, string> = { contactId, amount: amount.toString(), direction };
+    const params: Record<string, string> = { contactId, amount: amount.toString(), direction, currencyCode };
     return this.http.get<PaymentAllocationInput[]>(`${this.baseUrl(organizationId)}/payments/default-allocations`, {
+      withCredentials: true,
+      params,
+    });
+  }
+
+  /** Phase 88 -- the contact's documents with something left to settle, in this currency, oldest due first. */
+  listOpenAllocationTargets(
+    organizationId: string,
+    contactId: string,
+    direction: PaymentDirection,
+    currencyCode: string,
+  ): Observable<OpenAllocationTarget[]> {
+    const params: Record<string, string> = { contactId, direction, currencyCode };
+    return this.http.get<OpenAllocationTarget[]>(`${this.baseUrl(organizationId)}/payments/open-allocation-targets`, {
       withCredentials: true,
       params,
     });
@@ -178,16 +193,9 @@ export class PaymentsService {
     );
   }
 
-  previewPaymentGlPosting(
-    organizationId: string,
-    accountId: string,
-    amount: number,
-    direction: PaymentDirection,
-  ): Observable<GlLinePreviewDto[]> {
-    return this.http.post<GlLinePreviewDto[]>(
-      `${this.baseUrl(organizationId)}/payments/preview-gl-posting`,
-      { accountId, amount, direction },
-      { withCredentials: true },
-    );
+  previewPaymentGlPosting(organizationId: string, request: PaymentGlPreviewRequest): Observable<GlLinePreviewDto[]> {
+    return this.http.post<GlLinePreviewDto[]>(`${this.baseUrl(organizationId)}/payments/preview-gl-posting`, request, {
+      withCredentials: true,
+    });
   }
 }

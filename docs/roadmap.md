@@ -273,9 +273,13 @@ phase 86.
 **Carried from phase 86** (§ 5 there): every other account on a credit note was done in phase 87 (with debit notes and
 payments); an ERP return's own page does not name its warehouse.
 
-**Carried from phase 87** (§ 5 there): documents approved before phase 87 recorded nothing and keep today's rule; the
-payment GL preview takes no allocations; a debit note's Inventory Adjustment, Rounding, the stock catch-up and
-journal-voucher allocations stay today's; the Allocate screen's picker lists settled documents too.
+**Carried from phase 87** (§ 5 there): the payment GL preview and the Allocate picker were done in phase 88; documents
+approved before phase 87 recorded nothing and keep today's rule; a debit note's Inventory Adjustment, Rounding, the
+stock catch-up and journal-voucher allocations stay today's.
+
+**Carried from phase 88** (§ 5 there): the vendor's per-row *This Allocation* table (a layout choice, not asked
+for); a foreign-currency allocation on the vendor is unread; `OutstandingDocumentReader`'s settlement queries stay
+organization-wide (measure on `tools/scale` before narrowing them by contact).
 
 **Carried from phase 62** (§ 5 there):
 

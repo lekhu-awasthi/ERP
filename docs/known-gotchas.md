@@ -4666,3 +4666,15 @@ A payment settles each target out of its own recorded control account, which spl
 posting shape for every payment, `PaymentControlAccounts.SplitLinesAsync` returns null when every target sits on today's
 default, and the old `PaymentPostingRule` entry is posted unchanged. The existing suite then passing without a single
 edit is the evidence that nothing else moved.
+
+## A request that names an organization without the markers skips authorization (phase 88)
+
+Phase 12 made every `IOrganizationScoped` request implement `IRequirePermission`, because `AuthorizationBehavior` is the only membership check. Nothing asked the mirror question. `GetDefaultPaymentAllocationsQuery` took the route's organization id from phase 5 and declared neither marker, so the pipeline let it straight through to a handler that filtered by the id it was handed: any signed-in user could read another organization's open invoices and balances. The guard keys on the `OrganizationId` property, not on a type name or folder, and asserts it matched over 300 requests so it cannot pass vacuously.
+
+## A preview built apart from its action drifts (phase 88)
+
+The payment preview was right in phase 5. Phase 28 converted the amount and added a realised forex leg at Approve; phase 87 split the control leg by the targets' recorded accounts. Neither reached the preview, which kept building a two-line base-currency entry, so a user could approve an entry they had never been shown. Build both from one method, and test by previewing and approving the same payload.
+
+## Load N, filter in the browser (phase 88)
+
+Four allocation pickers loaded the organization's first 200 approved documents and filtered by contact and currency client-side. That offered documents already settled and silently dropped any open document past the 200th. Neither shows on a tenant with a dozen invoices. Ask the server for one contact's open rows.

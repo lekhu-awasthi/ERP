@@ -112,11 +112,11 @@
                       <div style="min-width: 240px;">
                         <label class="form-label small fw-semibold mb-1" for="allocate-payment-page-select-2">{{ isCustomer ? 'Invoice' : 'Purchase Bill' }}</label><select id="allocate-payment-page-select-2"
                           class="form-select form-select-sm"
-                          (change)="applyTargetId.set($any($event.target).value)"
+                          (change)="onTargetChange(item, $any($event.target).value)"
                         >
                           <option value="" disabled [selected]="!applyTargetId()">Select a document</option>
                           @for (target of targetsFor(item); track target.id) {
-                            <option [value]="target.id" [selected]="target.id === applyTargetId()">{{ target.code }}</option>
+                            <option [value]="target.id" [selected]="target.id === applyTargetId()">{{ target.code }} — due {{ target.dueDate | nepaliDate }} — {{ target.balance | number: '1.2-2' }} left</option>
                           }
                         </select>
                         @if (hasNoTargets(item)) {

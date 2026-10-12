@@ -2287,3 +2287,9 @@ targets sit on different accounts (`PaymentControlAccounts`), so every tenant th
 as before; a later allocation moves its share in its own entry. No backfill, no FKs (a recorded account is already on a
 GL line). The test shape is the point: switch every default between a document and its reversal, and hold the result to
 a twin reversed before the switch.
+
+## Phase 88 — The payment preview is what Approve posts, and the allocation pickers list what is still owed
+
+**Read `phase-88-status.md` before adding a request that names an organization, a preview of an action, or a picker over documents.**
+
+The FIFO Suggest took an `OrganizationId` and declared neither `IOrganizationScoped` nor `IRequirePermission`, so `AuthorizationBehavior` never ran and any user could read another tenant's open documents; `OrganizationScopeSweepGuardTests` now fails the build for that shape. The payment preview had its own arithmetic and missed phase 28's currency and phase 87's split; Approve and the preview now share `PaymentGlLines`, and the tests preview and approve one payload and hold them equal. The four allocation pickers loaded the organization's first 200 documents and filtered in the browser; `ListOpenAllocationTargetsQuery` reads one contact's open documents through `OutstandingDocumentReader` (narrowed by contact in SQL now) and Suggest fills those rows, so picker, Suggest and the ageing reports agree. Keys: the target type's view keys, exactly what the old lists needed.

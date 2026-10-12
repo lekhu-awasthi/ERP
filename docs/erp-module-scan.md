@@ -2737,3 +2737,15 @@ Decisions are in `phase-74-status.md`, and every write is listed at its end.
   `isDisabled: !change_rate` on both tills, and a batch's rate change is offered only with it.
 - **The auto-mode classifier** refused an in-page helper replaying the app's captured request headers after two calls;
   the vendor's own screens, driven by clicks, were allowed throughout.
+
+## Payment allocation pickers, read live (phase 88, 2026-10-12)
+
+Read-only on abcagro1 (non-GET requests refused in the page; none attempted).
+
+- **The payment form** (Customer and Supplier) asks, on choosing a contact, `GET /transaction-allocations?
+  allocated=false&contact_id=…&is_allocator=false&sorts=due_date&status=Approved` (paged at 20) and renders every open
+  document as a row: TYPE (with the number), DATE and due date, AMOUNT, LEFT TO ALLOCATE, THIS ALLOCATION, FIFO, Clear.
+  A supplier's bill read `source_total 162, allocated_total 0, remaining_amount 162`.
+- **The Allocate detail** (bundle) asks `{limit: 100, is_allocator: false, allocated: false, source_total_$gt: 0,
+  contact_type, sorts: ["due_date"], status: "Approved"}`. Neither screen offers a settled document. No currency
+  parameter appears; the tenant has no foreign document to test one.

@@ -57,9 +57,9 @@ public class GetDefaultPaymentAllocationsQueryHandlerTests
         // Newer bill: gross 500, no TDS -> net outstanding 500 (regression guard: unaffected by the TDS fix).
         var newerBill = await CreateAndApprovePurchaseBillAsync(db, seed, new DateOnly(2026, 2, 1), 500m, null);
 
-        var handler = new GetDefaultPaymentAllocationsQueryHandler(db);
+        var handler = new GetDefaultPaymentAllocationsQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid()));
         var result = await handler.Handle(
-            new GetDefaultPaymentAllocationsQuery(seed.OrganizationId, seed.SupplierId, 1200m, PaymentDirection.Paid),
+            new GetDefaultPaymentAllocationsQuery(seed.OrganizationId, seed.SupplierId, 1200m, PaymentDirection.Paid, CurrencyCatalog.BaseCode),
             CancellationToken.None);
 
         Assert.Equal(2, result.Count);
@@ -81,9 +81,9 @@ public class GetDefaultPaymentAllocationsQueryHandlerTests
             db, seed, new DateOnly(2026, 1, 15), PaymentDirection.Paid, seed.SupplierId,
             [(DocumentType.PurchaseBill, bill.Id, 300m)]);
 
-        var handler = new GetDefaultPaymentAllocationsQueryHandler(db);
+        var handler = new GetDefaultPaymentAllocationsQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid()));
         var result = await handler.Handle(
-            new GetDefaultPaymentAllocationsQuery(seed.OrganizationId, seed.SupplierId, 1000m, PaymentDirection.Paid),
+            new GetDefaultPaymentAllocationsQuery(seed.OrganizationId, seed.SupplierId, 1000m, PaymentDirection.Paid, CurrencyCatalog.BaseCode),
             CancellationToken.None);
 
         var suggestion = Assert.Single(result);
@@ -103,9 +103,9 @@ public class GetDefaultPaymentAllocationsQueryHandlerTests
         var bill = await CreateAndApprovePurchaseBillAsync(db, seed, new DateOnly(2026, 1, 1), 1000m, seed.TdsTypeId);
         await CreateAndApproveDebitNoteAsync(db, seed, new DateOnly(2026, 1, 10), 0.2m, 1000m, seed.TdsTypeId, bill.Id);
 
-        var handler = new GetDefaultPaymentAllocationsQueryHandler(db);
+        var handler = new GetDefaultPaymentAllocationsQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid()));
         var result = await handler.Handle(
-            new GetDefaultPaymentAllocationsQuery(seed.OrganizationId, seed.SupplierId, 1000m, PaymentDirection.Paid),
+            new GetDefaultPaymentAllocationsQuery(seed.OrganizationId, seed.SupplierId, 1000m, PaymentDirection.Paid, CurrencyCatalog.BaseCode),
             CancellationToken.None);
 
         var suggestion = Assert.Single(result);
@@ -124,9 +124,9 @@ public class GetDefaultPaymentAllocationsQueryHandlerTests
         var invoice = await CreateAndApproveInvoiceAsync(db, seed, new DateOnly(2026, 1, 1), 1000m);
         await CreateAndApproveCreditNoteAsync(db, seed, new DateOnly(2026, 1, 10), 0.3m, 1000m, invoice.Id);
 
-        var handler = new GetDefaultPaymentAllocationsQueryHandler(db);
+        var handler = new GetDefaultPaymentAllocationsQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid()));
         var result = await handler.Handle(
-            new GetDefaultPaymentAllocationsQuery(seed.OrganizationId, seed.CustomerId, 1000m, PaymentDirection.Received),
+            new GetDefaultPaymentAllocationsQuery(seed.OrganizationId, seed.CustomerId, 1000m, PaymentDirection.Received, CurrencyCatalog.BaseCode),
             CancellationToken.None);
 
         var suggestion = Assert.Single(result);

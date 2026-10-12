@@ -29,6 +29,33 @@ export interface Payment {
 
 export interface PaymentAllocationDto extends PaymentAllocationInput {
   id: string;
+  /** Phase 88 -- the target's number, so a settled target still shows one (the picker lists open ones only). */
+  targetCode: string | null;
+}
+
+/**
+ * Phase 88 -- a document a payment from this contact may still be allocated to: approved, something left to settle,
+ * in the payment's currency. `balance` is in the document's own currency, which is the payment's.
+ */
+export interface OpenAllocationTarget {
+  targetDocumentType: DocumentType;
+  id: string;
+  code: string;
+  date: string;
+  dueDate: string;
+  amount: number;
+  balance: number;
+  currencyCode: string;
+}
+
+/** Phase 88 -- everything Approve's entry depends on, so the preview is that entry. */
+export interface PaymentGlPreviewRequest {
+  accountId: string;
+  amount: number;
+  direction: PaymentDirection;
+  currencyCode: string;
+  exchangeRate: number;
+  allocations: PaymentAllocationInput[];
 }
 
 export interface PaymentDetail extends Payment {

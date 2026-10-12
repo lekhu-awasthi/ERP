@@ -55,7 +55,7 @@ internal static class PaymentControlAccounts
     public static async Task<IReadOnlyList<GlLineInput>?> SplitLinesAsync(
         IAppDbContext db,
         Guid organizationId,
-        Payment payment,
+        PaymentGlDraft payment,
         Guid defaultControl,
         CancellationToken cancellationToken)
     {
@@ -64,7 +64,7 @@ internal static class PaymentControlAccounts
             [.. payment.Allocations.Select(x => (x.TargetDocumentType, x.TargetDocumentId))],
             cancellationToken);
 
-        Guid AccountOf(PaymentAllocation x) => accountOf[(x.TargetDocumentType, x.TargetDocumentId)] ?? defaultControl;
+        Guid AccountOf(PaymentGlAllocation x) => accountOf[(x.TargetDocumentType, x.TargetDocumentId)] ?? defaultControl;
 
         if (payment.Allocations.All(x => AccountOf(x) == defaultControl))
         {
@@ -110,7 +110,10 @@ internal static class PaymentControlAccounts
 
             var forex = await PaymentForexCalculator.CalculateAsync(
                 db, organizationId, payment.Direction, payment.CurrencyCode, payment.ExchangeRate,
-                await AllocationTargetRates.LoadAsync(db, organizationId, part.Allocations, cancellationToken),
+                await AllocationTargetRates.LoadAsync(
+                    db, organizationId,
+                    [.. part.Allocations.Select(x => (x.TargetDocumentType, x.TargetDocumentId, x.Amount))],
+                    cancellationToken),
                 cancellationToken);
             if (forex is { Amount: > 0 })
             {

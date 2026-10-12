@@ -93,7 +93,7 @@
               [attr.aria-invalid]="fieldError.invalid('supplier-payment-detail-page-paid-to-supplier')"
               [attr.aria-describedby]="fieldError.describedBy('supplier-payment-detail-page-paid-to-supplier')"
               class="form-select"
-              (change)="contactId.set($any($event.target).value)"
+              (change)="onContactChange($any($event.target).value)"
               [disabled]="!isDraft()"
             >
               <option value="" disabled [selected]="!contactId()">Select a supplier</option>
@@ -175,7 +175,8 @@
           <div class="col-12">
             <app-currency-rate-fields
               [organizationId]="organizationId"
-              [(currencyCode)]="currencyCode"
+              [currencyCode]="currencyCode()"
+              (currencyCodeChange)="onCurrencyChange($event)"
               [(exchangeRate)]="exchangeRate"
               [disabled]="!isDraft()"
             />
@@ -203,7 +204,8 @@
                   </tr>
                 </thead>
                 <tbody>
-                  @for (line of preview; track line.accountId) {
+                  <!-- Phase 88 -- by position: a split or a forex leg can put one account on two lines. -->
+                  @for (line of preview; track $index) {
                     <tr>
                       <td>{{ accountLabel(line.accountId) }}</td>
                       <td class="text-end">{{ line.debit > 0 ? (line.debit | amount) : '—' }}</td>
@@ -238,7 +240,9 @@
           }
         </div>
 
-        <p class="text-muted small">Against this supplier's Approved purchase bills only.</p>
+        @if (isDraft()) {
+          <p class="text-muted small">This supplier's approved purchase bills with something left to pay, in this payment's currency, oldest due first.</p>
+        }
 
         <div class="table-responsive">
           <table class="table align-middle">
@@ -258,8 +262,11 @@
                     @if (isDraft()) {
                       <select aria-label="Purchase Bill" class="form-select form-select-sm" (change)="onAllocationBillChange(row.key, $event)">
                         <option value="" disabled [selected]="!row.targetDocumentId">Select a purchase bill</option>
-                        @for (bill of supplierBills(); track bill.id) {
-                          <option [value]="bill.id" [selected]="bill.id === row.targetDocumentId">{{ bill.code }}</option>
+                        @for (target of openTargets(); track target.id) {
+                          <option [value]="target.id" [selected]="target.id === row.targetDocumentId">{{ target.code }} — due {{ target.dueDate | nepaliDate }} — {{ target.balance | amount }} left</option>
+                        }
+                        @for (saved of savedClosedTargets(); track saved.id) {
+                          <option [value]="saved.targetDocumentId" [selected]="saved.targetDocumentId === row.targetDocumentId">{{ saved.targetCode ?? '—' }}</option>
                         }
                       </select>
                     } @else {

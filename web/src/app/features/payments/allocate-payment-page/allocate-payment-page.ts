@@ -6,21 +6,12 @@ import { extractErrorMessage } from '../../../core/auth/api-error';
 import { ContactsService } from '../../../core/contacts/contacts.service';
 import { Contact } from '../../../core/contacts/contacts.models';
 import { PaymentsService } from '../../../core/payments/payments.service';
-import { AllocatablePaymentDto, PaymentDirection } from '../../../core/payments/payments.models';
+import { AllocatablePaymentDto, OpenAllocationTarget, PaymentDirection } from '../../../core/payments/payments.models';
 import { BASE_CURRENCY_CODE } from '../../../core/organizations/organizations.models';
-import { SalesService } from '../../../core/sales/sales.service';
-import { PurchasingService } from '../../../core/purchasing/purchasing.service';
 import { DEFAULT_PAGE_SIZE } from '../../../core/common/paged-result';
 import { PaginationControl } from '../../../shared/pagination/pagination-control';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
-
-interface TargetOption {
-  id: string;
-  code: string;
-  contactId: string;
-  currencyCode: string;
-}
 
 /**
  * Phase 17 -- Allocate Customer/Supplier Payment (FR-5.12/FR-6.12, docs/phase-17-status.md
@@ -38,8 +29,6 @@ export class AllocatePaymentPage {
   private readonly route = inject(ActivatedRoute);
   private readonly paymentsService = inject(PaymentsService);
   private readonly contactsService = inject(ContactsService);
-  private readonly salesService = inject(SalesService);
-  private readonly purchasingService = inject(PurchasingService);
   private readonly injector = inject(Injector);
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
@@ -53,7 +42,15 @@ export class AllocatePaymentPage {
   protected readonly contactId = signal('');
   protected readonly showAllocated = signal(false);
   protected readonly items = signal<AllocatablePaymentDto[]>([]);
-  protected readonly targets = signal<TargetOption[]>([]);
+  /**
+   * Phase 88 -- the open documents of the row being applied: its contact's, in its currency, with something left to
+   * settle, oldest due first (`ListOpenAllocationTargetsQuery`). Loaded when Apply opens the form, because a row is one
+   * contact and one currency. Until now this was the first 200 approved documents of the whole organization, filtered
+   * here, settled ones included.
+   */
+  protected readonly targets = signal<OpenAllocationTarget[]>([]);
+  protected readonly targetsLoading = signal(false);
+  private targetsRequest = 0;
 
   protected readonly page = signal(1);
   protected readonly pageSize = signal(DEFAULT_PAGE_SIZE);
@@ -69,37 +66,12 @@ export class AllocatePaymentPage {
       next: (c) => this.contacts.set(c),
     });
 
-    if (this.isCustomer) {
-      this.salesService.listInvoices(this.organizationId, 'Approved', 1, 200).subscribe({
-        next: (r) =>
-          this.targets.set(
-            r.items.map((i) => ({
-              id: i.id,
-              code: i.code,
-              contactId: i.contactId,
-              currencyCode: i.currencyCode ?? BASE_CURRENCY_CODE,
-            })),
-          ),
-      });
-    } else {
-      this.purchasingService.listAllPurchaseBills(this.organizationId, 'Approved').subscribe({
-        next: (items) =>
-          this.targets.set(
-            items.map((i) => ({
-              id: i.id,
-              code: i.code,
-              contactId: i.contactId,
-              currencyCode: i.currencyCode ?? BASE_CURRENCY_CODE,
-            })),
-          ),
-      });
-    }
-
     this.load();
   }
 
   /**
-   * Phase 36 -- the contact's documents **in this credit's own currency**.
+   * Phase 36 -- the contact's documents **in this credit's own currency** (phase 88: the server now narrows them, by
+   * contact, currency and what is left; this keeps the rule stated where the picker is).
    *
    * <p>A payment can only be allocated to documents in its own currency (phase 28 Decision F): the
    * allocation Amount is a single number with no currency of its own, so settling a USD invoice
@@ -108,14 +80,23 @@ export class AllocatePaymentPage {
    * is a choice the user could make and only then be told they could not. Filtering the picker is
    * the cheaper half of the same rule.</p>
    */
-  protected targetsFor(item: AllocatablePaymentDto): TargetOption[] {
+  protected targetsFor(item: AllocatablePaymentDto): OpenAllocationTarget[] {
     const currencyCode = item.currencyCode || BASE_CURRENCY_CODE;
-    return this.targets().filter((t) => t.contactId === item.contactId && t.currencyCode === currencyCode);
+    return this.targets().filter((t) => t.currencyCode === currencyCode);
   }
 
-  /** True for a credit in a currency none of this contact's open documents share. */
+  /** True once loaded, for a credit with no open document of this contact's in its currency. */
   protected hasNoTargets(item: AllocatablePaymentDto): boolean {
-    return this.targetsFor(item).length === 0;
+    return !this.targetsLoading() && this.targetsFor(item).length === 0;
+  }
+
+  /** Phase 88 -- choosing a document fills Amount with as much as both sides allow, as the vendor's This Allocation does. */
+  protected onTargetChange(item: AllocatablePaymentDto, targetId: string): void {
+    this.applyTargetId.set(targetId);
+    const target = this.targets().find((t) => t.id === targetId);
+    if (target) {
+      this.applyAmount.set(Math.min(item.balance, target.balance));
+    }
   }
 
   protected isForeign(item: AllocatablePaymentDto): boolean {
@@ -153,7 +134,30 @@ export class AllocatePaymentPage {
     this.applyRowKey.set(this.rowKey(item));
     this.applyTargetId.set('');
     this.applyAmount.set(item.balance);
+    this.loadTargets(item);
     this.focusAfterRender('allocate-payment-page-select-2');
+  }
+
+  private loadTargets(item: AllocatablePaymentDto): void {
+    const request = ++this.targetsRequest;
+    this.targets.set([]);
+    this.targetsLoading.set(true);
+    this.paymentsService
+      .listOpenAllocationTargets(this.organizationId, item.contactId, this.direction, item.currencyCode || BASE_CURRENCY_CODE)
+      .subscribe({
+        next: (targets) => {
+          if (request === this.targetsRequest) {
+            this.targets.set(targets);
+            this.targetsLoading.set(false);
+          }
+        },
+        error: (err: unknown) => {
+          if (request === this.targetsRequest) {
+            this.targetsLoading.set(false);
+            this.errorMessage.set(extractErrorMessage(err) ?? 'Could not load the open documents.');
+          }
+        },
+      });
   }
 
   /** Phase 87 -- Cancel gives way to Apply again: focus goes back to that row's Apply. */

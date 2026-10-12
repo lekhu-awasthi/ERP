@@ -139,11 +139,33 @@ internal static class OutstandingDocumentReader
         CancellationToken cancellationToken,
         Guid? contactId = null,
         Guid? locationId = null,
+        IReadOnlyList<Guid>? reportLocations = null) =>
+        [
+            .. (await LoadInDocumentCurrencyAsync(
+                    db, organizationId, contactType, asOfDate, cancellationToken, contactId, locationId, reportLocations))
+                .Select(x => x.InBaseCurrency()),
+        ];
+
+    /// <summary>
+    /// Phase 88 -- the same rows as <see cref="LoadAsync"/>, before the fold: every money field in the document's own
+    /// currency. What a payment may still allocate to a document is this figure, because an allocation is in the
+    /// payment's currency and a payment only settles documents in its own (phase 28 Decision F).
+    /// </summary>
+    public static async Task<List<OutstandingDocument>> LoadInDocumentCurrencyAsync(
+        IAppDbContext db,
+        Guid organizationId,
+        ContactType contactType,
+        DateOnly asOfDate,
+        CancellationToken cancellationToken,
+        Guid? contactId = null,
+        Guid? locationId = null,
         IReadOnlyList<Guid>? reportLocations = null)
     {
         var candidates = contactType == ContactType.Customer
-            ? await LoadCustomerCandidatesAsync(db, organizationId, asOfDate, locationId, reportLocations, cancellationToken)
-            : await LoadSupplierCandidatesAsync(db, organizationId, asOfDate, locationId, reportLocations, cancellationToken);
+            ? await LoadCustomerCandidatesAsync(
+                db, organizationId, asOfDate, contactId, locationId, reportLocations, cancellationToken)
+            : await LoadSupplierCandidatesAsync(
+                db, organizationId, asOfDate, contactId, locationId, reportLocations, cancellationToken);
 
         candidates.AddRange(await LoadOpeningBalancesAsync(
             db, organizationId, contactType, asOfDate, contactId, cancellationToken));
@@ -165,8 +187,7 @@ internal static class OutstandingDocumentReader
                 .Select(x => x with { Paid = allocations.GetValueOrDefault(x.Id) + reductions.GetValueOrDefault(x.Id) })
                 // Filter before the fold: a document settled in full is not outstanding at any
                 // rate, and folding first could only turn an exact zero into a rounding artefact.
-                .Where(x => x.Balance != 0)
-                .Select(x => x.InBaseCurrency()),
+                .Where(x => x.Balance != 0),
         ];
     }
 
@@ -200,13 +221,21 @@ internal static class OutstandingDocumentReader
     }
 
     private static async Task<List<OutstandingDocument>> LoadCustomerCandidatesAsync(
-        IAppDbContext db, Guid organizationId, DateOnly asOfDate, Guid? locationId,
+        IAppDbContext db, Guid organizationId, DateOnly asOfDate, Guid? contactId, Guid? locationId,
         IReadOnlyList<Guid>? reportLocations, CancellationToken cancellationToken)
     {
         var invoiceQuery = db.Invoices
             .Where(x => x.OrganizationId == organizationId
                 && x.Status == InvoiceStatus.Approved && x.Date <= asOfDate)
             .AtLocations(locationId, reportLocations);
+
+        // Phase 88 -- one contact's documents are narrowed here, in SQL, not after loading the organization's: the
+        // payment forms ask this per contact, and a 50,000-invoice tenant would otherwise load every invoice to list a
+        // handful. A second Where, never `contactId == null || ...` (phase 33).
+        if (contactId is { } onlyContact)
+        {
+            invoiceQuery = invoiceQuery.Where(x => x.ContactId == onlyContact);
+        }
 
         var invoices = await invoiceQuery
             .Select(x => new { x.Id, x.ContactId, x.Date, x.DueDate, x.Code, x.Reference, x.ExchangeRate, x.RoundOff })
@@ -234,18 +263,23 @@ internal static class OutstandingDocumentReader
             .ToList();
 
         candidates.AddRange(await LoadJournalVoucherCandidatesAsync(
-            db, organizationId, ContactType.Customer, asOfDate, locationId, reportLocations, cancellationToken));
+            db, organizationId, ContactType.Customer, asOfDate, contactId, locationId, reportLocations, cancellationToken));
         return candidates;
     }
 
     private static async Task<List<OutstandingDocument>> LoadSupplierCandidatesAsync(
-        IAppDbContext db, Guid organizationId, DateOnly asOfDate, Guid? locationId,
+        IAppDbContext db, Guid organizationId, DateOnly asOfDate, Guid? contactId, Guid? locationId,
         IReadOnlyList<Guid>? reportLocations, CancellationToken cancellationToken)
     {
         var billQuery = db.PurchaseBills
             .Where(x => x.OrganizationId == organizationId
                 && x.Status == PurchaseBillStatus.Approved && x.Date <= asOfDate)
             .AtLocations(locationId, reportLocations);
+
+        if (contactId is { } onlyContact)
+        {
+            billQuery = billQuery.Where(x => x.ContactId == onlyContact);
+        }
 
         var bills = await billQuery
             .Select(x => new { x.Id, x.ContactId, x.Date, x.DueDate, x.Code, x.Reference, x.TdsAmount, x.ExchangeRate })
@@ -264,6 +298,11 @@ internal static class OutstandingDocumentReader
             .Where(x => x.OrganizationId == organizationId
                 && x.Status == ExpenseStatus.Approved && x.Date <= asOfDate)
             .AtLocations(locationId, reportLocations);
+
+        if (contactId is { } expenseContact)
+        {
+            expenseQuery = expenseQuery.Where(x => x.ContactId == expenseContact);
+        }
 
         var expenses = await expenseQuery
             .Select(x => new
@@ -291,7 +330,7 @@ internal static class OutstandingDocumentReader
             x.SupplierInvoiceReference, expenseTotals.GetValueOrDefault(x.Id) - x.TdsAmount, 0m, x.ExchangeRate)));
 
         candidates.AddRange(await LoadJournalVoucherCandidatesAsync(
-            db, organizationId, ContactType.Supplier, asOfDate, locationId, reportLocations, cancellationToken));
+            db, organizationId, ContactType.Supplier, asOfDate, contactId, locationId, reportLocations, cancellationToken));
         return candidates;
     }
 
@@ -305,7 +344,7 @@ internal static class OutstandingDocumentReader
     /// one row per voucher.</para>
     /// </summary>
     private static async Task<List<OutstandingDocument>> LoadJournalVoucherCandidatesAsync(
-        IAppDbContext db, Guid organizationId, ContactType contactType, DateOnly asOfDate, Guid? locationId,
+        IAppDbContext db, Guid organizationId, ContactType contactType, DateOnly asOfDate, Guid? contactId, Guid? locationId,
         IReadOnlyList<Guid>? reportLocations, CancellationToken cancellationToken)
     {
         var vouchers = await db.JournalVouchers
@@ -321,8 +360,14 @@ internal static class OutstandingDocumentReader
         }
 
         var voucherIds = vouchers.Select(x => x.Id).ToList();
-        var lines = await db.JournalVoucherLines
-            .Where(x => voucherIds.Contains(x.JournalVoucherId) && x.ContactId != null)
+        var lineQuery = db.JournalVoucherLines
+            .Where(x => voucherIds.Contains(x.JournalVoucherId) && x.ContactId != null);
+        if (contactId is { } onlyContact)
+        {
+            lineQuery = lineQuery.Where(x => x.ContactId == onlyContact);
+        }
+
+        var lines = await lineQuery
             .Select(x => new { x.JournalVoucherId, ContactId = x.ContactId!.Value, x.Debit, x.Credit })
             .ToListAsync(cancellationToken);
 

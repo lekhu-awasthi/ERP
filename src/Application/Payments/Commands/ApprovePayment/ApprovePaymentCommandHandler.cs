@@ -75,23 +75,11 @@ public sealed class ApprovePaymentCommandHandler(
             }
         }
 
-        // Phase 28: the payment's own Amount is in its transaction currency, so it converts here
-        // like every other document's line amounts (see ExchangeRates). The realised exchange
-        // difference its allocations produce is a separate, second leg -- computed below, from the
-        // rates the *target* documents were booked at.
-        var postingInput = await PaymentAccountResolver.ResolveAsync(
-            db, request.OrganizationId, payment.AccountId,
-            ExchangeRates.ToBase(payment.Amount, payment.ExchangeRate), payment.Direction, cancellationToken);
-
-        var forex = await PaymentForexCalculator.CalculateAsync(
-            db, request.OrganizationId, payment.Direction, payment.CurrencyCode, payment.ExchangeRate,
-            await AllocationTargetRates.LoadAsync(db, request.OrganizationId, payment.Allocations, cancellationToken),
-            cancellationToken);
-
-        if (forex is not null)
-        {
-            postingInput = postingInput with { Forex = forex };
-        }
+        // Phase 88 -- the entry is built by the one builder the form's preview also calls (PaymentGlLines): the amount
+        // converted at the payment's rate, the realised forex from the targets' own rates (phase 28), and each allocated
+        // part settled out of the control account its target recorded (phase 87).
+        var plan = await PaymentGlLines.BuildAsync(
+            db, postingRule, request.OrganizationId, PaymentGlDraft.Of(payment), cancellationToken);
 
         // Phase 31 -- NegativeCashBalanceAction. Only a Paid payment takes money out; a Received
         // one debits the account and can never overdraw it. Checked in base currency, because that
@@ -109,17 +97,13 @@ public sealed class ApprovePaymentCommandHandler(
         var code = await numberGenerator.GetNextNumberAsync(
             request.OrganizationId, DocumentType.Payment, cancellationToken, payment.LocationId);
 
-        // Phase 87 -- where the unallocated part goes (today's default), kept for a later allocation; and each allocated
-        // part settled out of the control account its target recorded. One account is the entry it always was.
-        payment.RecordUnallocatedControlAccount(postingInput.ControlAccountId);
-        var glLines = await PaymentControlAccounts.SplitLinesAsync(
-                db, request.OrganizationId, payment, postingInput.ControlAccountId, cancellationToken)
-            ?? postingRule.BuildLines(postingInput);
+        // Phase 87 -- where the unallocated part goes (today's default), kept for a later allocation.
+        payment.RecordUnallocatedControlAccount(plan.UnallocatedControlAccountId);
 
         payment.Approve(currentUser.UserId, code);
 
         var glEntry = GlJournalEntry.Post(
-            request.OrganizationId, DocumentType.Payment, payment.Id, glLines, payment.LocationId);
+            request.OrganizationId, DocumentType.Payment, payment.Id, plan.Lines, payment.LocationId);
         db.GlJournalEntries.Add(glEntry);
 
         await db.SaveChangesAsync(cancellationToken);

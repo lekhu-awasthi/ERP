@@ -462,3 +462,10 @@ beside a 200 from the same user, and create a fresh Organization per phase.
   `sales.InvoiceLines.SalesAccountId`, `purchasing.PurchaseBills.PayableAccountId` (…), `purchasing.PurchaseBillLines.
   DebitAccountId`, `payments.Payments.UnallocatedControlAccountId`. Account groups made by the phase 85 seed are named
   `Assets`, `Liabilitys`, `Incomes`, `Expenses`, `Equitys`.
+- Phase 88. `GET /payments/open-allocation-targets?contactId&direction&currencyCode` (rows `{targetDocumentType, id,
+  code, date, dueDate, amount, balance, currencyCode}`); `GET /payments/default-allocations` needs `currencyCode` (400
+  without). `POST /payments/preview-gl-posting {accountId, amount, direction, currencyCode, exchangeRate, allocations}`
+  (`allocations` required). Both GETs take `Sales.Invoice.View` (Received) / `Purchasing.PurchaseBill.View` (Paid): a
+  role copied from Member minus one is a 403 beside a 200 on the other direction, and a nonexistent contact is a 200
+  `[]`, never a 404. `GET /roles/{id}/permissions` is `{groups: [{module, permissions: [{permissionKey, isGranted}]}]}`;
+  the system Member role is `…-0001-000000000002`.

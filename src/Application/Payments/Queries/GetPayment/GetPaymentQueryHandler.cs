@@ -20,6 +20,33 @@ public sealed class GetPaymentQueryHandler(IAppDbContext db) : IRequestHandler<G
             .Where(x => x.SourceType == DocumentType.Payment && x.SourceId == payment.Id)
             .ToListAsync(cancellationToken);
 
+        var invoiceIds = allocations.Where(x => x.TargetDocumentType == DocumentType.Invoice)
+            .Select(x => x.TargetDocumentId).ToList();
+        var billIds = allocations.Where(x => x.TargetDocumentType == DocumentType.PurchaseBill)
+            .Select(x => x.TargetDocumentId).ToList();
+        var codes = new Dictionary<Guid, string?>();
+        if (invoiceIds.Count > 0)
+        {
+            foreach (var row in await db.Invoices
+                         .Where(x => x.OrganizationId == request.OrganizationId && invoiceIds.Contains(x.Id))
+                         .Select(x => new { x.Id, x.Code })
+                         .ToListAsync(cancellationToken))
+            {
+                codes[row.Id] = row.Code;
+            }
+        }
+
+        if (billIds.Count > 0)
+        {
+            foreach (var row in await db.PurchaseBills
+                         .Where(x => x.OrganizationId == request.OrganizationId && billIds.Contains(x.Id))
+                         .Select(x => new { x.Id, x.Code })
+                         .ToListAsync(cancellationToken))
+            {
+                codes[row.Id] = row.Code;
+            }
+        }
+
         IReadOnlyList<PostedGlLineDto>? glLines = null;
 
         if (payment.Status == PaymentStatus.Approved)
@@ -51,7 +78,9 @@ public sealed class GetPaymentQueryHandler(IAppDbContext db) : IRequestHandler<G
             payment.ApprovedByUserId,
             payment.ApprovedAt,
             payment.CreatedAt,
-            allocations.Select(x => new PaymentAllocationDto(x.Id, x.TargetDocumentType, x.TargetDocumentId, x.Amount)).ToList(),
+            allocations.Select(x => new PaymentAllocationDto(
+                x.Id, x.TargetDocumentType, x.TargetDocumentId, x.Amount, codes.GetValueOrDefault(x.TargetDocumentId)))
+                .ToList(),
             glLines,
             payment.CurrencyCode,
             payment.ExchangeRate,

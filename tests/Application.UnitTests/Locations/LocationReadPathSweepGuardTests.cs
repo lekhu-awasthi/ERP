@@ -83,6 +83,13 @@ public class LocationReadPathSweepGuardTests
                 "Phase 63 -- the till's refund figure, not a list: its location is the caller's open " +
                 "session's, which the handler reads and re-checks the key at. A LocationId on the request " +
                 "would be a second statement of a location the session already fixes.",
+            ["ListOpenAllocationTargetsQuery"] =
+                "Phase 88 -- the payment forms' and the Allocate screen's picker: one contact's open documents " +
+                "in one currency. The handler narrows them to the caller's granted locations (LocationAccessScope); " +
+                "it offers no branch filter because a payment settles a document at any branch (phase 35b).",
+            ["GetDefaultPaymentAllocationsQuery"] =
+                "Phase 88 -- the FIFO Suggest, which fills exactly the rows ListOpenAllocationTargetsQuery lists " +
+                "and narrows them the same way; same reason.",
         };
 
     public static TheoryData<DocumentType> DocumentTypes => [.. QueryStems.Keys];
