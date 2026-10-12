@@ -109,9 +109,15 @@ public sealed class ApprovePaymentCommandHandler(
         var code = await numberGenerator.GetNextNumberAsync(
             request.OrganizationId, DocumentType.Payment, cancellationToken, payment.LocationId);
 
+        // Phase 87 -- where the unallocated part goes (today's default), kept for a later allocation; and each allocated
+        // part settled out of the control account its target recorded. One account is the entry it always was.
+        payment.RecordUnallocatedControlAccount(postingInput.ControlAccountId);
+        var glLines = await PaymentControlAccounts.SplitLinesAsync(
+                db, request.OrganizationId, payment, postingInput.ControlAccountId, cancellationToken)
+            ?? postingRule.BuildLines(postingInput);
+
         payment.Approve(currentUser.UserId, code);
 
-        var glLines = postingRule.BuildLines(postingInput);
         var glEntry = GlJournalEntry.Post(
             request.OrganizationId, DocumentType.Payment, payment.Id, glLines, payment.LocationId);
         db.GlJournalEntries.Add(glEntry);

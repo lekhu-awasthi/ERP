@@ -28,7 +28,7 @@ namespace ErpApp.Application.Sales.Posting;
 /// </summary>
 internal static class CreditNoteApprovalPosting
 {
-    public static async Task<GlJournalEntry> ApproveAndPostAsync(
+    public static async Task<CreditNotePosting> ApproveAndPostAsync(
         IAppDbContext db,
         IDocumentNumberGenerator numberGenerator,
         IGlPostingRule<CreditNotePostingInput> postingRule,
@@ -47,6 +47,12 @@ internal static class CreditNoteApprovalPosting
 
         var goodsLines = creditNote.Lines.Where(x => productTypes.GetValueOrDefault(x.ProductId) == ProductType.Goods).ToList();
 
+        // Phase 87 -- the sale the note relates to (a return names it by ReferrerId, a price adjustment by AgainstInvoiceId)
+        // and the accounts that sale recorded at its approval. The note reverses into those: each line's Sales account by
+        // product, the Receivable, VAT, COGS and Inventory, and the two fees. A sale from before phase 87, a leg it never
+        // posted, or a product it never had leaves that account to today's settings, as every note took it before.
+        var recorded = await RecordedSaleAccounts.LoadAsync(db, organizationId, creditNote.RelatedInvoiceId, cancellationToken);
+
         Invoice? sourceInvoice = null;
         if (creditNote.ReferrerType == DocumentType.Invoice && creditNote.ReferrerId is { } invoiceId && goodsLines.Count > 0)
         {
@@ -64,37 +70,30 @@ internal static class CreditNoteApprovalPosting
                 ExchangeRates.ToBase(x.VatAmount, creditNote.ExchangeRate),
                 ExchangeRates.ToBase(x.ServiceChargeAmount, creditNote.ExchangeRate),
                 ExchangeRates.ToBase(x.PackagingFeeAmount, creditNote.ExchangeRate))),
-            resolveInventoryAccounts: sourceInvoice is not null, cancellationToken);
+            resolveInventoryAccounts: sourceInvoice is not null, cancellationToken, recorded);
 
         // Resolved before the number is drawn, so a missing account is a 409 that has consumed nothing.
-        // Phase 85 -- out of the accounts the sale put them in, wherever the refund happens. Phase 86 -- the sale records
-        // those accounts at its approval, so a refund reverses into them even after the location's setting changed; a sale
-        // approved before phase 86 recorded none, and resolves them as phase 85 did (the selling location's current
-        // setting, then the tenant default). The entry stays stamped with the note's location (phase 84 Decision D), and its
-        // round-off stays the note's below.
-        if (creditNote.ServiceChargeTotal > 0 || creditNote.PackagingFeeTotal > 0)
+        // Phase 85 -- out of the accounts the sale put them in, wherever the refund happens. Phase 86 -- the ones the sale
+        // recorded; a sale approved before phase 86 recorded none, and resolves them as phase 85 did (the selling location's
+        // current setting, then the tenant default). The entry stays stamped with the note's location (phase 84 Decision D),
+        // and its round-off stays the note's below.
+        var feeLocationId = recorded is null ? creditNote.LocationId : recorded.LocationId;
+        if (creditNote.ServiceChargeTotal > 0)
         {
-            var sale = await SaleFeeSourceAsync(db, creditNote, sourceInvoice, cancellationToken);
-
-            if (creditNote.ServiceChargeTotal > 0)
+            postingInput = postingInput with
             {
-                postingInput = postingInput with
-                {
-                    ServiceChargeAccountId = sale.ServiceChargeAccountId
-                        ?? await PosAccountResolver.ServiceChargeAccountAsync(
-                            db, organizationId, sale.LocationId, cancellationToken),
-                };
-            }
+                ServiceChargeAccountId = recorded?.ServiceChargeAccountId
+                    ?? await PosAccountResolver.ServiceChargeAccountAsync(db, organizationId, feeLocationId, cancellationToken),
+            };
+        }
 
-            if (creditNote.PackagingFeeTotal > 0)
+        if (creditNote.PackagingFeeTotal > 0)
+        {
+            postingInput = postingInput with
             {
-                postingInput = postingInput with
-                {
-                    PackagingFeeAccountId = sale.PackagingFeeAccountId
-                        ?? await PosAccountResolver.PackagingFeeAccountAsync(
-                            db, organizationId, sale.LocationId, cancellationToken),
-                };
-            }
+                PackagingFeeAccountId = recorded?.PackagingFeeAccountId
+                    ?? await PosAccountResolver.PackagingFeeAccountAsync(db, organizationId, feeLocationId, cancellationToken),
+            };
         }
 
         if (creditNote.RoundOff != 0)
@@ -159,36 +158,10 @@ internal static class CreditNoteApprovalPosting
             db, organizationId, DocumentType.CreditNote, creditNote.Id, creditNote.LocationId,
             costCatchUp, cancellationToken);
 
-        return glEntry;
-    }
-
-    /// <summary>Where a refund's fees go back to: the accounts its sale recorded (phase 86), and the sale's location for a
-    /// sale that recorded none.</summary>
-    private sealed record SaleFeeSource(Guid? LocationId, Guid? ServiceChargeAccountId, Guid? PackagingFeeAccountId);
-
-    /// <summary>
-    /// Phase 85/86 -- the sale a note's service charge and packaging fee came out of: its invoice's recorded accounts and
-    /// location. Only a till refund carries either, and it always names its sale; a note naming none falls back to its
-    /// own location and no recorded account, the rule before phase 85.
-    /// </summary>
-    private static async Task<SaleFeeSource> SaleFeeSourceAsync(
-        IAppDbContext db, CreditNote creditNote, Invoice? sourceInvoice, CancellationToken cancellationToken)
-    {
-        if (sourceInvoice is not null)
-        {
-            return new SaleFeeSource(
-                sourceInvoice.LocationId, sourceInvoice.ServiceChargeAccountId, sourceInvoice.PackagingFeeAccountId);
-        }
-
-        if (creditNote.ReferrerType != DocumentType.Invoice || creditNote.ReferrerId is not { } invoiceId)
-        {
-            return new SaleFeeSource(creditNote.LocationId, null, null);
-        }
-
-        return await db.Invoices
-            .Where(x => x.Id == invoiceId && x.OrganizationId == creditNote.OrganizationId)
-            .Select(x => new SaleFeeSource(x.LocationId, x.ServiceChargeAccountId, x.PackagingFeeAccountId))
-            .SingleOrDefaultAsync(cancellationToken)
-            ?? new SaleFeeSource(creditNote.LocationId, null, null);
+        return new CreditNotePosting(glEntry, postingInput.AccountsReceivableAccountId);
     }
 }
+
+/// <summary>Phase 87 -- what approving a credit note posted: its entry, and the Receivable it credited, which a till
+/// refund's payout must debit so one refund never straddles two Receivable accounts.</summary>
+internal sealed record CreditNotePosting(GlJournalEntry Entry, Guid ReceivableAccountId);

@@ -2272,3 +2272,18 @@ account on a credit note is still resolved from today's settings, by the user's 
 warehouse each note's goods went back into through `CreditNoteReturnWarehouses`, which the note's page now shares. Asking
 when stock actually moved (approved, against an invoice, with a Goods line) also fixed the page naming a warehouse for a
 voided refund. The list now returns a row DTO, so a new header field must be added to it.
+
+## Phase 87 — What reverses or settles a document uses the accounts it posted to
+
+**Read `phase-87-status.md` before writing anything that reverses, returns or settles another document, or changing what
+an approval posts.**
+
+Every credit note, debit note and payment re-derived its accounts from today's settings, so a tenant that moved a default
+left old balances nothing would clear. An invoice and a purchase bill now record every account their approval posts to
+(`RecordPostingAccounts`), and the resolvers take a `recorded` set that wins over today's settings
+(`RecordedSaleAccounts`, `RecordedBillAccounts`). That covers credit notes (returns, till refunds, price adjustments),
+debit notes, a till refund's payout, and receipts and supplier payments. A payment's control leg splits only when its
+targets sit on different accounts (`PaymentControlAccounts`), so every tenant that never moved a default posts exactly
+as before; a later allocation moves its share in its own entry. No backfill, no FKs (a recorded account is already on a
+GL line). The test shape is the point: switch every default between a document and its reversal, and hold the result to
+a twin reversed before the switch.

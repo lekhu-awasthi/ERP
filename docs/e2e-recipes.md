@@ -449,3 +449,16 @@ beside a 200 from the same user, and create a fresh Organization per phase.
   sales before phase 86 and on a sale without that figure). Moving a location to new fee accounts is the whole
   `PUT /pos/locations/{id}/settings` body again with the new ids. `GET /credit-notes` rows carry `returnWarehouseName`; a
   credit note's void is `POST /credit-notes/{id}/void` with no body (200).
+- Phase 87. ERP documents for a reversal E2E: `POST /contacts {type: "Customer"|"Supplier", name, openingBalance: 0}`;
+  `POST /invoices {contactId, warehouseId, date, reference, lines: [{productId, quantity, rate, vatRate}]}` then
+  `POST /invoices/{id}/approve {overrideWarning: true}`; a return is `POST /credit-notes {contactId, date, referrerType:
+  "Invoice", referrerId, reason, lines}` + a bodiless approve; a debit note takes `referrerType: "PurchaseBill"` and
+  `warehouseId`. `POST /payments {contactId, direction: "Received"|"Paid", date, paymentModeId, accountId, amount,
+  reference, allocations: [{targetDocumentType, targetDocumentId, amount}]}`, approve with
+  `{overrideNegativeCashBalanceWarning}`; a later allocation is `POST /payment-allocations/apply {sourceType: "Payment",
+  sourceId, parentDocumentId, targetDocumentType, targetDocumentId, amount}` (key `Payments.Payment.Edit`, and its
+  validator needs the target to exist, so the 403 probe names a real invoice and a nonexistent payment). Recorded
+  accounts: `sales.Invoices.ReceivableAccountId` / `VatPayableAccountId` / `CogsAccountId` / `InventoryAccountId`,
+  `sales.InvoiceLines.SalesAccountId`, `purchasing.PurchaseBills.PayableAccountId` (…), `purchasing.PurchaseBillLines.
+  DebitAccountId`, `payments.Payments.UnallocatedControlAccountId`. Account groups made by the phase 85 seed are named
+  `Assets`, `Liabilitys`, `Incomes`, `Expenses`, `Equitys`.

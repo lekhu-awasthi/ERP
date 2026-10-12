@@ -34,8 +34,12 @@ internal static class PurchaseBillAccountResolver
         IEnumerable<(Guid ProductId, decimal Amount, decimal VatAmount)> lines,
         decimal tdsAmount,
         CancellationToken cancellationToken,
-        bool requiresLandedCostClearing = false)
+        bool requiresLandedCostClearing = false,
+        RecordedBillAccounts? recorded = null)
     {
+        // Phase 87 -- `recorded` is what the bill a debit note returns recorded at its approval; each account it names wins
+        // over today's settings, and only an account that is neither recorded nor configured is refused. Null for a bill's
+        // own approval, which takes today's settings as it always has.
         var lineList = lines.ToList();
         var productIds = lineList.Select(x => x.ProductId).Distinct().ToList();
 
@@ -55,9 +59,13 @@ internal static class PurchaseBillAccountResolver
 
             Guid debitAccountId;
             var relievesStock = product?.Type == ProductType.Goods;
-            if (relievesStock)
+            if (recorded?.DebitAccountFor(line.ProductId) is { } recordedDebitAccountId)
             {
-                debitAccountId = settings.DefaultInventoryAccountId
+                debitAccountId = recordedDebitAccountId;
+            }
+            else if (relievesStock)
+            {
+                debitAccountId = recorded?.InventoryAccountId ?? settings.DefaultInventoryAccountId
                     ?? throw new ConflictException(
                         "Default Inventory account is not configured. Set it under Accounting Defaults before approving purchase bills with Goods lines.");
             }
@@ -73,20 +81,24 @@ internal static class PurchaseBillAccountResolver
             postingLines.Add(new PurchaseBillPostingLineInput(debitAccountId, line.Amount, line.VatAmount, relievesStock));
         }
 
-        if (settings.DefaultAccountsPayableId is not { } accountsPayableId)
+        if ((recorded?.PayableAccountId ?? settings.DefaultAccountsPayableId) is not { } accountsPayableId)
         {
             throw new ConflictException(
                 "Default Accounts Payable account is not configured. Set it under Accounting Defaults before approving purchase bills.");
         }
 
+        var vatReceivableAccountId = recorded?.VatReceivableAccountId ?? settings.DefaultVatReceivableAccountId;
+        var tdsPayableAccountId = recorded?.TdsPayableAccountId ?? settings.DefaultTdsPayableAccountId;
+        var inventoryAccountIdOrDefault = recorded?.InventoryAccountId ?? settings.DefaultInventoryAccountId;
+
         var totalVat = lineList.Sum(x => x.VatAmount);
-        if (totalVat > 0 && settings.DefaultVatReceivableAccountId is null)
+        if (totalVat > 0 && vatReceivableAccountId is null)
         {
             throw new ConflictException(
                 "Default VAT Receivable account is not configured. Set it under Accounting Defaults before approving purchase bills with VAT.");
         }
 
-        if (tdsAmount > 0 && settings.DefaultTdsPayableAccountId is null)
+        if (tdsAmount > 0 && tdsPayableAccountId is null)
         {
             throw new ConflictException(
                 "Default TDS Payable account is not configured. Set it under Accounting Defaults before approving purchase bills with TDS.");
@@ -100,12 +112,13 @@ internal static class PurchaseBillAccountResolver
         Guid? landedCostClearingAccountId = null;
         if (requiresLandedCostClearing)
         {
-            landedCostClearingAccountId = settings.DefaultLandedCostClearingAccountId
+            landedCostClearingAccountId = recorded?.LandedCostClearingAccountId
+                ?? settings.DefaultLandedCostClearingAccountId
                 ?? throw new ConflictException(
                     "Default Landed Cost Clearing account is not configured. Set it under Accounting Defaults "
                     + "before approving purchase bills that carry an Additional Cost.");
 
-            if (settings.DefaultInventoryAccountId is null)
+            if (inventoryAccountIdOrDefault is null)
             {
                 throw new ConflictException(
                     "Default Inventory account is not configured. Set it under Accounting Defaults before "
@@ -115,11 +128,11 @@ internal static class PurchaseBillAccountResolver
 
         return new PurchaseBillPostingInput(
             accountsPayableId,
-            settings.DefaultVatReceivableAccountId ?? Guid.Empty,
-            settings.DefaultTdsPayableAccountId ?? Guid.Empty,
+            vatReceivableAccountId ?? Guid.Empty,
+            tdsPayableAccountId ?? Guid.Empty,
             tdsAmount,
             postingLines,
-            settings.DefaultInventoryAccountId,
+            inventoryAccountIdOrDefault,
             landedCostClearingAccountId);
     }
 }

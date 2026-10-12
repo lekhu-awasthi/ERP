@@ -6,7 +6,7 @@
           <i aria-hidden="true" class="bi bi-diagram-3 fs-4 d-flex"></i>
         </div>
         <div>
-          <h1 class="h3 fw-bold mb-0 text-dark">Allocate {{ isCustomer ? 'Customer' : 'Supplier' }} Payment</h1>
+          <h1 id="allocate-payment-page-heading" class="h3 fw-bold mb-0 text-dark" tabindex="-1">Allocate {{ isCustomer ? 'Customer' : 'Supplier' }} Payment</h1>
           <p class="text-muted small mb-0">Apply unallocated or partially-allocated credits to open documents</p>
         </div>
       </div>
@@ -97,9 +97,10 @@
                 <td class="text-end">
                   @if (!showAllocated()) {
                     @if (applyRowKey() === rowKey(item)) {
-                      <button type="button" class="btn btn-outline-secondary btn-sm" (click)="cancelApply()">Cancel</button>
+                      <button type="button" class="btn btn-outline-secondary btn-sm" (click)="cancelApply(item)">Cancel</button>
                     } @else {
-                      <button type="button" class="btn btn-primary btn-sm" (click)="startApply(item)">Apply</button>
+                      <button type="button" class="btn btn-primary btn-sm" [attr.id]="'allocate-apply-' + item.id"
+                        (click)="startApply(item)">Apply<span class="visually-hidden"> {{ item.code }}</span></button>
                     }
                   }
                 </td>

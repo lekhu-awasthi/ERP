@@ -79,6 +79,17 @@ public sealed class ApprovePurchaseBillCommandHandler(
         var code = await numberGenerator.GetNextNumberAsync(
             request.OrganizationId, DocumentType.PurchaseBill, cancellationToken, purchaseBill.LocationId);
 
+        // Phase 87 -- every account the entry below posts to, kept on the bill: a debit note returning it reverses into
+        // these, and a payment allocated to it settles out of its Payable, whatever the settings say by then.
+        purchaseBill.RecordPostingAccounts(new PurchaseBillPostingAccounts(
+            postingInput.AccountsPayableAccountId,
+            postingInput.VatReceivableAccountId == Guid.Empty ? null : postingInput.VatReceivableAccountId,
+            postingInput.TdsPayableAccountId == Guid.Empty ? null : postingInput.TdsPayableAccountId,
+            postingInput.Lines.Any(x => x.RelievesStock) || postingInput.LandedCostClearingAccountId is not null
+                ? postingInput.InventoryAccountId
+                : null,
+            postingInput.LandedCostClearingAccountId,
+            [.. postingInput.Lines.Select(x => x.DebitAccountId)]));
         purchaseBill.Approve(currentUser.UserId, code);
 
         var productIds = purchaseBill.Lines.Select(x => x.ProductId).Distinct().ToList();

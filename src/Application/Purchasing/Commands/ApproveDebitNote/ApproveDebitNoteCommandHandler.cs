@@ -84,7 +84,12 @@ public sealed class ApproveDebitNoteCommandHandler(
                 ExchangeRates.ToBase(x.Amount, debitNote.ExchangeRate),
                 ExchangeRates.ToBase(x.VatAmount, debitNote.ExchangeRate))),
             ExchangeRates.ToBase(debitNote.TdsAmount, debitNote.ExchangeRate), cancellationToken,
-            requiresLandedCostClearing: sourcePurchaseBill?.AdditionalCosts.Count > 0);
+            requiresLandedCostClearing: sourcePurchaseBill?.AdditionalCosts.Count > 0,
+            // Phase 87 -- the accounts the bill this note returns recorded at its approval: each line's debit account by
+            // product, the Payable, VAT, TDS, Inventory and Clearing. A bill from before phase 87, or a standalone note,
+            // leaves them to today's settings, as every note took them before. The Inventory Adjustment account below is
+            // the note's own: it books this return's difference from cost, which nothing on the bill posted.
+            recorded: RecordedBillAccounts.Of(sourcePurchaseBill));
 
         var code = await numberGenerator.GetNextNumberAsync(
             request.OrganizationId, DocumentType.DebitNote, cancellationToken, debitNote.LocationId);

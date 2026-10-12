@@ -1,5 +1,5 @@
 import { DecimalPipe } from '@angular/common';
-import { Component, inject, signal } from '@angular/core';
+import { Component, Injector, afterNextRender, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
 import { extractErrorMessage } from '../../../core/auth/api-error';
@@ -40,6 +40,7 @@ export class AllocatePaymentPage {
   private readonly contactsService = inject(ContactsService);
   private readonly salesService = inject(SalesService);
   private readonly purchasingService = inject(PurchasingService);
+  private readonly injector = inject(Injector);
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
   protected readonly direction = (this.route.snapshot.data['direction'] as PaymentDirection) ?? 'Received';
@@ -147,14 +148,22 @@ export class AllocatePaymentPage {
     return `${item.sourceType}:${item.id}`;
   }
 
+  /** Phase 87 -- Apply gives way to Cancel, so focus goes to the form it opened (the document picker), never to the page. */
   protected startApply(item: AllocatablePaymentDto): void {
     this.applyRowKey.set(this.rowKey(item));
     this.applyTargetId.set('');
     this.applyAmount.set(item.balance);
+    this.focusAfterRender('allocate-payment-page-select-2');
   }
 
-  protected cancelApply(): void {
+  /** Phase 87 -- Cancel gives way to Apply again: focus goes back to that row's Apply. */
+  protected cancelApply(item: AllocatablePaymentDto): void {
     this.applyRowKey.set(null);
+    this.focusAfterRender(`allocate-apply-${item.id}`);
+  }
+
+  private focusAfterRender(id: string): void {
+    afterNextRender(() => document.getElementById(id)?.focus(), { injector: this.injector });
   }
 
   protected confirmApply(item: AllocatablePaymentDto): void {
@@ -182,6 +191,9 @@ export class AllocatePaymentPage {
           this.applying.set(false);
           this.applyRowKey.set(null);
           this.successMessage.set(`Applied ${amount.toFixed(2)} from ${item.code}.`);
+          // Phase 87 -- the form and its Confirm are gone and the row may be too once the list reloads: focus goes to the
+          // page's heading, with the outcome in the status banner beneath it.
+          this.focusAfterRender('allocate-payment-page-heading');
           this.load();
         },
         error: (err: unknown) => {

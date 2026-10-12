@@ -29,8 +29,12 @@ internal static class InvoiceAccountResolver
         Guid organizationId,
         IEnumerable<(Guid ProductId, decimal Amount, decimal VatAmount, decimal ServiceChargeAmount, decimal PackagingFeeAmount)> lines,
         bool resolveInventoryAccounts,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        RecordedSaleAccounts? recorded = null)
     {
+        // Phase 87 -- `recorded` is what the sale a credit note relates to recorded at its approval; each account it names
+        // wins over today's settings, and only an account that is neither recorded nor configured is refused. Null for an
+        // invoice's own approval and its preview, which take today's settings as they always have.
         var lineList = lines.ToList();
         var productIds = lineList.Select(x => x.ProductId).Distinct().ToList();
 
@@ -46,7 +50,8 @@ internal static class InvoiceAccountResolver
         var postingLines = new List<InvoicePostingLineInput>();
         foreach (var line in lineList)
         {
-            var salesAccountId = (productSalesAccounts.TryGetValue(line.ProductId, out var productAccountId) ? productAccountId : null)
+            var salesAccountId = recorded?.SalesAccountFor(line.ProductId)
+                ?? (productSalesAccounts.TryGetValue(line.ProductId, out var productAccountId) ? productAccountId : null)
                 ?? settings.DefaultSalesAccountId
                 ?? throw new ConflictException(
                     "One or more products have no Sales Account and no Default Sales Account is configured. " +
@@ -59,14 +64,15 @@ internal static class InvoiceAccountResolver
             });
         }
 
-        if (settings.DefaultAccountsReceivableId is not { } accountsReceivableId)
+        if ((recorded?.ReceivableAccountId ?? settings.DefaultAccountsReceivableId) is not { } accountsReceivableId)
         {
             throw new ConflictException(
                 "Default Accounts Receivable account is not configured. Set it under Accounting Defaults before approving invoices.");
         }
 
+        var vatPayableAccountId = recorded?.VatPayableAccountId ?? settings.DefaultVatPayableAccountId;
         var totalVat = lineList.Sum(x => x.VatAmount);
-        if (totalVat > 0 && settings.DefaultVatPayableAccountId is null)
+        if (totalVat > 0 && vatPayableAccountId is null)
         {
             throw new ConflictException(
                 "Default VAT Payable account is not configured. Set it under Accounting Defaults before approving invoices with VAT.");
@@ -76,15 +82,17 @@ internal static class InvoiceAccountResolver
         Guid? inventoryAccountId = null;
         if (resolveInventoryAccounts)
         {
-            cogsAccountId = settings.DefaultCogsAccountId
+            cogsAccountId = recorded?.CogsAccountId
+                ?? settings.DefaultCogsAccountId
                 ?? throw new ConflictException(
                     "Default COGS account is not configured. Set it under Accounting Defaults before approving invoices with Goods lines.");
-            inventoryAccountId = settings.DefaultInventoryAccountId
+            inventoryAccountId = recorded?.InventoryAccountId
+                ?? settings.DefaultInventoryAccountId
                 ?? throw new ConflictException(
                     "Default Inventory account is not configured. Set it under Accounting Defaults before approving invoices with Goods lines.");
         }
 
         return new InvoicePostingInput(
-            accountsReceivableId, settings.DefaultVatPayableAccountId ?? Guid.Empty, postingLines, cogsAccountId, inventoryAccountId);
+            accountsReceivableId, vatPayableAccountId ?? Guid.Empty, postingLines, cogsAccountId, inventoryAccountId);
     }
 }

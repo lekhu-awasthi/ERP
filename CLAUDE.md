@@ -118,6 +118,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 84: returns at another branch (a retail sale refunded where it comes back, by its full number under the refund's keys there, its goods into that branch's warehouse: `CreditNote.WarehouseId`), split payouts and *Fully refunded* on the refund screen, the money receipt dated in BS (`BillDatedTypes`, not a tax document). Before letting a document act away from its source's location, or adding a member to a list that decides two things — `docs/phase-84-status.md`
 - Phase 85: a restaurant bill refunded at another branch (its service charge and packaging fee out of the selling location's accounts, one entry stamped with the refunding branch, lines equal to the home refund) + the credit note's warehouse, focus kept on a removed tender. Before reversing a figure a location's settings route to an account, or testing where focus lands — `docs/phase-85-status.md`
 - Phase 86: a sale records the accounts its service charge and packaging fee went into (`Invoice.ServiceChargeAccountId`/`.PackagingFeeAccountId`) and a refund reverses into them; older sales keep the old rule; the credit-note list names where returned goods went (`CreditNoteReturnWarehouses`, shared with the page). Before reversing into an account a setting chose, or giving a list a figure its aggregate lacks — `docs/phase-86-status.md`
+- Phase 87: an invoice and a purchase bill record every account they post to (`RecordPostingAccounts`); credit notes, debit notes, a refund's payout, receipts and supplier payments use them (`RecordedSaleAccounts`, `RecordedBillAccounts`, `PaymentControlAccounts`); no backfill. Before writing anything that reverses, returns or settles a document — `docs/phase-87-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -310,6 +311,8 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A list deciding two things answers one question with both: the money receipt joins the BS-dated list, not `TaxDocumentTypes`, which also locks elements and prints two dates (phase-84).
 - A reversal resolves a per-location account where the original posted, and stamps the entry where it happens: a refund's fees go back to the selling branch's accounts (phase-85).
 - A GL line has no role, so the account an original used cannot be read back from its entry; record it on the document when decided (`Invoice.ServiceChargeAccountId`, phase-86).
+- Today's settings are a hidden input to every reversal: test it with a default moved between the document and its reversal, against a twin reversed before the move (phase-87).
+- A posting that splits only sometimes must emit the old entry when it does not (`SplitLinesAsync` returns null), so the unchanged suite proves nothing else moved (phase-87).
 
 - Rich text is sanitised on write, in the Domain setter, by re-emission from a parsed tree, never by filtering; `Sanitize` must stay idempotent (phase-39).
 - A rich-text grammar is its **renderer's capability list**: decide what `RichTextPdfRenderer` can draw, then build the toolbar, or the field looks one way on screen and another in the PDF the customer receives (phase-39).
@@ -567,26 +570,26 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 
 ## Current status
 
-**Phases 0-86 are complete. Next: not yet scheduled** (the user picks; candidates in `docs/roadmap.md`).
+**Phases 0-87 are complete. Next: not yet scheduled** (the user picks; candidates in `docs/roadmap.md`).
 Each phase's story is in its `docs/phase-N-status.md`, and finished planning entries are archived in
 `docs/roadmap-history.md`.
 
-**Phase 86 made a refund reverse its fees into the accounts the sale used.**
+**Phase 87 made every reversal and settlement use the accounts its original posted to.**
 
-- A sale records the accounts its service charge and packaging fee were credited to, at approval
-  (`Invoice.ServiceChargeAccountId`, `.PackagingFeeAccountId`), and a refund (home or away) reverses into them after the
-  location's setting changes. Sales from before the phase recorded nothing and refund as before; no backfill. One
-  migration (`Phase86InvoiceFeeAccounts`), no new keys. Every other credit-note account still follows today's settings.
-- The credit-note list returns rows (`CreditNoteListItemDto`) and names the warehouse each note's goods went back into,
-  through `CreditNoteReturnWarehouses`, which the note's page shares (none once voided, none for services).
+- An invoice and a purchase bill record every account their approval posts to (`RecordPostingAccounts`); credit notes
+  (returns, till refunds, price adjustments), debit notes, a till refund's payout, and receipts and supplier payments
+  use them, whatever the defaults say by then. A payment splits its control leg only when its targets sit on different
+  accounts; a later allocation moves its share in its own entry. Older documents keep today's rule (no backfill). One
+  migration (`Phase87RecordedPostingAccounts`, 12 nullable columns, no FKs), no new keys.
+- The Allocate Customer/Supplier Payment screen hands focus on from *Apply*, *Cancel* and *Confirm*.
 
-**Next:** not yet scheduled. Candidates: phase 86 § 5 (every credit-note account frozen per invoice line, an ERP
-return's page naming its warehouse), phase 83 § 5 (a per-part service charge waiver), phase 79 § 5 (positioning,
-renames, the vendor's DN/GRN/WT templates, lakh grouping, the money receipt on the roll), phase 71 § 5 (the annex
-exports in BS).
+**Next:** not yet scheduled. Candidates: phase 87 § 5 (the payment GL preview with allocations, the Allocate picker
+listing settled documents), phase 86 § 5 (an ERP return's page naming its warehouse), phase 83 § 5 (a per-part service
+charge waiver), phase 79 § 5 (positioning, renames, the vendor's DN/GRN/WT templates, lakh grouping, the money receipt on
+the roll), phase 71 § 5 (the annex exports in BS).
 
-Tests: Domain **1032**, Application.UnitTests **1782**, Infrastructure.UnitTests 14,
-Api.IntegrationTests 71, Angular **855**. Everything was green at phase 86's close with Docker up.
+Tests: Domain 1032, Application.UnitTests **1795**, Infrastructure.UnitTests 14,
+Api.IntegrationTests 71, Angular **861**. Everything was green at phase 87's close with Docker up.
 The bundle sits at **652.58 kB** against `build-budget.spec.ts`'s 680 kB; every POS screen is lazy.
 
 - `Api.IntegrationTests` needs Docker Desktop running. Without it the Testcontainers-backed tests

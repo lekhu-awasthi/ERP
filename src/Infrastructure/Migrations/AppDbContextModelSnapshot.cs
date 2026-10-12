@@ -3869,6 +3869,9 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
+                    b.Property<Guid?>("UnallocatedControlAccountId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<DateTimeOffset?>("VoidedAt")
                         .HasColumnType("datetimeoffset");
 
@@ -5182,6 +5185,9 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<Guid?>("InventoryAccountId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<bool>("IsImport")
                         .HasColumnType("bit");
 
@@ -5189,10 +5195,16 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasColumnType("bit")
                         .HasDefaultValue(false);
 
+                    b.Property<Guid?>("LandedCostClearingAccountId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid?>("LocationId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("PayableAccountId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Reference")
@@ -5225,7 +5237,13 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
 
+                    b.Property<Guid?>("TdsPayableAccountId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid?>("TdsTypeId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("VatReceivableAccountId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTimeOffset?>("VoidedAt")
@@ -5337,6 +5355,9 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasPrecision(18, 6)
                         .HasColumnType("decimal(18,6)")
                         .HasDefaultValue(1m);
+
+                    b.Property<Guid?>("DebitAccountId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<decimal>("DiscountPct")
                         .HasPrecision(18, 4)
@@ -6050,6 +6071,9 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasMaxLength(30)
                         .HasColumnType("nvarchar(30)");
 
+                    b.Property<Guid?>("CogsAccountId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid>("ContactId")
                         .HasColumnType("uniqueidentifier");
 
@@ -6093,6 +6117,9 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<Guid?>("InventoryAccountId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<bool>("IsAbbreviatedTaxInvoice")
                         .HasColumnType("bit");
 
@@ -6116,6 +6143,9 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<Guid?>("PosSessionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("ReceivableAccountId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Reference")
@@ -6150,6 +6180,9 @@ namespace ErpApp.Infrastructure.Migrations
 
                     b.Property<string>("Terms")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid?>("VatPayableAccountId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTimeOffset?>("VoidedAt")
                         .HasColumnType("datetimeoffset");
@@ -6262,6 +6295,9 @@ namespace ErpApp.Infrastructure.Migrations
                     b.Property<decimal>("Rate")
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
+
+                    b.Property<Guid?>("SalesAccountId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<decimal>("ServiceChargeAmount")
                         .HasPrecision(18, 4)

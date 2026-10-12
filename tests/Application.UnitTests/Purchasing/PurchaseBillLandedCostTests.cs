@@ -366,6 +366,70 @@ public class PurchaseBillLandedCostTests
         }
     }
 
+    [Fact]
+    public async Task A_full_return_after_the_defaults_moved_nets_the_bills_own_accounts_to_zero()
+    {
+        // Phase 87 -- the same full return, but Inventory, Landed Cost Clearing and Payable all move to new accounts
+        // between the bill and its return. The note reverses into the bill's recorded accounts, so the old three net to
+        // zero exactly as above and the new ones are never touched.
+        var db = TestAppDbContext.Create();
+        var seed = await SeedAsync(db);
+
+        var billId = await CreateAsync(
+            db, seed,
+            [new PurchaseBillLineInput(seed.GoodsAId, 10m, 600m, VatRate.NoVat, ExpenditureClassification.Others)],
+            [new PurchaseBillAdditionalCostInput(seed.FreightCostTermId, null, AdditionalCostMethod.Value, 660m)]);
+        await ApproveAsync(db, seed, billId);
+
+        Guid Add(string name, AccountRootType root)
+        {
+            var account = Account.Create(seed.OrganizationId, "N" + Guid.NewGuid().ToString("N")[..5], name, root, Guid.NewGuid());
+            db.Accounts.Add(account);
+            return account.Id;
+        }
+
+        var newInventory = Add("Inventory 2083", AccountRootType.Asset);
+        var newClearing = Add("Clearing 2083", AccountRootType.Liability);
+        var newPayable = Add("Payable 2083", AccountRootType.Liability);
+        var settings = await db.TenantSettings.SingleAsync(x => x.OrganizationId == seed.OrganizationId);
+        settings.SetAccountingDefaults(
+            settings.DefaultSalesAccountId, settings.DefaultAccountsReceivableId, settings.DefaultVatPayableAccountId,
+            settings.DefaultPurchaseAccountId, newPayable, settings.DefaultVatReceivableAccountId,
+            settings.DefaultTdsPayableAccountId);
+        settings.SetInventoryDefaults(
+            newInventory, settings.DefaultCogsAccountId, settings.DefaultInventoryAdjustmentAccountId,
+            settings.DefaultProductionCostAccountId, newClearing);
+        await db.SaveChangesAsync();
+
+        var note = await new CreateDebitNoteCommandHandler(db).Handle(
+            new CreateDebitNoteCommand(
+                seed.OrganizationId, seed.SupplierId, new DateOnly(2026, 1, 20), null, null,
+                [new DebitNoteLineInput(seed.GoodsAId, 10m, 600m, VatRate.NoVat)],
+                DocumentType.PurchaseBill, billId),
+            CancellationToken.None);
+        await new ApproveDebitNoteCommandHandler(
+                db, seed.NumberGenerator, new FakeCurrentUserService(Guid.NewGuid()), new DebitNotePostingRule(),
+                new StockLedgerService(db))
+            .Handle(new ApproveDebitNoteCommand(seed.OrganizationId, note.Id), CancellationToken.None);
+
+        var allLines = await db.GlJournalEntries.Include(x => x.Lines)
+            .Where(x => (x.SourceDocumentType == DocumentType.PurchaseBill && x.SourceDocumentId == billId)
+                || (x.SourceDocumentType == DocumentType.DebitNote && x.SourceDocumentId == note.Id))
+            .SelectMany(x => x.Lines)
+            .ToListAsync();
+
+        foreach (var accountId in new[]
+                 {
+                     seed.InventoryAccountId, seed.ClearingAccountId, seed.AccountsPayableId, newInventory, newClearing,
+                     newPayable,
+                 })
+        {
+            Assert.Equal(0m, allLines.Where(x => x.AccountId == accountId).Sum(x => x.Debit - x.Credit));
+        }
+
+        Assert.DoesNotContain(allLines, x => x.AccountId == newInventory || x.AccountId == newClearing || x.AccountId == newPayable);
+    }
+
     /// <summary>
     /// Phase 37 -- the modelling choice phase 6 made and phase 29 stopped widening. A return
     /// relieves the FIFO ledger at the cost the units were <b>consumed</b> at, and FIFO consumes the

@@ -98,6 +98,10 @@ public sealed class InvoiceLine
     /// of guessing from whatever FIFO layers happen to exist at CreditNote-approval time.</summary>
     public decimal? CogsUnitCost { get; private set; }
 
+    /// <summary>Phase 87 -- the Sales account the approval credited with this line, recorded so a credit note returning
+    /// it reverses into the same account after the product's or the tenant's setting changes. Null before phase 87.</summary>
+    public Guid? SalesAccountId { get; private set; }
+
     /// <summary>
     /// Phase 51 -- the <b>batch</b> this line receives into or issues from, or null when the
     /// product is not batch-tracked. One value per line and not a collection, because the
@@ -300,4 +304,7 @@ public sealed class InvoiceLine
     /// (not internal) because its only real caller lives in the Application assembly -- see
     /// CLAUDE.md's internal-vs-public Domain-factory gotcha from Phase 7's StockLedgerEntry.Consume.</summary>
     public void RecordCogsUnitCost(decimal unitCost) => CogsUnitCost = unitCost;
+
+    /// <summary>Phase 87 -- set once, through <see cref="Invoice.RecordPostingAccounts"/>.</summary>
+    internal void RecordSalesAccount(Guid salesAccountId) => SalesAccountId = salesAccountId;
 }

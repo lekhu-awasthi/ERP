@@ -12,7 +12,8 @@ internal static class CreditNoteAccountResolver
         Guid organizationId,
         IEnumerable<(Guid ProductId, decimal Amount, decimal VatAmount, decimal ServiceChargeAmount, decimal PackagingFeeAmount)> lines,
         bool resolveInventoryAccounts,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        RecordedSaleAccounts? recorded = null)
     {
         // resolveInventoryAccounts (post-Phase-7 fix): ApproveCreditNoteCommandHandler passes true
         // only when this CreditNote actually reverses stock against a Goods-line source Invoice --
@@ -22,7 +23,7 @@ internal static class CreditNoteAccountResolver
         // the sale line was; an ERP line's is zero.
         var invoiceInput = await InvoiceAccountResolver.ResolveAsync(
             db, organizationId, lines.Select(x => (x.ProductId, x.Amount, x.VatAmount, x.ServiceChargeAmount, x.PackagingFeeAmount)),
-            resolveInventoryAccounts, cancellationToken);
+            resolveInventoryAccounts, cancellationToken, recorded);
 
         return new CreditNotePostingInput(
             invoiceInput.AccountsReceivableAccountId, invoiceInput.VatPayableAccountId, invoiceInput.Lines,

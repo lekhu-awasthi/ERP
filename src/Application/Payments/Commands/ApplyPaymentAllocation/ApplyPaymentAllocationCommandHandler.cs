@@ -52,16 +52,30 @@ public sealed class ApplyPaymentAllocationCommandHandler(IAppDbContext db)
         // Before anything is written: a cross-currency allocation is refused outright (phase 28
         // Decision F), and a same-currency one at a different rate produces the realised difference
         // this path used to drop on the floor.
+        // Phase 87 -- the share moves from where the payment's unallocated part was posted to the account the target
+        // recorded, and its exchange difference is booked on the target's account. A payment or target from before phase
+        // 87 is read as today's default, so nothing moves for either, as before.
+        var defaultControl = await PaymentAccountResolver.ResolveControlAccountAsync(
+            db, request.OrganizationId, payment.Direction, cancellationToken);
+        var targetAccount = (await PaymentControlAccounts.LoadAsync(
+                db, request.OrganizationId, [(request.TargetDocumentType, request.TargetDocumentId)], cancellationToken))
+            .Values.Single() ?? defaultControl;
+
         var forexLines = await BuildRealisedForexLinesAsync(
-            request, payment.Direction, payment.CurrencyCode, payment.ExchangeRate, cancellationToken);
+            request, payment.Direction, payment.CurrencyCode, payment.ExchangeRate, targetAccount, cancellationToken);
+        var lines = PaymentControlAccounts.MoveLines(
+                payment.Direction, payment.UnallocatedControlAccountId ?? defaultControl, targetAccount, request.Amount,
+                payment.ExchangeRate)
+            .Concat(forexLines)
+            .ToList();
 
         payment.AllocateFurther(request.TargetDocumentType, request.TargetDocumentId, request.Amount);
         db.PaymentAllocations.Add(payment.Allocations[^1]);
 
-        if (forexLines.Count > 0)
+        if (lines.Count > 0)
         {
             db.GlJournalEntries.Add(GlJournalEntry.Post(
-                request.OrganizationId, DocumentType.Payment, payment.Id, forexLines, payment.LocationId));
+                request.OrganizationId, DocumentType.Payment, payment.Id, lines, payment.LocationId));
         }
 
         await db.SaveChangesAsync(cancellationToken);
@@ -124,8 +138,12 @@ public sealed class ApplyPaymentAllocationCommandHandler(IAppDbContext db)
         // residue on the control account, and the direction follows the contact's type the way it
         // follows PaymentDirection there.
         var direction = contact.Type == ContactType.Customer ? PaymentDirection.Received : PaymentDirection.Paid;
+        // Phase 87 -- unchanged: a voucher line's account is whatever its author chose, so there is nothing recorded to
+        // move from; its difference stays on today's default control account.
         var forexLines = await BuildRealisedForexLinesAsync(
-            request, direction, journalVoucher.CurrencyCode, journalVoucher.ExchangeRate, cancellationToken);
+            request, direction, journalVoucher.CurrencyCode, journalVoucher.ExchangeRate,
+            await PaymentAccountResolver.ResolveControlAccountAsync(db, request.OrganizationId, direction, cancellationToken),
+            cancellationToken);
 
         var allocation = PaymentAllocation.Create(
             DocumentType.JournalVoucher, line.Id, request.TargetDocumentType, request.TargetDocumentId, request.Amount);
@@ -173,6 +191,7 @@ public sealed class ApplyPaymentAllocationCommandHandler(IAppDbContext db)
         PaymentDirection direction,
         string sourceCurrencyCode,
         decimal sourceExchangeRate,
+        Guid controlAccountId,
         CancellationToken cancellationToken)
     {
         var targets = await AllocationTargetRates.LoadAsync(
@@ -187,9 +206,6 @@ public sealed class ApplyPaymentAllocationCommandHandler(IAppDbContext db)
         {
             return [];
         }
-
-        var controlAccountId = await PaymentAccountResolver.ResolveControlAccountAsync(
-            db, request.OrganizationId, direction, cancellationToken);
 
         return PaymentPostingRule.ForexLines(controlAccountId, forex);
     }

@@ -6,7 +6,7 @@ Guiding rule for phase sizing: each phase ends with something *runnable and demo
 
 ---
 
-## Completed phases (0–86)
+## Completed phases (0–87)
 
 One line each; phase *N*'s full story is `docs/phase-N-status.md`. The verbose index as it stood on
 2026-09-28 is archived verbatim in `roadmap-history.md` ("Completed-phases index, verbose form").
@@ -72,6 +72,7 @@ One line each; phase *N*'s full story is `docs/phase-N-status.md`. The verbose i
 | 84 | Returns at another branch: a till refunds another location's retail sale (none with service charge or packaging fee), found by its full number under the refund's own keys there, out of that branch's drawer, its goods into that branch's warehouse (`CreditNote.WarehouseId`). Split payouts and *Fully refunded* on the refund screen; the money receipt's date in BS with AD beside it (`BillDatedTypes`, not a tax document) |
 | 85 | A restaurant bill refunded at another branch: its service charge and packaging fee come back out of the selling location's accounts, in one entry stamped with the refunding branch, so its lines equal the same refund at home. The ERP credit note names a till refund's warehouse; removing a tender on the till or a restaurant bill keeps focus |
 | 86 | A sale records the accounts its service charge and packaging fee went into (`Invoice.ServiceChargeAccountId`, `.PackagingFeeAccountId`), and a refund reverses into them after the location's setting changes; older sales keep the old rule. The credit-note list names the warehouse each note's goods went back into, through one reader with the note's page |
+| 87 | An invoice and a purchase bill record every account they post to, and what reverses or settles them uses those: credit notes (returns, till refunds, price adjustments), debit notes, a refund's payout, and receipts and supplier payments (split per control account; a later allocation moves its share). No backfill; the Allocate screen keeps focus |
 
 ---
 
@@ -269,9 +270,12 @@ till's *Remove* focus were done in phase 85; the money receipt on the roll and t
 **Carried from phase 85** (§ 5 there): the sale's own fee accounts and the credit-note list's warehouse were done in
 phase 86.
 
-**Carried from phase 86** (§ 5 there): every other account on a credit note (each line's Sales account, VAT, Receivable,
-Inventory, COGS) is still resolved from today's settings; sales approved before phase 86 recorded no fee account; an ERP
-return's own page does not name its warehouse.
+**Carried from phase 86** (§ 5 there): every other account on a credit note was done in phase 87 (with debit notes and
+payments); an ERP return's own page does not name its warehouse.
+
+**Carried from phase 87** (§ 5 there): documents approved before phase 87 recorded nothing and keep today's rule; the
+payment GL preview takes no allocations; a debit note's Inventory Adjustment, Rounding, the stock catch-up and
+journal-voucher allocations stay today's; the Allocate screen's picker lists settled documents too.
 
 **Carried from phase 62** (§ 5 there):
 

@@ -83,6 +83,13 @@ public sealed class Payment
     /// </summary>
     public decimal ExchangeRate { get; private set; } = ExchangeRates.BaseRate;
 
+    /// <summary>
+    /// Phase 87 -- the Receivable (or Payable) account the approval posted this payment's unallocated part to: the
+    /// tenant's default at that moment. An allocation made later moves its share from here to the account its target
+    /// recorded. Null on every payment approved before phase 87, read as today's default, as every allocation read it.
+    /// </summary>
+    public Guid? UnallocatedControlAccountId { get; private set; }
+
     public IReadOnlyList<PaymentAllocation> Allocations => _allocations;
 
     private Payment()
@@ -176,6 +183,13 @@ public sealed class Payment
         }
 
         _allocations.Add(PaymentAllocation.Create(DocumentType.Payment, Id, targetDocumentType, targetDocumentId, amount));
+    }
+
+    /// <summary>Phase 87 -- set at the approval, where it is decided; draft only.</summary>
+    public void RecordUnallocatedControlAccount(Guid controlAccountId)
+    {
+        EnsureDraft();
+        UnallocatedControlAccountId = controlAccountId;
     }
 
     public void Approve(Guid approvedByUserId, string code)

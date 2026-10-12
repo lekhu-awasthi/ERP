@@ -177,6 +177,24 @@ public sealed class Invoice
     public Guid? PackagingFeeAccountId { get; private set; }
 
     /// <summary>
+    /// Phase 87 -- the Receivable account the approval debited, recorded so that what reverses or settles this sale (a
+    /// credit note, a receipt allocated to it) takes it out of the same account after the tenant's default changes. Null
+    /// on every sale approved before phase 87, whose reversals resolve it as before.
+    /// </summary>
+    public Guid? ReceivableAccountId { get; private set; }
+
+    /// <summary>Phase 87 -- the VAT Payable account the approval credited; null when the sale carried no VAT, and before
+    /// phase 87.</summary>
+    public Guid? VatPayableAccountId { get; private set; }
+
+    /// <summary>Phase 87 -- the COGS and Inventory accounts the approval's cost legs used; null when no line was Goods,
+    /// and before phase 87.</summary>
+    public Guid? CogsAccountId { get; private set; }
+
+    /// <inheritdoc cref="CogsAccountId"/>
+    public Guid? InventoryAccountId { get; private set; }
+
+    /// <summary>
     /// Phase 61 -- cash handed back to the customer. Always cash and always out of the session's
     /// drawer (Decision C of docs/phase-61-status.md): change can only be given out of cash that was
     /// tendered, so it is capped by the cash tenders, and it never leaves anything on credit.
@@ -738,15 +756,32 @@ public sealed class Invoice
     }
 
     /// <summary>
-    /// Phase 86 -- the accounts the approval is about to credit with the service charge and packaging fee, frozen on the
-    /// sale (phase 68's rule: a value a setting decides is decided once, at the action). Draft only, because the approval
-    /// is the action; a figure the sale does not carry records no account.
+    /// Phases 86-87 -- every account the approval is about to post to, frozen on the sale (phase 68's rule: a value a
+    /// setting decides is decided once, at the action), so whatever later reverses or settles it can use the same ones.
+    /// Draft only, because the approval is the action. A figure the sale does not carry records no account: no service
+    /// charge, no packaging fee, no VAT, no Goods line (COGS and Inventory). The line accounts are in line order.
     /// </summary>
-    public void RecordFeeAccounts(Guid? serviceChargeAccountId, Guid? packagingFeeAccountId)
+    public void RecordPostingAccounts(InvoicePostingAccounts accounts)
     {
+        ArgumentNullException.ThrowIfNull(accounts);
         EnsureDraft();
-        ServiceChargeAccountId = ServiceChargeTotal != 0m ? serviceChargeAccountId : null;
-        PackagingFeeAccountId = PackagingFeeTotal != 0m ? packagingFeeAccountId : null;
+
+        if (accounts.LineSalesAccountIds.Count != _lines.Count)
+        {
+            throw new InvalidOperationException("An invoice records one Sales account per line, in line order.");
+        }
+
+        ReceivableAccountId = accounts.ReceivableAccountId;
+        VatPayableAccountId = _lines.Sum(x => x.VatAmount) != 0m ? accounts.VatPayableAccountId : null;
+        CogsAccountId = accounts.CogsAccountId;
+        InventoryAccountId = accounts.InventoryAccountId;
+        ServiceChargeAccountId = ServiceChargeTotal != 0m ? accounts.ServiceChargeAccountId : null;
+        PackagingFeeAccountId = PackagingFeeTotal != 0m ? accounts.PackagingFeeAccountId : null;
+
+        for (var i = 0; i < _lines.Count; i++)
+        {
+            _lines[i].RecordSalesAccount(accounts.LineSalesAccountIds[i]);
+        }
     }
 
     public void Approve(Guid approvedByUserId, string code)

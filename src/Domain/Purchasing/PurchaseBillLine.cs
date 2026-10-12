@@ -45,6 +45,11 @@ public sealed class PurchaseBillLine
     /// <inheritdoc cref="UnitId"/>
     public decimal ConversionFactor { get; private set; }
 
+    /// <summary>Phase 87 -- the account the approval debited with this line (Inventory for Goods, else its Purchase
+    /// account), recorded so a debit note returning it credits the same one after the settings change. Null before phase
+    /// 87.</summary>
+    public Guid? DebitAccountId { get; private set; }
+
     /// <summary>This line's quantity in the product's primary unit -- the only quantity the stock
     /// ledger and the GL accept.</summary>
     public PrimaryQuantity PrimaryQuantity => PrimaryQuantity.FromEntered(Quantity, ConversionFactor);
@@ -81,4 +86,7 @@ public sealed class PurchaseBillLine
             BatchId = batchId,
         };
     }
+
+    /// <summary>Phase 87 -- set once, through <see cref="PurchaseBill.RecordPostingAccounts"/>.</summary>
+    internal void RecordDebitAccount(Guid debitAccountId) => DebitAccountId = debitAccountId;
 }

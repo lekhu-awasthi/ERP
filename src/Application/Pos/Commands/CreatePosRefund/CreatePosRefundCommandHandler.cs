@@ -81,10 +81,10 @@ public sealed class CreatePosRefundCommandHandler(
 
         db.CreditNotes.Add(creditNote);
 
-        await CreditNoteApprovalPosting.ApproveAndPostAsync(
+        var posted = await CreditNoteApprovalPosting.ApproveAndPostAsync(
             db, numberGenerator, postingRule, stockLedgerService, currentUser.UserId, creditNote, cancellationToken);
 
-        await PostPayoutsAsync(creditNote, cancellationToken);
+        PostPayouts(creditNote, posted.ReceivableAccountId);
 
         await db.SaveChangesAsync(cancellationToken);
 
@@ -113,19 +113,14 @@ public sealed class CreatePosRefundCommandHandler(
         }
     }
 
-    /// <summary>The second entry. Nothing is posted when nothing was handed back.</summary>
-    private async Task PostPayoutsAsync(CreditNote creditNote, CancellationToken cancellationToken)
+    /// <summary>The second entry. Nothing is posted when nothing was handed back. Phase 87 -- it debits the Receivable the
+    /// note credited (its sale's, as that sale recorded it), not today's default, so the refund nets to nothing there.</summary>
+    private void PostPayouts(CreditNote creditNote, Guid receivableAccountId)
     {
         if (creditNote.Payouts.Count == 0)
         {
             return;
         }
-
-        var receivableAccountId = await db.TenantSettings
-            .Where(x => x.OrganizationId == creditNote.OrganizationId)
-            .Select(x => x.DefaultAccountsReceivableId)
-            .SingleAsync(cancellationToken)
-            ?? throw new ConflictException("Default Accounts Receivable account is not configured.");
 
         var lines = payoutPostingRule.BuildLines(new CreditNotePayoutPostingInput(
             receivableAccountId,

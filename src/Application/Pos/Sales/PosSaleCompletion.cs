@@ -226,11 +226,9 @@ internal static class PosSaleCompletion
             return;
         }
 
-        // InvoiceAccountResolver has already refused a tenant with no receivable account.
-        var receivableAccountId = await services.Db.TenantSettings
-            .Where(x => x.OrganizationId == invoice.OrganizationId)
-            .Select(x => x.DefaultAccountsReceivableId)
-            .SingleAsync(cancellationToken)
+        // Phase 87 -- the Receivable the sale's own entry just debited, as the approval recorded it: the tenders settle the
+        // sale where it sits. InvoiceAccountResolver has already refused a tenant with no receivable account.
+        var receivableAccountId = invoice.ReceivableAccountId
             ?? throw new ConflictException("Default Accounts Receivable account is not configured.");
 
         var lines = services.TenderPostingRule.BuildLines(new InvoiceTenderPostingInput(

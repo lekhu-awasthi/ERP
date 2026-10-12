@@ -4651,3 +4651,18 @@ Every document list returned its aggregate, which carries a new column to the cl
 needed the warehouse each note's goods went back into, which depends on the note's lines, its invoice and its status, so
 it now returns `CreditNoteListItemDto`. From now on a header field added to `CreditNote` reaches that list only if the DTO
 gains it too: phase 32's detail-DTO gotcha, now true of one list.
+
+## Today's settings are a hidden input to every reversal (phase 87)
+
+Until phase 87 every credit note, debit note and payment resolved its accounts afresh: each line's Sales account from
+the product or default, Receivable, VAT, Inventory, COGS, Payable. Nothing went wrong in any test, because no test ever
+changed a default between a document and what reversed it, so a hidden input that never varies looked like correct
+behaviour. When a reversal's output depends on configuration, test it with the configuration changed in between, against
+a twin reversed before the change.
+
+## A split that only happens sometimes must be the old entry when it does not (phase 87)
+
+A payment settles each target out of its own recorded control account, which splits the control leg. Rather than a new
+posting shape for every payment, `PaymentControlAccounts.SplitLinesAsync` returns null when every target sits on today's
+default, and the old `PaymentPostingRule` entry is posted unchanged. The existing suite then passing without a single
+edit is the evidence that nothing else moved.

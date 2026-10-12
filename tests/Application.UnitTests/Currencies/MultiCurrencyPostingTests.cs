@@ -345,6 +345,76 @@ public class MultiCurrencyPostingTests
         Assert.Equal(13300m, await ArNetMovementAsync(db, seed));
     }
 
+    // ---- Phase 87: settling each document out of the Receivable it recorded --------------------------
+
+    /// <summary>The tenant's Receivable moves to a new account; the forex accounts stay.</summary>
+    private static async Task<Guid> SwitchReceivableAsync(IAppDbContext db, Seed seed)
+    {
+        var account = Account.Create(seed.OrganizationId, "1210", "Receivable 2083", AccountRootType.Asset, Guid.NewGuid());
+        db.Accounts.Add(account);
+        var settings = await db.TenantSettings.SingleAsync(x => x.OrganizationId == seed.OrganizationId);
+        settings.SetAccountingDefaults(
+            settings.DefaultSalesAccountId, account.Id, settings.DefaultVatPayableAccountId, null, null, null, null,
+            settings.DefaultForexGainAccountId, settings.DefaultForexLossAccountId);
+        await db.SaveChangesAsync();
+        return account.Id;
+    }
+
+    [Fact]
+    public async Task A_receipt_split_across_two_receivables_books_each_invoices_forex_on_its_own()
+    {
+        // Two USD 100 invoices at 133 (13,300 each), one before the Receivable moved and one after; one USD 200 receipt
+        // at 130 settles both. Each part is 13,000 received against 13,300 booked: 300 lost, on each invoice's account.
+        var db = TestAppDbContext.Create();
+        var seed = await SeedAsync(db);
+        var first = await CreateAndApproveInvoiceAsync(db, seed, 100m, "USD", UsdRate);
+        var newReceivable = await SwitchReceivableAsync(db, seed);
+        var second = await CreateAndApproveInvoiceAsync(db, seed, 100m, "USD", UsdRate);
+
+        var created = await new CreatePaymentCommandHandler(db).Handle(
+            new CreatePaymentCommand(
+                seed.OrganizationId, seed.CustomerId, PaymentDirection.Received, new DateOnly(2026, 1, 2), null,
+                seed.CashAccountId, 200m, null,
+                [
+                    new PaymentAllocationInput(DocumentType.Invoice, first, 100m),
+                    new PaymentAllocationInput(DocumentType.Invoice, second, 100m),
+                ])
+            { CurrencyCode = "USD", ExchangeRate = 130m },
+            CancellationToken.None);
+        await new ApprovePaymentCommandHandler(
+                db, seed.NumberGenerator, new FakeCurrentUserService(Guid.NewGuid()), new PaymentPostingRule(),
+                new GlCashBalancePolicy(db))
+            .Handle(new ApprovePaymentCommand(seed.OrganizationId, created.Id), CancellationToken.None);
+
+        var entry = await db.GlJournalEntries.Include(x => x.Lines)
+            .SingleAsync(x => x.SourceDocumentType == DocumentType.Payment && x.SourceDocumentId == created.Id);
+        Assert.Equal(entry.Lines.Sum(x => x.Debit), entry.Lines.Sum(x => x.Credit));
+        Assert.Equal(26_000m, entry.Lines.Where(x => x.AccountId == seed.CashAccountId).Sum(x => x.Debit));
+        Assert.Equal(600m, await AccountNetAsync(db, seed.ForexLossAccountId));
+        Assert.Equal(0m, await AccountNetAsync(db, seed.ArAccountId));
+        Assert.Equal(0m, await AccountNetAsync(db, newReceivable));
+    }
+
+    [Fact]
+    public async Task A_further_allocation_onto_an_invoice_on_the_old_receivable_moves_it_there_with_its_forex()
+    {
+        // USD 100 invoiced at 133 on the old Receivable; the Receivable moves; USD 100 received at 130 on account (13,000
+        // on the new one), then applied to the invoice: the 13,000 moves to the old account and the 300 lost clears it.
+        var db = TestAppDbContext.Create();
+        var seed = await SeedAsync(db);
+        var invoiceId = await CreateAndApproveInvoiceAsync(db, seed, 100m, "USD", UsdRate);
+        var newReceivable = await SwitchReceivableAsync(db, seed);
+
+        var paymentId = await CreateAndApproveUnallocatedPaymentAsync(db, seed, 100m, "USD", 130m);
+        Assert.Equal(-13_000m, await AccountNetAsync(db, newReceivable));
+
+        await ApplyAsync(db, seed, paymentId, invoiceId, 100m);
+
+        Assert.Equal(0m, await AccountNetAsync(db, seed.ArAccountId));
+        Assert.Equal(0m, await AccountNetAsync(db, newReceivable));
+        Assert.Equal(300m, await AccountNetAsync(db, seed.ForexLossAccountId));
+    }
+
     private static async Task<decimal> AccountNetAsync(IAppDbContext db, Guid accountId)
     {
         var lines = await db.GlJournalEntries

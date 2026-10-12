@@ -125,6 +125,27 @@ public sealed class PurchaseBill
     /// <inheritdoc cref="CapitalisedAdditionalCost"/>
     public decimal? AdditionalCostRoundingAdjustment { get; private set; }
 
+    /// <summary>
+    /// Phase 87 -- the Payable account the approval credited, recorded so that what reverses or settles this bill (a
+    /// debit note returning it, a payment allocated to it) takes it out of the same account after the tenant's default
+    /// changes. Null on every bill approved before phase 87, whose reversals resolve it as before.
+    /// </summary>
+    public Guid? PayableAccountId { get; private set; }
+
+    /// <summary>Phase 87 -- the VAT Receivable and TDS Payable accounts the approval used; null when the bill carried no
+    /// VAT or no TDS, and before phase 87.</summary>
+    public Guid? VatReceivableAccountId { get; private set; }
+
+    /// <inheritdoc cref="VatReceivableAccountId"/>
+    public Guid? TdsPayableAccountId { get; private set; }
+
+    /// <summary>Phase 87 -- the Inventory and Landed Cost Clearing accounts the approval used; null when the bill had no
+    /// Goods line or no Additional Cost, and before phase 87.</summary>
+    public Guid? InventoryAccountId { get; private set; }
+
+    /// <inheritdoc cref="InventoryAccountId"/>
+    public Guid? LandedCostClearingAccountId { get; private set; }
+
     public IReadOnlyList<PurchaseBillLine> Lines => _lines;
     public IReadOnlyList<PurchaseBillAdditionalCost> AdditionalCosts => _additionalCosts;
 
@@ -360,6 +381,33 @@ public sealed class PurchaseBill
             .SelectMany(x => x.Allocations)
             .Where(x => x.PurchaseBillLineId == purchaseBillLineId)
             .Sum(x => x.Amount);
+
+    /// <summary>
+    /// Phase 87 -- every account the approval is about to post to, frozen on the bill so a debit note returning it and a
+    /// payment settling it use the same ones whatever the settings say by then. Draft only, because the approval is the
+    /// action. A leg the bill does not post records no account. The line accounts are in line order.
+    /// </summary>
+    public void RecordPostingAccounts(PurchaseBillPostingAccounts accounts)
+    {
+        ArgumentNullException.ThrowIfNull(accounts);
+        EnsureDraft();
+
+        if (accounts.LineDebitAccountIds.Count != _lines.Count)
+        {
+            throw new InvalidOperationException("A purchase bill records one debit account per line, in line order.");
+        }
+
+        PayableAccountId = accounts.PayableAccountId;
+        VatReceivableAccountId = _lines.Sum(x => x.VatAmount) != 0m ? accounts.VatReceivableAccountId : null;
+        TdsPayableAccountId = TdsAmount != 0m ? accounts.TdsPayableAccountId : null;
+        InventoryAccountId = accounts.InventoryAccountId;
+        LandedCostClearingAccountId = _additionalCosts.Count > 0 ? accounts.LandedCostClearingAccountId : null;
+
+        for (var i = 0; i < _lines.Count; i++)
+        {
+            _lines[i].RecordDebitAccount(accounts.LineDebitAccountIds[i]);
+        }
+    }
 
     public void Approve(Guid approvedByUserId, string code)
     {
