@@ -2226,3 +2226,20 @@ identical on both. Whoever takes the payment needs `Sales.Invoice.TillDiscount` 
 key. A PDF with both kinds prints the percentage first (below a Sub Total it read as a second 10%). The bundle also gave
 the ERP forms a *Remove* for a clerk (it stays as "Discount removed" so focus is not dropped), the price note "in this
 organization" from the server's `AtLocation`, and the discard capped at what is unbilled.
+
+## Phase 84 — Returns at another branch, split payouts, and the money receipt as a bill
+
+**Read `phase-84-status.md` before letting a document act at a location other than its source's, or adding a document
+type to a list that decides more than one thing.**
+
+Phase 63 refunded a sale only at the location that sold it. Now a till refunds another location's retail sale (no
+service charge or packaging fee, since both sit in per-location accounts), found only by its full number and only by a
+caller holding `Sales.CreditNote.Create` and `.Approve` at the till; no grant at the selling branch. The note is the
+refunding branch's (number, session, drawer, location stamp), and its goods go back into that branch's default warehouse
+at the sale line's cost: `CreditNote.WarehouseId`, null on every older note meaning the sale's warehouse. The vendor has
+no such control (its till's refund list is pinned to the till's location, read live), so the test is the way round it
+replaces: the same sale refunded at home leaves the same figures, payout and GL, with only the location and warehouse
+different. The refundable read moved under the till, because its key now depends on where the loaded sale was made. The
+refund screen splits a payout the way the till takes tenders, and marks a fully refunded sale. The money receipt joined
+a new BS-dated list (`PrintElements.BillDatedTypes`) rather than the tax documents, which also lock template elements
+and print two statutory dates.

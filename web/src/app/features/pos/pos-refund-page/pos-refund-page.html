@@ -37,7 +37,10 @@
             <h2 id="pos-refund-find-heading" class="h5 fw-bold">Find the sale</h2>
             <form class="row g-2 align-items-end mb-3" role="search" (submit)="$event.preventDefault(); search()">
               <div class="col-sm-6">
-                <label class="form-label" for="pos-refund-search">Bill number</label>
+                <label class="form-label" for="pos-refund-search">
+                  Bill number
+                  <span class="d-block form-text mt-0">Another location's sale: type its full number.</span>
+                </label>
                 <input #searchBox class="form-control" type="search" id="pos-refund-search" maxlength="50"
                   autocomplete="off" [value]="searchTerm()" (input)="searchTerm.set(textOf($event))" />
               </div>
@@ -46,11 +49,13 @@
               </div>
             </form>
             @if (searched() && matches().length === 0) {
-              <p class="text-body-secondary mb-0">No sale at {{ t.locationName }} matches that number.</p>
+              <p class="text-body-secondary mb-0">
+                No sale at {{ t.locationName }} matches that number. A sale of another location is found by its full number.
+              </p>
             } @else if (matches().length > 0) {
               <div class="table-responsive">
                 <table class="table table-sm align-middle mb-0">
-                  <caption class="visually-hidden">Sales at {{ t.locationName }}, newest first</caption>
+                  <caption class="visually-hidden">Sales matching that number, newest first</caption>
                   <thead>
                     <tr>
                       <th scope="col">Bill</th>
@@ -64,15 +69,26 @@
                   <tbody>
                     @for (match of matches(); track match.invoiceId) {
                       <tr>
-                        <td>{{ match.code }}</td>
+                        <td>
+                          {{ match.code }}
+                          @if (match.soldAtLocationName) {
+                            <span class="d-block small text-body-secondary">sold at {{ match.soldAtLocationName }}</span>
+                          }
+                        </td>
                         <td>{{ match.soldAt | nepaliDate: 'datetime' }}</td>
                         <td>{{ match.sessionCode }}</td>
                         <td>{{ match.customerName }}</td>
                         <td class="text-end">{{ match.grandTotal | amount }}</td>
                         <td class="text-end">
-                          <button type="button" class="btn btn-sm btn-outline-primary" (click)="selectSale(match.invoiceId)">
-                            Refund<span class="visually-hidden"> bill {{ match.code }}</span>
-                          </button>
+                          @if (match.fullyRefunded) {
+                            <span class="small">Fully refunded</span>
+                          } @else if (!match.refundableHere) {
+                            <span class="small">Refund it at {{ match.soldAtLocationName }}: it carries a service charge or packaging fee</span>
+                          } @else {
+                            <button type="button" class="btn btn-sm btn-outline-primary" (click)="selectSale(match.invoiceId)">
+                              Refund<span class="visually-hidden"> bill {{ match.code }}</span>
+                            </button>
+                          }
                         </td>
                       </tr>
                     }
@@ -94,6 +110,12 @@
               {{ sl.soldAt | nepaliDate: 'datetime' }} &middot; {{ sl.customerName }}
               @if (sl.sessionCode) { &middot; session {{ sl.sessionCode }} }
             </p>
+            @if (sl.soldAtLocationName) {
+              <p class="mb-2">
+                <strong>Sold at {{ sl.soldAtLocationName }}.</strong>
+                Refunded here, out of this drawer; the goods go back into {{ sl.returnWarehouseName ?? "this location's warehouse" }}.
+              </p>
+            }
             <p class="mb-3">
               Total {{ sl.grandTotal | amount }} &middot; paid at the till {{ sl.settled | amount }}
               @if (sl.owed > 0) { &middot; <strong>still owed {{ sl.owed | amount }}</strong> }
@@ -200,6 +222,47 @@
                       </div>
                     }
                   </fieldset>
+
+                  <!-- Phase 84 -- a split payout, added a part at a time as the till takes tenders. -->
+                  <div class="row g-2 align-items-end mt-1">
+                    <div class="col-sm-6">
+                      <label class="form-label mb-1" for="pos-refund-payout-amount">
+                        Part handed back in the chosen mode
+                        <span class="d-block form-text mt-0">To split the payout, enter a part and add it. Otherwise Complete hands back all of it.</span>
+                      </label>
+                      <input #payoutAmountBox class="form-control" id="pos-refund-payout-amount" type="text" inputmode="decimal"
+                        autocomplete="off" [value]="payoutAmountText()" (input)="onPayoutAmount($event)"
+                        [class.is-invalid]="fieldError.is('pos-refund-payout-amount')"
+                        [attr.aria-invalid]="fieldError.invalid('pos-refund-payout-amount')"
+                        [attr.aria-describedby]="fieldError.describedBy('pos-refund-payout-amount')"
+                        (keydown.enter)="$event.preventDefault(); addPayout()" />
+                    </div>
+                    <div class="col-auto">
+                      <button type="button" class="btn btn-outline-primary" (click)="addPayout()" [disabled]="leftPaisa() <= 0">Add part</button>
+                    </div>
+                  </div>
+                  <app-field-error [state]="fieldError" control="pos-refund-payout-amount" />
+
+                  @if (payouts().length > 0) {
+                    <ul class="list-unstyled mt-2 mb-1" aria-label="Parts handed back">
+                      @for (part of payouts(); track part.key) {
+                        <li class="d-flex align-items-center gap-2 border-bottom py-1">
+                          <span class="me-auto">{{ part.modeName }}</span>
+                          <span>{{ fromPaisa(part.paisa) | amount }}</span>
+                          <button type="button" class="btn btn-sm btn-outline-danger"
+                            [attr.aria-label]="'Remove ' + part.modeName + ' ' + (fromPaisa(part.paisa) | amount)"
+                            (click)="removePayout(part.key)"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+                        </li>
+                      }
+                    </ul>
+                    <p class="mb-0" [class.fw-bold]="leftPaisa() > 0">
+                      @if (leftPaisa() > 0) {
+                        Still to hand back {{ fromPaisa(leftPaisa()) | amount }}
+                      } @else {
+                        All of it is accounted for.
+                      }
+                    </p>
+                  }
                 } @else {
                   <p class="mb-0">Nothing is handed back: all of it comes off what {{ sl.customerName }} still owes on this bill.</p>
                 }

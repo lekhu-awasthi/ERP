@@ -67,6 +67,14 @@ public static class TaxDocuments
     public static bool Applies(DocumentType documentType) => PrintElements.IsTaxDocument(documentType);
 }
 
+/// <summary>Phase 84 -- the bills whose dates print through <c>BillDate</c>: the tax documents and the money receipt
+/// (<see cref="PrintElements.BillDatedTypes"/>). Only the dates follow this set; what a template may not hide and the
+/// two statutory dates stay with <see cref="TaxDocuments"/>.</summary>
+public static class BillDatedDocuments
+{
+    public static bool Applies(DocumentType documentType) => PrintElements.IsBillDated(documentType);
+}
+
 /// <summary>Each document type's own View key -- printing never widens what a role may see. The
 /// switch still throws for a non-transactional <see cref="DocumentType"/> (numbering-pool stubs,
 /// audit markers): those have no record to print, and a silent 403 would be a worse answer than a

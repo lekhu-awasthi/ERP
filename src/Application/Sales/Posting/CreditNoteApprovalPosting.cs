@@ -119,8 +119,11 @@ internal static class CreditNoteApprovalPosting
                 // Phase 63 -- the line's batch rides along: a till refund copies the sale line's, so a
                 // batch-tracked return goes back into the batch it came out of. An ERP note's line names
                 // none, which is the path it always took.
+                // Phase 84 -- into the note's own warehouse when it names one (a till refund, which may be at another
+                // branch than the sale), else the sale's, the path every ERP note takes.
                 costCatchUp += await stockLedgerService.IncrementAsync(
-                    organizationId, line.ProductId, sourceInvoice.WarehouseId, line.PrimaryQuantity, unitCost,
+                    organizationId, line.ProductId, creditNote.WarehouseId ?? sourceInvoice.WarehouseId,
+                    line.PrimaryQuantity, unitCost,
                     DocumentType.CreditNote, creditNote.Id, creditNote.Date, cancellationToken, creditNote.LocationId,
                     line.BatchId);
                 // Phase 52 -- priced per PRIMARY unit, because unitCost came off a FIFO layer.

@@ -298,9 +298,9 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
     }
 
     /// <summary>Phase 71 -- every date this handler prints: a tax document's in BS with AD beside it, any other
-    /// type's in the request's calendar.</summary>
+    /// type's in the request's calendar. Phase 84 -- and the money receipt's (<see cref="BillDatedDocuments"/>).</summary>
     private static string FormatDate(PrintDocumentQuery request, DateOnly date) =>
-        TaxDocuments.Applies(request.DocumentType) ? BillDate.Format(date) : RequestCalendar.Format(date);
+        BillDatedDocuments.Applies(request.DocumentType) ? BillDate.Format(date) : RequestCalendar.Format(date);
 
     /// <summary>Phase 71 -- the frame's date relabelled as the first statutory date, and the second beside it. The
     /// issue date is the Nepal day of approval, when the bill got its number; a draft has none and prints none. An
@@ -1129,9 +1129,9 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
             summary,
             notes,
             terms,
-            // A tax document labels each of its dates "BS" and "AD" inline, so the footer's disclosure would only
+            // A bill labels each of its dates "BS" and "AD" inline, so the footer's disclosure would only
             // repeat it, and in AD it says nothing anyway.
-            TaxDocuments.Applies(request.DocumentType) ? null : RequestCalendar.DisclosureLine,
+            BillDatedDocuments.Applies(request.DocumentType) ? null : RequestCalendar.DisclosureLine,
             code_)
         {
             // Phase 73 -- the words name the currency; phase 79 -- in the document's own currency, not only rupees.

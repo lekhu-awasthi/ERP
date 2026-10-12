@@ -81,6 +81,10 @@ public sealed class CreditNoteConfiguration : IEntityTypeConfiguration<CreditNot
             .HasForeignKey(x => x.PosSessionId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        // Phase 84 -- where a till refund's goods go back into stock; null (every ERP note and every older row)
+        // means the source invoice's warehouse. Restrict, as DebitNote's own warehouse FK.
+        builder.HasOne<Warehouse>().WithMany().HasForeignKey(x => x.WarehouseId).OnDelete(DeleteBehavior.Restrict);
+
         builder.HasMany(x => x.Payouts)
             .WithOne()
             .HasForeignKey(x => x.CreditNoteId)

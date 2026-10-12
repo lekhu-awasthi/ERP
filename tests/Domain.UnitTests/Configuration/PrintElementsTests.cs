@@ -74,6 +74,20 @@ public class PrintElementsTests
         Assert.Equal([DocumentType.Invoice, DocumentType.CreditNote, DocumentType.DebitNote], PrintElements.TaxDocumentTypes);
     }
 
+    /// <summary>Phase 84 -- the money receipt dates like a bill and is not a tax document: nothing on it is locked.</summary>
+    [Fact]
+    public void The_bills_dated_in_bs_are_the_tax_documents_and_the_money_receipt()
+    {
+        Assert.Equal(
+            [DocumentType.Invoice, DocumentType.CreditNote, DocumentType.DebitNote, DocumentType.Payment],
+            PrintElements.BillDatedTypes);
+        Assert.True(PrintElements.IsBillDated(DocumentType.Payment));
+        Assert.False(PrintElements.IsTaxDocument(DocumentType.Payment));
+        Assert.Empty(PrintElements.Locked(DocumentType.Payment));
+        Assert.All(PrintElements.TaxDocumentTypes, x => Assert.True(PrintElements.IsBillDated(x)));
+        Assert.False(PrintElements.IsBillDated(DocumentType.Quotation));
+    }
+
     [Fact]
     public void CanHide_needs_the_element_printed_and_unlocked()
     {

@@ -6,7 +6,7 @@ Guiding rule for phase sizing: each phase ends with something *runnable and demo
 
 ---
 
-## Completed phases (0–83)
+## Completed phases (0–84)
 
 One line each; phase *N*'s full story is `docs/phase-N-status.md`. The verbose index as it stood on
 2026-09-28 is archived verbatim in `roadmap-history.md` ("Completed-phases index, verbose form").
@@ -69,6 +69,7 @@ One line each; phase *N*'s full story is `docs/phase-N-status.md`. The verbose i
 | 81 | The ERP's price keys: a discount or a rate the form would not suggest on a Quotation, Sales Order or Invoice draft needs `Sales.Invoice.Discount` / `.ChangeRate` at its location (Admin+Member, backfilled to every role that drafts them; what a draft or its source quotation already carried needs neither); the forms disable what Save would refuse; a picked unit's rate goes through the price basis |
 | 82 | A dish carrying a frozen share of an order's Amount discount can be discarded: its share leaves with it (the order's amount falls by what the quantity carries, every other dish keeps its price), exactly what billing and refunding it gave; before the first bill a discard leaves the amount whole; the panel says so and the message names what the discount fell by |
 | 83 | A discount on one guest's part: a restaurant bill takes its own % or Rs after the order's terms, kept apart on each line (`PartDiscountAmount`) so the last part of a dish never takes it back and a void gives it up; `Sales.Invoice.TillDiscount` at the location from whoever bills; a PDF with both kinds prints the percentage first. Plus the ERP forms' *Remove* for a clerk, "in this organization" on a document with no location, and the discard capped at what is unbilled |
+| 84 | Returns at another branch: a till refunds another location's retail sale (none with service charge or packaging fee), found by its full number under the refund's own keys there, out of that branch's drawer, its goods into that branch's warehouse (`CreditNote.WarehouseId`). Split payouts and *Fully refunded* on the refund screen; the money receipt's date in BS with AD beside it (`BillDatedTypes`, not a tax document) |
 
 ---
 
@@ -186,9 +187,9 @@ it was recorded as a product decision (`phase-71-status.md` § 0). The vendor's 
 switch defaulting to AD (read live on 2026-10-09); ours has no switch on a tax document. This constrains the
 printing-templates item below: no per-type "date system" toggle may switch BS off on a tax document.
 
-**Carried from phase 71** (§ 5 there): the money receipt (a Payment's PDF), Annex 5/13, the VAT Summary export and
-the on-screen register grids follow the toggle; the email body's `$[DATE]$` stays AD; a tax advisor's word on the
-calendar is still open.
+**Carried from phase 71** (§ 5 there): the money receipt (a Payment's PDF) dates in BS with AD beside it since phase
+84, as a bill and not a tax document. Annex 5/13, the VAT Summary export and the on-screen register grids follow the
+toggle; the email body's `$[DATE]$` stays AD; a tax advisor's word on the calendar is still open.
 
 **Raised 2026-10-03, done in phase 73: real printing templates.** Three fixed layouts with show/hide toggles and
 the custom fields to print; no date-system toggle (phase 71), no renamed labels, one template per type.
@@ -257,8 +258,12 @@ missing columns were done in phase 78.
 applied to a second charge); a receipt prints the fee's total, not which items carried it. The export's packaging
 fee, service charge and round-off were done in phase 77.
 
-**Carried from phase 63** (§ 5 there): cross-branch returns; split payouts on the refund screen (the
-API takes several); a fully refunded bill still listed in the refund search.
+**Carried from phase 63** (§ 5 there): cross-branch returns, split payouts on the refund screen and the fully refunded
+bill's mark were done in phase 84 (a restaurant bill still comes back only where it was sold).
+
+**Carried from phase 84** (§ 5 there): a restaurant bill refunded at another branch (two locations' accounts in one
+entry); the ERP credit-note page showing a till refund's warehouse; the till's tender list dropping focus on *Remove*;
+the money receipt on the roll and the annex exports in BS are still open.
 
 **Carried from phase 62** (§ 5 there):
 

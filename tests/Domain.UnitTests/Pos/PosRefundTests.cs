@@ -17,7 +17,7 @@ public class PosRefundTests
 
     private static CreditNote Refund(string reason = "Wrong order") => CreditNote.CreatePosRefund(
         Guid.NewGuid(), Guid.NewGuid(), new DateOnly(2026, 10, 1), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
-        "0001", 0m, reason);
+        "0001", 0m, reason, Guid.NewGuid());
 
     private static Invoice.TenderInput Cash(decimal amount) => new(CashMode, PaymentModeKind.Cash, Drawer, amount);
 
@@ -37,7 +37,7 @@ public class PosRefundTests
 
         var refund = CreditNote.CreatePosRefund(
             Guid.NewGuid(), Guid.NewGuid(), new DateOnly(2026, 10, 1), Guid.NewGuid(), Guid.NewGuid(), sale.Id,
-            "0001", billDiscount, "Returned");
+            "0001", billDiscount, "Returned", Guid.NewGuid());
         refund.AddPosLine(new CreditNote.PosLineInput(Momo, quantity, 199.99m, VatRate.ThirteenPercentVat, 0m, lineDiscount, 0m, null, 1, null, 10m, PackagingFee.None, null));
         var returned = refund.Lines[0];
 

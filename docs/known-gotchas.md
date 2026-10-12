@@ -4587,3 +4587,36 @@ Phase 74 moved a rupee discount above the Sub Total it had been taken from. A bi
 guest's rupees printed the rupees above the Sub Total and the 10% below it, as a single percentage always had. Read top
 to bottom, that is 10% off 210.60, which nobody charged. Extracted text looked right; the rendered page did not. With
 both kinds the percentage now prints first, then the figure before the bill's discount, the discount, and the Sub Total.
+
+## When the vendor has no control, the workaround it replaces is the twin (phase 84)
+
+Cross-branch returns had no reference behaviour to copy: the vendor's till cannot see another location's sale at all.
+What did exist was the way round, the customer going back to the branch that sold it. A refund at another branch must
+leave exactly what that refund leaves: the same credit note figures, round-off, payout and GL lines. Only the location,
+the session and the warehouse may differ, and those are the decision. `PosCrossBranchRefundTests` sells the same bill
+twice, refunds one at each branch, and compares every posted line with the location stamp left out. Phase 82's rule
+("compute what the way round leaves") applies when the way round is a journey, not only a refusal.
+
+## A list that decides two things answers one question with both (phase 84)
+
+Phase 71 recorded that making the money receipt a bill was "one line in `TaxDocuments`". By phase 73 that list (now
+`PrintElements.TaxDocumentTypes`) also decided which template elements cannot be hidden and which bills print two
+statutory dates. One line would have locked the receipt's seller and buyer blocks and given it an issue date it does
+not have. The receipt's question was only about dates, so dates got their own list, built from the tax list plus
+`Payment`, and a test pins both lists and that Payment locks nothing. Before adding a member to a shared list, read
+every reader of it.
+
+## A key moved from the pipeline into a handler finds what a handler test never held (phase 84)
+
+`GetPosRefundableSaleQuery` was gated by `ILocationScopedDocument` (View at the sale's location) in
+`AuthorizationBehavior`, which handler tests bypass. Once the key depended on whether the loaded sale was this till's, the
+handler re-checked View itself, and two phase 63 tests failed: `PosTestTill.CashierKeys` had never held
+`Sales.Invoice.View`. A real Member holds it, so the fixture was wrong, not the product. When a check moves inward,
+expect the fixtures that relied on its absence to surface; fix them to what a real role holds.
+
+## A non-raw Python string writes its escapes as characters (phase 84)
+
+A patch script written with the Write tool carried a placeholder line containing `'\u0000'` inside an ordinary
+triple-quoted Python string. Python turned it into a real NUL byte and wrote it into a TypeScript spec. It is the same
+family as phase 62's `\b` (a backspace inside a regex string): any escape in a non-raw string becomes the character it
+names. Assert `'\x00' not in s` before writing a file, and use raw strings for anything carrying backslashes.

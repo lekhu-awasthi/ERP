@@ -92,7 +92,7 @@ public class PosAmountDiscountTests
 
         var refund = CreditNote.CreatePosRefund(
             sale.OrganizationId, sale.ContactId, sale.Date, sale.LocationId!.Value, Guid.NewGuid(), sale.Id, "INV1", 0m,
-            "Returned");
+            "Returned", Guid.NewGuid());
         var theRest = new PosLineArithmetic.Figures(613.91m, 0m, 0m, 79.81m);
         refund.AddPosLine(new CreditNote.PosLineInput(
             momo.ProductId, 2m, momo.Rate, momo.VatRate, momo.DiscountPerUnit, 0m, 32.09m, null, 1m, null, 0m,

@@ -270,7 +270,7 @@ public class PackagingFeeTests
 
         var refund = CreditNote.CreatePosRefund(
             sale.OrganizationId, sale.ContactId, sale.Date, sale.LocationId!.Value, Guid.NewGuid(), sale.Id, "INV0001",
-            0m, "Arrived cold");
+            0m, "Arrived cold", Guid.NewGuid());
         refund.AddPosLine(new CreditNote.PosLineInput(sold.ProductId, 3m, sold.Rate, sold.VatRate, 0m, sold.DiscountPct, 0m, null, 1m, null, 0m, sold.PackagingFee, null));
 
         var returned = refund.Lines[0];

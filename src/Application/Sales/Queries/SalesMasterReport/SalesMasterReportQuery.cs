@@ -57,7 +57,8 @@ public sealed record SalesMasterReportQuery(
 /// One row per Invoice/CreditNote line. WarehouseId/WarehouseName are null for a standalone
 /// CreditNote (or one whose referrer isn't an Invoice) -- CreditNote carries no WarehouseId column
 /// of its own; a conversion-linked CreditNote resolves it from its source Invoice, the same lookup
-/// ApproveCreditNoteCommandHandler already does for FIFO reversal. See phase-8b-status.md.
+/// ApproveCreditNoteCommandHandler already does for FIFO reversal. See phase-8b-status.md. Phase 84 -- a till
+/// refund stores its own warehouse (another branch's, when it was refunded there), and that one is reported.
 /// </summary>
 public sealed record SalesMasterReportRowDto(
     Guid ContactId,

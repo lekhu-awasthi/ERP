@@ -115,6 +115,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 81: the ERP's price keys (`Sales.Invoice.Discount` / `.ChangeRate` on Quotation, Sales Order and Invoice drafts at the location, Admin+Member and backfilled; what the draft or its source quotation carried needs neither; the vendor's ERP has no such key; a picked unit's rate through the price basis). Before gating a value on a document, or judging what an edit changed — `docs/phase-81-status.md`
 - Phase 82: a discarded dish takes its share of the order's Amount discount with it (once frozen at the first bill; before it the amount stays whole), exactly what billing and refunding it gave; no new key. Before lifting a refusal that has a legal way round — `docs/phase-82-status.md`
 - Phase 83: a discount on one guest's part (on the bill, not the order: % or Rs after the order's terms, `PartDiscountAmount` kept apart on each line so the last part never takes it back; `TillDiscount` from whoever bills) + the ERP forms' Remove, the note's "in this organization", the discard cap. Before pricing one part of a split apart from the rest, or a control that removes itself — `docs/phase-83-status.md`
+- Phase 84: returns at another branch (a retail sale refunded where it comes back, by its full number under the refund's keys there, its goods into that branch's warehouse: `CreditNote.WarehouseId`), split payouts and *Fully refunded* on the refund screen, the money receipt dated in BS (`BillDatedTypes`, not a tax document). Before letting a document act away from its source's location, or adding a member to a list that decides two things — `docs/phase-84-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -303,6 +304,8 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A till refund names its sale by `ReferrerType`/`ReferrerId`, not `AgainstInvoiceId`; "the note's invoice" joins on the coalesce of both (phase-77).
 - A refusal with a legal way round has its spec written: a discard with a share equals bill-and-refund, and a test holds them to the same bill (phase-82).
 - A part priced apart from the whole keeps the order's share and the bill's own apart: price the whole less what bills not voided gave, never a counter on the order (phase-83).
+- No vendor control means the workaround is the spec: a refund at another branch must leave what the same refund at home leaves, every figure, only where differs (phase-84).
+- A list deciding two things answers one question with both: the money receipt joins the BS-dated list, not `TaxDocumentTypes`, which also locks elements and prints two dates (phase-84).
 
 - Rich text is sanitised on write, in the Domain setter, by re-emission from a parsed tree, never by filtering; `Sanitize` must stay idempotent (phase-39).
 - A rich-text grammar is its **renderer's capability list**: decide what `RichTextPdfRenderer` can draw, then build the toolbar, or the field looks one way on screen and another in the PDF the customer receives (phase-39).
@@ -520,6 +523,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - `nvm use` from a shell that cannot create the symlink deletes `C:\nvm4w\nodejs` and reports success; recreate it with `cmd /c 'mklink /J "C:\nvm4w\nodejs" "%LOCALAPPDATA%\nvm\v24.11.0"'`.
 - A `cat > file <<'EOF'` heredoc in the Bash tool is silently truncated or mis-parsed well below the ~8 KB figure (any heredoc, `python -` included); use the Write tool, or write a small patch script and run it (phase-26a, phase-57). It also **eats backslash escapes** even when the delimiter is quoted, so a `\n` or `\t` inside an embedded script arrives as a literal newline or tab — a syntax error if you are lucky and a corrupted path if you are not (phase-39).
 - …and `\\b` arrives as `\b`, which Python reads as a **backspace** inside a regex string, invisible in the file. A script carrying backslashes goes through the Write tool, always (phase-62).
+- …and the Write tool does not save you from Python itself: `'\u0000'` in a non-raw string is a NUL in the file. Use raw strings and assert no `\x00` before writing (phase-84).
 - The Edit tool writes an escape (backslash-u-00a0) as the raw invisible character and trims a trailing space from a replace; put escapes and trailing spaces through a `Write`-made patch script (phase-71).
 - `docker info` exits 0 with the engine down; Docker is up only when `{{.ServerVersion}}` is non-empty (phase-62).
 - Two `dotnet test` runs at once collide on the shared `ErpApp.Application.dll` (`CS2012`, file locked) and print nothing under a `Passed!` filter; run the .NET suites one at a time (phase-63).
@@ -557,26 +561,26 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 
 ## Current status
 
-**Phases 0-83 are complete. Next: not yet scheduled** (the user picks; candidates in `docs/roadmap.md`).
+**Phases 0-84 are complete. Next: not yet scheduled** (the user picks; candidates in `docs/roadmap.md`).
 Each phase's story is in its `docs/phase-N-status.md`, and finished planning entries are archived in
 `docs/roadmap-history.md`.
 
-**Phase 83 let one guest's part of a split bill carry a discount of its own.**
+**Phase 84 let a till refund a sale made at another branch.**
 
-- The discount is the bill's, not the order's: % or Rs after the order's terms, stored apart on each invoice line
-  (`PartDiscountAmount`, inside `BillDiscountAmount`). The planner prices the whole of a line less what its bills not
-  voided gave, so the next guest pays exactly what they would have; a twin-tab Domain test holds that.
-- Whoever takes the payment needs `Sales.Invoice.TillDiscount` at the location; the preview needs no key. No new keys,
-  one migration (`Phase83PartDiscount`), no live read (the vendor has no per-part discount).
-- Bundled: the ERP forms offer a clerk *Remove* on a discount, the price note says "in this organization" for a
-  document with no location (`AtLocation`), and the discard panel is capped at what is unbilled.
+- A retail sale (no service charge or packaging fee) is found at any till by its full number, under
+  `Sales.CreditNote.Create` + `.Approve` there; the note is that branch's, out of its drawer, and the goods go back into
+  its default warehouse (`CreditNote.WarehouseId`, null meaning the sale's). The vendor has no such control (read live).
+- The refundable read moved to `/pos/tills/{loc}/sales/{id}/refundable`. The refund screen splits a payout across modes
+  and marks a fully refunded sale. One migration (`Phase84CrossBranchReturns`), no new keys.
+- The money receipt (a Payment's PDF) prints its date in BS with AD beside it: `PrintElements.BillDatedTypes`, not the tax
+  documents.
 
-**Next:** not yet scheduled. Candidates: phase 79 § 5 (positioning, renames, the vendor's DN/GRN/WT HTML templates,
-lakh grouping, the money receipt on the roll), phase 71 § 5 (is a money receipt a bill?), phase 83 § 5 (a per-part
-service charge waiver), phase 63 § 5.
+**Next:** not yet scheduled. Candidates: phase 84 § 5 (a restaurant bill at another branch, the till's *Remove* focus),
+phase 83 § 5 (a per-part service charge waiver), phase 79 § 5 (positioning, renames, the vendor's DN/GRN/WT templates,
+lakh grouping, the money receipt on the roll), phase 71 § 5 (the annex exports in BS).
 
-Tests: Domain **1028**, Application.UnitTests **1765**, Infrastructure.UnitTests 14,
-Api.IntegrationTests 71, Angular **848**. Everything was green at phase 83's close with Docker up.
+Tests: Domain **1029**, Application.UnitTests **1778**, Infrastructure.UnitTests 14,
+Api.IntegrationTests 71, Angular **852**. Everything was green at phase 84's close with Docker up.
 The bundle sits at **652.58 kB** against `build-budget.spec.ts`'s 680 kB; every POS screen is lazy.
 
 - `Api.IntegrationTests` needs Docker Desktop running. Without it the Testcontainers-backed tests

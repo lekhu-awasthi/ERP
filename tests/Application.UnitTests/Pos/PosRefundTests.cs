@@ -272,7 +272,7 @@ public sealed class PosRefundTests
             session.Id, sale.Id, [await till.ReturnAsync(sale.Id, till.CokeId, 1m)], [till.Cash(68m)]));
 
         var refundable = await new GetPosRefundableSaleQueryHandler(till.Db, till.CurrentUser()).Handle(
-            new GetPosRefundableSaleQuery(till.OrganizationId, sale.Id), CancellationToken.None);
+            new GetPosRefundableSaleQuery(till.OrganizationId, till.Location.Id, sale.Id), CancellationToken.None);
         var line = Assert.Single(refundable.Lines);
         Assert.Equal(2m, line.Sold);
         Assert.Equal(0m, line.Remaining);
@@ -292,7 +292,7 @@ public sealed class PosRefundTests
         Assert.Contains(PermissionKeys.CreditNoteApprove, refused.Message, StringComparison.Ordinal);
 
         var refundable = await new GetPosRefundableSaleQueryHandler(till.Db, till.CurrentUser()).Handle(
-            new GetPosRefundableSaleQuery(till.OrganizationId, sale.Id), CancellationToken.None);
+            new GetPosRefundableSaleQuery(till.OrganizationId, till.Location.Id, sale.Id), CancellationToken.None);
         Assert.False(refundable.CanRefund);
     }
 

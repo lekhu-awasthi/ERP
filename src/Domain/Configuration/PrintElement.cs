@@ -51,6 +51,13 @@ public static class PrintElements
     public static readonly IReadOnlyList<DocumentType> TaxDocumentTypes =
         [DocumentType.Invoice, DocumentType.CreditNote, DocumentType.DebitNote];
 
+    /// <summary>Phase 84 -- the bills whose every date prints in BS with AD beside it, whatever the toggle: the tax
+    /// documents and the money receipt (a Payment's PDF). The receipt is a bill a customer is handed, so it dates like
+    /// one (the user's rule, 2026-10-08); it is not a tax document, so its seller and buyer blocks stay hideable and it
+    /// prints one date, not the two statutory ones. A Payment is one type and one template in both directions, so a
+    /// supplier's payment voucher dates the same way.</summary>
+    public static readonly IReadOnlyList<DocumentType> BillDatedTypes = [.. TaxDocumentTypes, DocumentType.Payment];
+
     /// <summary>The nine types printed through one product table (quantity, rate, discount, VAT, amount).</summary>
     public static readonly IReadOnlyList<DocumentType> ProductLineTypes =
     [
@@ -96,6 +103,8 @@ public static class PrintElements
         [PrintElement.OrganizationAddress, PrintElement.OrganizationPan, PrintElement.PartyAddress];
 
     public static bool IsTaxDocument(DocumentType documentType) => TaxDocumentTypes.Contains(documentType);
+
+    public static bool IsBillDated(DocumentType documentType) => BillDatedTypes.Contains(documentType);
 
     /// <summary>The elements this type prints, in the order the editor lists them. Empty for a type that has no
     /// printable record.</summary>

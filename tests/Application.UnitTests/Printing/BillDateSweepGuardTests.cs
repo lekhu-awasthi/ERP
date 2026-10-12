@@ -21,7 +21,7 @@ public class BillDateSweepGuardTests
         var direct = Regex.Matches(source, @"RequestCalendar\.Format\(").Count;
         Assert.True(direct == 1, $"RequestCalendar.Format is called {direct} times; only FormatDate may call it.");
         Assert.Contains(
-            "TaxDocuments.Applies(request.DocumentType) ? BillDate.Format(date) : RequestCalendar.Format(date)",
+            "BillDatedDocuments.Applies(request.DocumentType) ? BillDate.Format(date) : RequestCalendar.Format(date)",
             source,
             StringComparison.Ordinal);
 

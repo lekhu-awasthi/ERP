@@ -250,6 +250,43 @@ public class PrintDocumentQueryHandlerTests
         Assert.Equal("1,200.00", dto.Summary.Single(x => x.Label == "Unallocated").Value);
     }
 
+    /// <summary>Phase 84 -- the money receipt is a bill a customer is handed, so its date prints in BS with AD beside
+    /// it whatever the toggle says. It is not a tax document: one "Date", no issue date, and nothing locked.</summary>
+    [Theory]
+    [InlineData(PaymentDirection.Received, CalendarFormat.Ad)]
+    [InlineData(PaymentDirection.Received, CalendarFormat.Bs)]
+    [InlineData(PaymentDirection.Paid, CalendarFormat.Ad)]
+    public async Task Handle_dates_a_money_receipt_in_bs_with_ad_beside_it_whatever_the_toggle(
+        PaymentDirection direction, CalendarFormat requested)
+    {
+        var db = TestAppDbContext.Create();
+        var organization = NewOrganization(db);
+        var organizationId = organization.Id;
+
+        var contact = Contact.Create(organizationId, ContactType.Customer, "Acme Traders", "C-001", null, null, null, null, null, 0);
+        var account = Account.Create(organizationId, "1000", "Cash", AccountRootType.Asset, Guid.NewGuid());
+        db.Contacts.Add(contact);
+        db.Accounts.Add(account);
+        var payment = Payment.Create(organizationId, contact.Id, direction, new DateOnly(2026, 8, 1), null, account.Id, 1200, null);
+        db.Payments.Add(payment);
+        await db.SaveChangesAsync(CancellationToken.None);
+
+        try
+        {
+            RequestCalendar.Current = requested;
+            var dto = await Print(db, organizationId, DocumentType.Payment, payment.Id);
+
+            Assert.Equal("2083-04-16 BS (2026-08-01 AD)", dto.DateText);
+            Assert.Equal("Date", dto.DateLabel);
+            Assert.Null(dto.IssueDateText);
+            Assert.Null(dto.CalendarNote);
+        }
+        finally
+        {
+            RequestCalendar.Current = CalendarFormat.Ad;
+        }
+    }
+
     /// <summary>Phase 27b's other half: with the request's calendar set to BS, the same document's
     /// dates come out in Bikram Sambat -- closing phase-23 Decision A's "server output stays AD".
     /// 2026-08-01 AD is 2083-04-16 BS.</summary>

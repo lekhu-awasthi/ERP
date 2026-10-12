@@ -404,6 +404,12 @@ export interface PosSaleMatch {
   customerName: string;
   isWalkIn: boolean;
   grandTotal: number;
+  /** Phase 84 -- the selling location's name when it is not this till's (found by its full number); else null. */
+  soldAtLocationName: string | null;
+  /** Phase 84 -- nothing is left to give back. */
+  fullyRefunded: boolean;
+  /** Phase 84 -- false for another location's sale carrying a service charge or packaging fee. */
+  refundableHere: boolean;
 }
 
 export interface PosRefundableLine {
@@ -451,6 +457,10 @@ export interface PosRefundableSale {
   lines: PosRefundableLine[];
   priorRefunds: PosPriorRefund[];
   canRefund: boolean;
+  /** Phase 84 -- the selling location's name when it is not this till's; null for a sale of this location. */
+  soldAtLocationName: string | null;
+  /** Phase 84 -- where the returned goods go back into stock. */
+  returnWarehouseName: string | null;
 }
 
 export interface PosRefundLineInput {

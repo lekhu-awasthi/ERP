@@ -5651,6 +5651,9 @@ namespace ErpApp.Infrastructure.Migrations
                     b.Property<Guid?>("VoidedByUserId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid?>("WarehouseId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.HasKey("Id");
 
                     b.HasIndex("AgainstInvoiceId");
@@ -5660,6 +5663,8 @@ namespace ErpApp.Infrastructure.Migrations
                     b.HasIndex("LocationId");
 
                     b.HasIndex("PosSessionId");
+
+                    b.HasIndex("WarehouseId");
 
                     b.HasIndex("OrganizationId", "Code");
 
@@ -12480,6 +12485,11 @@ namespace ErpApp.Infrastructure.Migrations
                     b.HasOne("ErpApp.Domain.Pos.PosSession", null)
                         .WithMany()
                         .HasForeignKey("PosSessionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("ErpApp.Domain.Tenancy.Warehouse", null)
+                        .WithMany()
+                        .HasForeignKey("WarehouseId")
                         .OnDelete(DeleteBehavior.Restrict);
                 });
 

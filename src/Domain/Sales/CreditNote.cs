@@ -63,6 +63,15 @@ public sealed class CreditNote
     /// disables the input and pins it to 1 whenever the selected currency is NPR.
     /// </summary>
     public decimal ExchangeRate { get; private set; } = ExchangeRates.BaseRate;
+
+    /// <summary>
+    /// Phase 84 -- where a returned Goods line goes back into stock. Null means the source invoice's own warehouse,
+    /// which is what every ERP note and every note before this phase meant. A till refund stores it: the sale's
+    /// warehouse when the sale is refunded where it was sold, the refunding location's default warehouse when it is
+    /// refunded at another branch, because that is where the goods now are.
+    /// </summary>
+    public Guid? WarehouseId { get; private set; }
+
     public DocumentType? ReferrerType { get; private set; }
     public Guid? ReferrerId { get; private set; }
     public decimal DiscountPct { get; private set; }
@@ -163,14 +172,16 @@ public sealed class CreditNote
     /// Phase 63 -- a refund at a till: a credit note against the till sale <paramref name="invoiceId"/>,
     /// raised in <paramref name="posSessionId"/> at <paramref name="locationId"/>, carrying the sale's
     /// bill discount. It is approved by the same command that creates it, like the sale.
+    /// Phase 84 -- and <paramref name="warehouseId"/>, where its goods go back into stock.
     /// </summary>
     public static CreditNote CreatePosRefund(
         Guid organizationId, Guid contactId, DateOnly date, Guid locationId, Guid posSessionId, Guid invoiceId,
-        string invoiceCode, decimal discountPct, string reason)
+        string invoiceCode, decimal discountPct, string reason, Guid warehouseId)
     {
-        if (locationId == Guid.Empty || posSessionId == Guid.Empty || invoiceId == Guid.Empty)
+        if (locationId == Guid.Empty || posSessionId == Guid.Empty || invoiceId == Guid.Empty || warehouseId == Guid.Empty)
         {
-            throw new InvalidOperationException("A till refund names its location, its session and the sale it returns.");
+            throw new InvalidOperationException(
+                "A till refund names its location, its session, the sale it returns and the warehouse its goods go back to.");
         }
 
         var trimmed = reason?.Trim();
@@ -190,6 +201,7 @@ public sealed class CreditNote
         note.Channel = SalesChannel.Pos;
         note.PosSessionId = posSessionId;
         note.LocationId = locationId;
+        note.WarehouseId = warehouseId;
         note.Reason = trimmed;
         return note;
     }

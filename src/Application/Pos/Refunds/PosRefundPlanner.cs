@@ -29,7 +29,9 @@ internal sealed record PosRefundPlan(Invoice Invoice, CreditNote CreditNote, dec
 ///
 /// <para>Each rule is a decision in phase-63-status.md:</para>
 /// <list type="bullet">
-/// <item><b>Which sale</b> (C): an approved till sale of this location.</item>
+/// <item><b>Which sale</b> (C): an approved till sale of this location. Phase 84 -- or of another location when it
+/// carries no service charge and no packaging fee: a retail sale can come back at any branch, and its goods go back
+/// into stock where they now are (<see cref="WarehouseFor"/>).</item>
 /// <item><b>How much</b> (phase 6's cap): each line at most what was sold less what earlier credit notes
 /// returned, at the sale line's own rate, discount, VAT rate, unit, batch, service charge rate and (phase 70)
 /// packaging fee terms.</item>
@@ -66,6 +68,7 @@ internal static class PosRefundPlanner
             ?? throw new NotFoundException("Sale not found.");
 
         EnsureRefundable(invoice, till);
+        var warehouseId = WarehouseFor(invoice, till);
 
         var chosen = ResolveLines(requestedLines, invoice);
 
@@ -78,7 +81,7 @@ internal static class PosRefundPlanner
 
         var creditNote = CreditNote.CreatePosRefund(
             organizationId, invoice.ContactId, date, till.Location.Id, sessionId, invoice.Id, invoice.Code,
-            invoice.DiscountPct, reason);
+            invoice.DiscountPct, reason, warehouseId);
 
         var priorNotes = await PriorRefundsQuery(db, organizationId, invoice)
             .AsNoTracking()
@@ -149,12 +152,31 @@ internal static class PosRefundPlanner
             throw new ConflictException($"Invoice {invoice.Code} has been voided, so there is nothing to refund.");
         }
 
-        if (invoice.LocationId != till.Location.Id)
+        // Phase 84 -- another branch's sale comes back here only when nothing on it is held in a per-location
+        // account: a service charge or packaging fee reversed at this branch would leave the selling branch's account
+        // in credit and this one's in debit (PosAccountResolver reads both per location).
+        if (!IsHere(invoice, till) && (invoice.ServiceChargeTotal != 0m || invoice.PackagingFeeTotal != 0m))
         {
             throw new ConflictException(
-                $"Invoice {invoice.Code} was sold at another location. A sale is refunded at a till of the location that sold it.");
+                $"Invoice {invoice.Code} was sold at another location and carries a service charge or packaging fee, "
+                + "which that location's accounts hold. Refund it at a till of the location that sold it.");
         }
     }
+
+    /// <summary>Phase 84 -- whether <paramref name="invoice"/> was sold at this till's location.</summary>
+    public static bool IsHere(Invoice invoice, PosTillContext till) => invoice.LocationId == till.Location.Id;
+
+    /// <summary>
+    /// Phase 84 -- where the returned goods go back into stock: the sale's own warehouse when it is refunded where it
+    /// was sold (phase 63's path, unchanged), the till's default warehouse when it is refunded at another branch,
+    /// because the goods came back over this counter. The cost is the sale line's either way (phase 37).
+    /// </summary>
+    public static Guid WarehouseFor(Invoice invoice, PosTillContext till) =>
+        IsHere(invoice, till)
+            ? invoice.WarehouseId
+            : till.Location.WarehouseId ?? throw new ConflictException(
+                $"'{till.Location.Name}' has no default warehouse, so the till does not know where goods returned from "
+                + $"another location's sale go back into stock. Set one on the location.");
 
     private static List<(InvoiceLine Line, decimal Quantity)> ResolveLines(
         IReadOnlyList<PosRefundLineInput> requested, Invoice invoice)

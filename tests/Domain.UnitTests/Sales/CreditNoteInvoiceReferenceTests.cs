@@ -135,7 +135,7 @@ public class CreditNoteInvoiceReferenceTests
     public void A_till_refunds_reason_is_set_when_it_is_made_and_not_through_the_ERP_setter()
     {
         var refund = CreditNote.CreatePosRefund(
-            Guid.NewGuid(), Guid.NewGuid(), Day, Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "INV0001", 0, "Wrong order");
+            Guid.NewGuid(), Guid.NewGuid(), Day, Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "INV0001", 0, "Wrong order", Guid.NewGuid());
 
         Assert.Throws<InvalidOperationException>(() => refund.SetReason("Something else"));
         Assert.Equal("Wrong order", refund.Reason);

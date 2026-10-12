@@ -184,10 +184,11 @@ public static class PosEndpoints
             Guid organizationId, Guid locationId, string? search, ISender sender, CancellationToken ct) =>
             Results.Ok(await sender.Send(new FindPosSalesQuery(organizationId, locationId, search), ct)));
 
-        // A sale as the refund screen needs it: lines with what is left to refund, earlier refunds.
-        group.MapGet("/sales/{invoiceId:guid}/refundable", async (
-            Guid organizationId, Guid invoiceId, ISender sender, CancellationToken ct) =>
-            Results.Ok(await sender.Send(new GetPosRefundableSaleQuery(organizationId, invoiceId), ct)));
+        // A sale as the refund screen at one till needs it: lines with what is left to refund, earlier refunds.
+        // Phase 84 -- under the till, because another location's sale is read under the refund's keys here.
+        group.MapGet("/tills/{locationId:guid}/sales/{invoiceId:guid}/refundable", async (
+            Guid organizationId, Guid locationId, Guid invoiceId, ISender sender, CancellationToken ct) =>
+            Results.Ok(await sender.Send(new GetPosRefundableSaleQuery(organizationId, locationId, invoiceId), ct)));
 
         // The refund's figure before it is made: a query with a body, computed by the refund's own planner.
         group.MapPost("/refunds/preview", async (

@@ -155,7 +155,8 @@ export class PosService {
 
   // ---- Phase 63: refunds -----------------------------------------------------------------------
 
-  /** Approved till sales of one location whose number contains `search`, newest first. */
+  /** Approved till sales of one location whose number contains `search`, newest first; phase 84 -- and another
+   *  location's sale whose number is exactly `search`, for a cashier who may refund here. */
   findSales(organizationId: string, locationId: string, search: string): Observable<PosSaleMatch[]> {
     const params: Record<string, string> = {};
     if (search) params['search'] = search;
@@ -165,8 +166,9 @@ export class PosService {
     });
   }
 
-  getRefundableSale(organizationId: string, invoiceId: string): Observable<PosRefundableSale> {
-    return this.http.get<PosRefundableSale>(`${this.baseUrl(organizationId)}/sales/${invoiceId}/refundable`, {
+  /** Phase 84 -- read under the till: another location's sale is read under the refund's keys at this one. */
+  getRefundableSale(organizationId: string, locationId: string, invoiceId: string): Observable<PosRefundableSale> {
+    return this.http.get<PosRefundableSale>(`${this.baseUrl(organizationId)}/tills/${locationId}/sales/${invoiceId}/refundable`, {
       withCredentials: true,
     });
   }

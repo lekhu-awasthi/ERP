@@ -35,7 +35,9 @@ public sealed class PreviewPrintingTemplateQueryHandler(IAppDbContext db, IFileS
         var offered = PrintElements.For(type);
         var taxDocument = PrintElements.IsTaxDocument(type);
         var today = NepalTime.LocalDate(DateTimeOffset.UtcNow);
-        var date = taxDocument ? BillDate.Format(today) : RequestCalendar.Format(today);
+        // Phase 84 -- a bill's date, which the money receipt is too; the statutory parts below stay the tax documents'.
+        var billDated = PrintElements.IsBillDated(type);
+        var date = billDated ? BillDate.Format(today) : RequestCalendar.Format(today);
         var logo = settings.Shows(PrintElement.OrganizationLogo)
             ? await PrintDocumentQueryHandler.ReadLogoAsync(storage, organization, cancellationToken)
             : null;
@@ -73,7 +75,7 @@ public sealed class PreviewPrintingTemplateQueryHandler(IAppDbContext db, IFileS
             summary,
             offered.Contains(PrintElement.Notes) ? "Sample notes for this document." : null,
             offered.Contains(PrintElement.Terms) ? "<p>Goods once sold are not returned.</p>" : null,
-            taxDocument ? null : RequestCalendar.DisclosureLine,
+            billDated ? null : RequestCalendar.DisclosureLine,
             PartyPan: taxDocument && hasParty ? "123456789" : null,
             DateLabel: taxDocument ? "Transaction Date" : "Date",
             IssueDateText: taxDocument ? date : null)

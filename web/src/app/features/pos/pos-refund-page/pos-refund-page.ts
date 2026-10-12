@@ -2,6 +2,7 @@ import { Component, ElementRef, Injector, afterNextRender, computed, inject, sig
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
 import { extractErrorMessage } from '../../../core/auth/api-error';
+import { fromPaisa, toPaisa } from '../../../core/pos/pos-bill';
 import {
   CreatePosRefundResult,
   PosRefundPreview,
@@ -32,8 +33,13 @@ const money = new AmountPipe();
  * own planner (phase-63-status.md Decision F), and the payout offered is exactly what it says must be
  * handed back (Decision D).</p>
  *
- * <p><b>One payout mode per refund on this screen.</b> The API takes several; a refund split across
- * modes is rare enough at a counter that the screen offers the one choice, Cash first.</p>
+ * <p><b>Payout modes (phase 84).</b> Complete hands the whole of it back in the chosen mode, Cash first, as phase
+ * 63 did. To split it, the cashier enters part of it and adds it, as the till takes tenders; once anything is
+ * added, the parts must come to exactly what is owed back (the server's rule, Decision D) before Complete is
+ * offered. A removed part hands focus back to the amount field, so the keyboard is never dropped.</p>
+ *
+ * <p><b>Another location's sale (phase 84).</b> Found by its full number; it is refunded here, out of this
+ * drawer, and its goods go back into this till's warehouse, which the sale panel says.</p>
  */
 @Component({
   selector: 'app-pos-refund-page',
@@ -69,6 +75,11 @@ export class PosRefundPage {
   protected readonly preview = signal<PosRefundPreview | null>(null);
   protected readonly previewing = signal(false);
   protected readonly payoutModeId = signal<string | null>(null);
+  /** Phase 84 -- the parts of a split payout, added one at a time; empty means "all of it in the chosen mode". */
+  protected readonly payouts = signal<PayoutRow[]>([]);
+  protected readonly payoutAmountText = signal('');
+  private nextPayoutKey = 1;
+  private readonly payoutAmountBox = viewChild<ElementRef<HTMLInputElement>>('payoutAmountBox');
   protected readonly submitting = signal(false);
   protected readonly done = signal<CreatePosRefundResult | null>(null);
   protected readonly printing = signal<PosRefundReceipt | null>(null);
@@ -81,15 +92,18 @@ export class PosRefundPage {
 
   protected readonly payoutModes = computed(() => this.till()?.paymentModes ?? []);
 
+  protected readonly requiredPaisa = computed(() => toPaisa(this.preview()?.requiredPayout ?? 0));
+  protected readonly addedPaisa = computed(() => this.payouts().reduce((sum, x) => sum + x.paisa, 0));
+  protected readonly leftPaisa = computed(() => this.requiredPaisa() - this.addedPaisa());
+
   protected readonly canComplete = computed(() => {
+    // Every signal read up front: a computed records only what it read (phase 47's && trap).
     const preview = this.preview();
-    return (
-      !!preview &&
-      !this.previewing() &&
-      !this.submitting() &&
-      this.chosenLines().length > 0 &&
-      (preview.requiredPayout === 0 || !!this.payoutModeId())
-    );
+    const previewing = this.previewing();
+    const submitting = this.submitting();
+    const chosen = this.chosenLines().length;
+    const paidOut = this.payouts().length === 0 ? !!this.payoutModeId() : this.leftPaisa() === 0;
+    return !!preview && !previewing && !submitting && chosen > 0 && (preview.requiredPayout === 0 || paidOut);
   });
 
   constructor() {
@@ -141,12 +155,14 @@ export class PosRefundPage {
     this.errorMessage.set(null);
     this.successMessage.set(null);
     this.done.set(null);
-    this.posService.getRefundableSale(this.organizationId, invoiceId).subscribe({
+    const till = this.till();
+    if (!till) return;
+    this.posService.getRefundableSale(this.organizationId, till.locationId, invoiceId).subscribe({
       next: (sale) => {
         this.sale.set(sale);
         this.quantities.set({});
         this.reason.set('');
-        this.preview.set(null);
+        this.setPreview(null);
         afterNextRender(() => document.getElementById('pos-refund-sale-heading')?.focus(), { injector: this.injector });
       },
       error: (err: unknown) => this.errorMessage.set(extractErrorMessage(err) ?? 'Could not read that sale.'),
@@ -155,7 +171,7 @@ export class PosRefundPage {
 
   protected backToSearch(): void {
     this.sale.set(null);
-    this.preview.set(null);
+    this.setPreview(null);
     this.done.set(null);
     this.search();
     afterNextRender(() => this.searchBox()?.nativeElement.focus(), { injector: this.injector });
@@ -189,7 +205,7 @@ export class PosRefundPage {
     if (!sale || !session) return;
 
     if (lines.length === 0) {
-      this.preview.set(null);
+      this.setPreview(null);
       return;
     }
 
@@ -199,12 +215,12 @@ export class PosRefundPage {
       next: (preview) => {
         if (request !== this.previewRequest) return;
         this.previewing.set(false);
-        this.preview.set(preview);
+        this.setPreview(preview);
       },
       error: (err: unknown) => {
         if (request !== this.previewRequest) return;
         this.previewing.set(false);
-        this.preview.set(null);
+        this.setPreview(null);
         this.errorMessage.set(extractErrorMessage(err) ?? 'Could not work out the refund.');
       },
     });
@@ -216,6 +232,57 @@ export class PosRefundPage {
 
   protected onPayoutMode(modeId: string): void {
     this.payoutModeId.set(modeId);
+  }
+
+  protected onPayoutAmount(event: Event): void {
+    this.payoutAmountText.set((event.target as HTMLInputElement).value);
+  }
+
+  /** A new figure starts the payout afresh: parts added against the old one no longer add up to anything. */
+  private setPreview(preview: PosRefundPreview | null): void {
+    this.preview.set(preview);
+    this.payouts.set([]);
+    this.payoutAmountText.set(preview && preview.requiredPayout > 0 ? preview.requiredPayout.toFixed(2) : '');
+  }
+
+  /** Phase 84 -- one part of a split payout, in the chosen mode, at most what is still to hand back. */
+  protected addPayout(): void {
+    const mode = this.payoutModes().find((x) => x.id === this.payoutModeId());
+    const amount = Number(this.payoutAmountText().trim());
+    if (!mode) {
+      this.fieldError.fail('pos-refund-payout-amount', 'Choose how this part is handed back.');
+      return;
+    }
+    if (!Number.isFinite(amount) || amount <= 0) {
+      this.fieldError.fail('pos-refund-payout-amount', `Enter the amount handed back in ${mode.name}.`);
+      return;
+    }
+    if (Number(amount.toFixed(2)) !== amount) {
+      this.fieldError.fail('pos-refund-payout-amount', 'Enter rupees and paisa, at most two decimal places.');
+      return;
+    }
+    if (toPaisa(amount) > this.leftPaisa()) {
+      this.fieldError.fail(
+        'pos-refund-payout-amount',
+        `Only ${money.transform(fromPaisa(this.leftPaisa()))} is still to hand back.`);
+      return;
+    }
+
+    this.errorMessage.set(null);
+    this.payouts.set([...this.payouts(), { key: this.nextPayoutKey++, modeId: mode.id, modeName: mode.name, paisa: toPaisa(amount) }]);
+    this.payoutAmountText.set(this.leftPaisa() > 0 ? fromPaisa(this.leftPaisa()).toFixed(2) : '');
+    this.payoutAmountBox()?.nativeElement.focus();
+  }
+
+  /** Its own button goes with it, so focus goes back to the amount field that adds parts. */
+  protected removePayout(key: number): void {
+    this.payouts.set(this.payouts().filter((x) => x.key !== key));
+    this.payoutAmountText.set(fromPaisa(this.leftPaisa()).toFixed(2));
+    this.payoutAmountBox()?.nativeElement.focus();
+  }
+
+  protected fromPaisa(paisa: number): number {
+    return fromPaisa(paisa);
   }
 
   // ---- Completing ----
@@ -237,7 +304,19 @@ export class PosRefundPage {
     this.successMessage.set(null);
 
     const payoutModeId = this.payoutModeId();
-    const payouts = preview.requiredPayout > 0 && payoutModeId ? [{ paymentModeId: payoutModeId, amount: preview.requiredPayout }] : [];
+    const parts = this.payouts();
+    const payouts =
+      preview.requiredPayout === 0
+        ? []
+        : parts.length > 0
+          ? parts.map((x) => ({ paymentModeId: x.modeId, amount: fromPaisa(x.paisa) }))
+          : payoutModeId
+            ? [{ paymentModeId: payoutModeId, amount: preview.requiredPayout }]
+            : [];
+    const handedBack =
+      parts.length > 0
+        ? parts.map((x) => `${money.transform(fromPaisa(x.paisa))} in ${x.modeName}`).join(' and ')
+        : `${money.transform(preview.requiredPayout)} in ${till.paymentModes.find((x) => x.id === payoutModeId)?.name ?? 'cash'}`;
 
     this.posService
       .createRefund(this.organizationId, {
@@ -252,21 +331,20 @@ export class PosRefundPage {
         next: (result) => {
           this.submitting.set(false);
           this.done.set(result);
-          const mode = till.paymentModes.find((x) => x.id === payoutModeId);
           this.successMessage.set(
             `Refund ${result.code} complete: ${money.transform(result.grandTotal)}`
-            + (result.paidOut > 0 ? `, ${money.transform(result.paidOut)} handed back in ${mode?.name ?? 'cash'}` : '')
+            + (result.paidOut > 0 ? `, handed back ${handedBack}` : '')
             + (result.toAccount > 0 ? `, ${money.transform(result.toAccount)} taken off ${sale.customerName}'s account` : '')
             + '.');
           if (till.printCreditNote) {
             this.print(result.id);
           }
           // Re-read the sale, so what is left to refund is the server's figure again.
-          this.posService.getRefundableSale(this.organizationId, sale.invoiceId).subscribe({
+          this.posService.getRefundableSale(this.organizationId, till.locationId, sale.invoiceId).subscribe({
             next: (fresh) => {
               this.sale.set(fresh);
               this.quantities.set({});
-              this.preview.set(null);
+              this.setPreview(null);
               this.reason.set('');
             },
           });
@@ -303,4 +381,12 @@ export class PosRefundPage {
     this.loading.set(false);
     this.errorMessage.set(extractErrorMessage(err) ?? fallback);
   }
+}
+
+/** Phase 84 -- one part of a split payout. */
+interface PayoutRow {
+  key: number;
+  modeId: string;
+  modeName: string;
+  paisa: number;
 }

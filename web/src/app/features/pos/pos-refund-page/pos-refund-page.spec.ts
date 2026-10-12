@@ -45,7 +45,8 @@ describe('PosRefundPage', () => {
 
   const match: PosSaleMatch = {
     invoiceId: 'inv-1', code: '0001', date: '2026-10-01', soldAt: '2026-10-01T04:00:00Z', sessionCode: 'SES0001',
-    customerName: 'Cash Customer', isWalkIn: true, grandTotal: 633,
+    customerName: 'Cash Customer', isWalkIn: true, grandTotal: 633, soldAtLocationName: null, fullyRefunded: false,
+    refundableHere: true,
   };
 
   const sale = (overrides: Partial<PosRefundableSale> = {}): PosRefundableSale => ({
@@ -58,7 +59,7 @@ describe('PosRefundPage', () => {
       { invoiceLineId: 'l-coke', productId: 'coke', productName: 'Coke 250ml', unitShortName: 'pc', sold: 2, remaining: 2,
         rate: 60, discountPct: 0, serviceChargeRate: 0, packagingFeeAmount: 0, vatRate: 'ThirteenPercentVat', lineTotal: 135.6, discountPerUnit: 0 },
     ],
-    priorRefunds: [], canRefund: true,
+    priorRefunds: [], canRefund: true, soldAtLocationName: null, returnWarehouseName: 'Main',
     ...overrides,
   });
 
@@ -67,19 +68,26 @@ describe('PosRefundPage', () => {
     subTotal: 60, serviceCharge: 0, packagingFee: 0, vat: 7.8, roundOff: 0.2, grandTotal: 68, owedBefore: 0, requiredPayout: 68, toAccount: 0,
   };
 
-  function page(options: { till?: PosTill; session?: PosSession | null; sale?: PosRefundableSale; preview?: PosRefundPreview; invoiceId?: string } = {}) {
+  function page(options: {
+    till?: PosTill; session?: PosSession | null; sale?: PosRefundableSale; preview?: PosRefundPreview; invoiceId?: string;
+    matches?: PosSaleMatch[];
+  } = {}) {
     const searched: string[] = [];
     const previews: PreviewPosRefundRequest[] = [];
     const created: CreatePosRefundRequest[] = [];
     const printed: string[] = [];
+    const read: string[] = [];
     const service = {
       getTill: (): Observable<PosTill> => of(options.till ?? till()),
       getMySession: (): Observable<PosSession | null> => of(options.session === undefined ? session : options.session),
       findSales: (_o: string, _l: string, search: string): Observable<PosSaleMatch[]> => {
         searched.push(search);
-        return of([match]);
+        return of(options.matches ?? [match]);
       },
-      getRefundableSale: (): Observable<PosRefundableSale> => of(options.sale ?? sale()),
+      getRefundableSale: (_o: string, l: string, invoiceId: string): Observable<PosRefundableSale> => {
+        read.push(`${l}/${invoiceId}`);
+        return of(options.sale ?? sale());
+      },
       previewRefund: (_o: string, request: PreviewPosRefundRequest): Observable<PosRefundPreview> => {
         previews.push(request);
         return of(options.preview ?? cokePreview);
@@ -130,6 +138,8 @@ describe('PosRefundPage', () => {
       previews,
       created,
       printed,
+      read,
+      render,
       text: () => {
         const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
         const parts: string[] = [];
@@ -202,7 +212,9 @@ describe('PosRefundPage', () => {
       sessionId: 'ses-1', locationId, invoiceId: 'inv-1', lines: [{ invoiceLineId: 'l-coke', quantity: 1 }],
       payouts: [{ paymentModeId: 'm-cash', amount: 68 }], reason: 'Damaged can',
     }]);
-    expect(p.text()).toContain('Refund CN0001 complete: 68.00, 68.00 handed back in Cash.');
+    expect(p.text()).toContain('Refund CN0001 complete: 68.00, handed back 68.00 in Cash.');
+    // Phase 84 -- the sale is read under this till.
+    expect(p.read[0]).toBe(`${locationId}/inv-1`);
     // The location prints credit notes, so the first print is made at once.
     expect(p.printed).toEqual(['cn-1']);
     expect(window.print).toHaveBeenCalled();
@@ -243,6 +255,92 @@ describe('PosRefundPage', () => {
     expect(p.text()).toContain('Sales.CreditNote.Create and Sales.CreditNote.Approve');
     expect(p.element.querySelector('#pos-refund-search')).toBeNull();
     expect(p.searched).toEqual([]);
+  });
+
+  // ---- Phase 84 ----------------------------------------------------------------------------------
+
+  const twoCokes: PosRefundPreview = {
+    ...cokePreview, subTotal: 120, vat: 15.6, roundOff: 0.4, grandTotal: 136, requiredPayout: 136,
+  };
+
+  it('splits a payout across modes, a part at a time, and sends exactly the parts', () => {
+    const p = page({ preview: twoCokes });
+    p.press('Refund');
+    p.quantity('l-coke', 2);
+    p.type('pos-refund-reason', 'Flat');
+
+    const amount = () => p.element.querySelector<HTMLInputElement>('#pos-refund-payout-amount')!;
+    expect(amount().value).toBe('136.00');
+
+    // 100 in Cash, the default mode.
+    p.type('pos-refund-payout-amount', '100');
+    p.press('Add part');
+    expect(p.text()).toContain('Still to hand back 36.00');
+    expect(amount().value).toBe('36.00');
+    expect(document.activeElement).toBe(amount());
+    const complete = () => [...p.element.querySelectorAll<HTMLButtonElement>('button')].find((x) => x.textContent?.includes('Complete Refund'))!;
+    expect(complete().disabled).toBe(true);
+
+    // The rest by Card.
+    p.element.querySelector<HTMLInputElement>('#pos-refund-mode-m-card')!.dispatchEvent(new Event('change'));
+    p.press('Add part');
+    expect(p.text()).toContain('All of it is accounted for.');
+    expect(complete().disabled).toBe(false);
+
+    p.submit();
+    expect(p.created[0].payouts).toEqual([
+      { paymentModeId: 'm-cash', amount: 100 },
+      { paymentModeId: 'm-card', amount: 36 },
+    ]);
+    expect(p.text()).toContain('handed back 100.00 in Cash and 36.00 in Card.');
+  });
+
+  it('refuses a part larger than what is left, and a removed part hands focus back to the amount', () => {
+    const p = page({ preview: twoCokes });
+    p.press('Refund');
+    p.quantity('l-coke', 2);
+
+    p.type('pos-refund-payout-amount', '200');
+    p.press('Add part');
+    const amount = p.element.querySelector<HTMLInputElement>('#pos-refund-payout-amount')!;
+    expect(amount.getAttribute('aria-invalid')).toBe('true');
+    expect(p.text()).toContain('Only 136.00 is still to hand back.');
+
+    p.type('pos-refund-payout-amount', '50');
+    p.press('Add part');
+    const remove = p.element.querySelector<HTMLButtonElement>('[aria-label="Remove Cash 50.00"]')!;
+    remove.focus();
+    remove.click();
+    p.render();
+    expect(p.element.querySelector('[aria-label="Remove Cash 50.00"]')).toBeNull();
+    expect(document.activeElement).toBe(p.element.querySelector('#pos-refund-payout-amount'));
+    expect(p.element.querySelector<HTMLInputElement>('#pos-refund-payout-amount')!.value).toBe('136.00');
+  });
+
+  it('names another location’s sale, marks a fully refunded one, and offers no refund of either it cannot make', () => {
+    const p = page({
+      matches: [
+        { ...match, invoiceId: 'inv-away', code: 'INV0009/1003', soldAtLocationName: 'POS Retail' },
+        { ...match, invoiceId: 'inv-done', code: '0002', fullyRefunded: true },
+        { ...match, invoiceId: 'inv-sc', code: 'INV0004/1002', soldAtLocationName: 'POS Restaurant', refundableHere: false },
+      ],
+    });
+
+    expect(p.text()).toContain('sold at POS Retail');
+    expect(p.text()).toContain('Fully refunded');
+    expect(p.text()).toContain('Refund it at POS Restaurant');
+    const refundButtons = [...p.element.querySelectorAll<HTMLButtonElement>('table button')];
+    expect(refundButtons.map((x) => x.textContent?.replace(/\s+/g, ' ').trim())).toEqual(['Refund bill INV0009/1003']);
+  });
+
+  it('says where another location’s sale was sold and where its goods go back', () => {
+    const p = page({
+      invoiceId: 'inv-away',
+      sale: sale({ soldAtLocationName: 'POS Retail', returnWarehouseName: 'Lakeside Store' }),
+    });
+
+    expect(p.text()).toContain('Sold at POS Retail.');
+    expect(p.text()).toContain('the goods go back into Lakeside Store.');
   });
 
   it('sends a cashier with no open session to the till first', () => {

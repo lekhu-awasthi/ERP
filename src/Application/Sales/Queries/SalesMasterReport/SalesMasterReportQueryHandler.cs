@@ -82,7 +82,7 @@ public sealed class SalesMasterReportQueryHandler(IAppDbContext db, ICurrentUser
             .Select(x => new
             {
                 x.Id, x.ContactId, x.LocationId, x.Code, x.Reference, x.Date, x.ReferrerType, x.ReferrerId,
-                x.Channel, x.PosSessionId,
+                x.Channel, x.PosSessionId, x.WarehouseId,
             })
             .ToListAsync(cancellationToken);
         var creditNoteIds = creditNotes.Select(x => x.Id).ToList();
@@ -97,9 +97,10 @@ public sealed class SalesMasterReportQueryHandler(IAppDbContext db, ICurrentUser
             .Select(x => new { x.CreditNoteId, x.ProductId, x.Quantity, x.Rate, x.VatRate, x.DiscountPct, x.DiscountPerUnit, x.Amount, x.ServiceChargeAmount, x.PackagingFeeAmount, x.VatAmount })
             .ToListAsync(cancellationToken);
 
-        // CreditNote carries no WarehouseId of its own -- resolve it from the source Invoice when
+        // An ERP CreditNote carries no WarehouseId of its own -- resolve it from the source Invoice when
         // this CreditNote actually reverses one, same lookup ApproveCreditNoteCommandHandler
-        // already does for FIFO reversal. See SalesMasterReportQuery's doc comment.
+        // already does for FIFO reversal. See SalesMasterReportQuery's doc comment. Phase 84 -- a till
+        // refund names its own (another branch's, when it was refunded there), which wins.
         var referredInvoiceIds = creditNotes
             .Where(x => x.ReferrerType == DocumentType.Invoice && x.ReferrerId is not null)
             .Select(x => x.ReferrerId!.Value)
@@ -126,7 +127,8 @@ public sealed class SalesMasterReportQueryHandler(IAppDbContext db, ICurrentUser
                 .Select(x => new { x.Id, x.Name })
                 .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
 
-        var warehouseIds = invoices.Select(x => x.WarehouseId).Concat(referredInvoiceWarehouses.Values).Distinct().ToList();
+        var warehouseIds = invoices.Select(x => x.WarehouseId).Concat(referredInvoiceWarehouses.Values)
+            .Concat(creditNotes.Select(x => x.WarehouseId).OfType<Guid>()).Distinct().ToList();
         var warehouseNames = warehouseIds.Count == 0
             ? new Dictionary<Guid, string>()
             : await db.Warehouses
@@ -203,8 +205,8 @@ public sealed class SalesMasterReportQueryHandler(IAppDbContext db, ICurrentUser
         {
             var creditNote = creditNotesById[line.CreditNoteId];
 
-            Guid? resolvedWarehouseId = null;
-            if (creditNote.ReferrerType == DocumentType.Invoice && creditNote.ReferrerId is { } sourceInvoiceId
+            Guid? resolvedWarehouseId = creditNote.WarehouseId;
+            if (resolvedWarehouseId is null && creditNote.ReferrerType == DocumentType.Invoice && creditNote.ReferrerId is { } sourceInvoiceId
                 && referredInvoiceWarehouses.TryGetValue(sourceInvoiceId, out var sourceWarehouseId))
             {
                 resolvedWarehouseId = sourceWarehouseId;

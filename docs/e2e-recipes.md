@@ -124,8 +124,21 @@ beside a 200 from the same user, and create a fresh Organization per phase.
 
 - Refunds at the till (phase 63), under `/{org}/pos`:
   - `GET /tills/{locationId}/sales?search=` finds approved till sales of that location by number
-    (newest 20). `GET /sales/{invoiceId}/refundable` returns the lines with `invoiceLineId`, `sold`,
-    `remaining`, plus `owed`, `priorRefunds` and `canRefund`.
+    (newest 20). Phase 84: plus another location's sale whose number is **exactly** `search`, only for a
+    caller holding `Sales.CreditNote.Create` and `.Approve` at `locationId`; each row has
+    `soldAtLocationName` (null at home), `fullyRefunded` and `refundableHere` (false for another
+    location's sale carrying service charge or packaging fee).
+  - `GET /tills/{locationId}/sales/{invoiceId}/refundable` (phase 84; was `/sales/{id}/refundable`)
+    returns the lines with `invoiceLineId`, `sold`, `remaining`, plus `owed`, `priorRefunds`,
+    `canRefund`, `soldAtLocationName` and `returnWarehouseName`. A home sale needs `Sales.Invoice.View`
+    at the till; an away one the two refund keys there (a 403 naming the missing one). An away sale
+    with service charge is a 409; a refunding location with no default warehouse is a 409 naming it.
+  - Phase 84: `POST /products` must send **`availableForSale: true`** for a till seed; absent, it binds to false and
+    `POST /pos/sales` is a 409 "'Coke 250ml' is not available for sale.". In SQL a till refund's warehouse is
+    `sales.CreditNotes.WarehouseId` (NULL on older and ERP notes, meaning the sale's). The 403-not-404 pair for the
+    refundable read: a nonexistent id is 404 "Sale not found." as Admin and **403 naming `Sales.Invoice.View`** from a
+    role holding every Admin key but that one; from a role lacking only `Sales.CreditNote.Approve` the nonexistent id is
+    404 and another location's real sale is **403 naming `<CODE>.Sales.CreditNote.Approve`**.
   - `POST /refunds/preview {sessionId, invoiceId, lines: [{invoiceLineId, quantity}]}` returns the
     server's figure: `grandTotal`, `roundOff`, `owedBefore`, `requiredPayout`, `toAccount`.
   - `POST /refunds {sessionId, locationId, invoiceId, lines, payouts: [{paymentModeId, amount}], reason}`.

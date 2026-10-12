@@ -60,6 +60,9 @@ internal sealed class PosTestTill
     public static readonly string[] CashierKeys =
     [
         PermissionKeys.InvoiceCreate, PermissionKeys.InvoiceApprove, PermissionKeys.InvoiceVoid,
+        // Phase 84 -- finding and reading a sale of this till's location asks for View in the handler, as a default
+        // Member holds it.
+        PermissionKeys.InvoiceView,
         PermissionKeys.PosSessionOperate, PermissionKeys.PosSessionViewAll,
         // Phase 63 -- a refund is a credit note created approved.
         PermissionKeys.CreditNoteView, PermissionKeys.CreditNoteCreate, PermissionKeys.CreditNoteApprove,
@@ -183,6 +186,60 @@ internal sealed class PosTestTill
     }
 
     public static DateOnly Today => NepalTime.LocalDate(DateTimeOffset.UtcNow);
+
+    /// <summary>
+    /// Phase 84 -- a second Retail branch of the same organization: its own location and default warehouse, the same
+    /// Cash and Card modes, and the same till settings. The returned till shares this one's context, user, accounts
+    /// and products, so a sale rung up here can be refunded there.
+    /// </summary>
+    public async Task<PosTestTill> AddBranchAsync(string name = "Lakeside Branch", bool withWarehouse = true)
+    {
+        Guid? warehouseId = null;
+        if (withWarehouse)
+        {
+            var warehouse = Warehouse.Create(OrganizationId, $"{name} Store");
+            Db.Warehouses.Add(warehouse);
+            warehouseId = warehouse.Id;
+        }
+
+        var branch = BillingLocation.Create(OrganizationId, "BR" + Guid.NewGuid().ToString("N")[..4], name, null, warehouseId);
+        branch.SetPosMode(PosMode.Retail);
+        Db.BillingLocations.Add(branch);
+
+        Db.PosLocationPaymentModes.AddRange(
+            PosLocationPaymentMode.Create(OrganizationId, branch.Id, CashModeId),
+            PosLocationPaymentMode.Create(OrganizationId, branch.Id, CardModeId));
+
+        var posSettings = PosLocationSettings.CreateDefault(OrganizationId, branch.Id);
+        posSettings.Update(
+            PosMode.Retail, serviceChargeEnabled: true, serviceChargeRate: 10m, serviceChargeAccountId: null,
+            serviceChargeOnTakeAway: true, packagingFee: PackagingFee.None, packagingFeeAccountId: null, roundOffEnabled: true, roundOffAccountId: null, cashVerificationRequired: false,
+            denominations: PosLocationSettings.DefaultDenominations, defaultTab: null,
+            printEstimateBill: true, printInvoice: true, printCreditNote: true, printKot: false,
+            abbreviatedTaxInvoiceEnabled: false);
+        Db.PosLocationSettings.Add(posSettings);
+        await Db.SaveChangesAsync();
+
+        return new PosTestTill
+        {
+            Db = Db,
+            Seed = Seed,
+            UserId = UserId,
+            Location = branch,
+            CashAccountId = CashAccountId,
+            BankAccountId = BankAccountId,
+            ServiceChargeAccountId = ServiceChargeAccountId,
+            PackagingFeeAccountId = PackagingFeeAccountId,
+            RoundingAccountId = RoundingAccountId,
+            OverShortAccountId = OverShortAccountId,
+            VegetablesAccountId = VegetablesAccountId,
+            CashModeId = CashModeId,
+            CardModeId = CardModeId,
+            WalkInId = WalkInId,
+            MomoId = MomoId,
+            CokeId = CokeId,
+        };
+    }
 
     public FakeCurrentUserService CurrentUser(Guid? userId = null) => new(userId ?? UserId);
 

@@ -22,16 +22,25 @@ public sealed class GetPosRefundableSaleQueryHandler(IAppDbContext db, ICurrentU
             .SingleOrDefaultAsync(x => x.Id == request.InvoiceId && x.OrganizationId == request.OrganizationId, cancellationToken)
             ?? throw new NotFoundException("Sale not found.");
 
-        if (invoice.Channel != SalesChannel.Pos)
+        var till = await PosTill.LoadAsync(db, request.OrganizationId, request.LocationId, cancellationToken);
+
+        // Phase 84 -- which keys apply depends on where the loaded sale was made.
+        var isHere = PosRefundPlanner.IsHere(invoice, till);
+        if (isHere)
         {
-            throw new ConflictException(
-                $"Invoice {invoice.Code} was not rung up at a till. Return it with a credit note from the invoice page.");
+            await GrantedPermissionReader.EnsureGrantedAtLocationAsync(
+                db, request.OrganizationId, currentUser.UserId, PermissionKeys.InvoiceView, till.Location.Id,
+                cancellationToken);
+        }
+        else
+        {
+            await EnsureMayRefundHereAsync(request.OrganizationId, till.Location.Id, cancellationToken);
         }
 
-        if (invoice.Status != InvoiceStatus.Approved)
-        {
-            throw new ConflictException($"Invoice {invoice.Code} has been voided, so there is nothing to refund.");
-        }
+        // The refund's own rules (till sale, approved, and from another branch only without a per-location fee),
+        // so the screen refuses exactly what the refund would.
+        PosRefundPlanner.EnsureRefundable(invoice, till);
+        var returnWarehouseId = PosRefundPlanner.WarehouseFor(invoice, till);
 
         var remainingByKey = await SalesValidation.GetInvoiceRemainingByLineAsync(
             db, request.OrganizationId, invoice, cancellationToken);
@@ -99,11 +108,20 @@ public sealed class GetPosRefundableSaleQueryHandler(IAppDbContext db, ICurrentU
         var owed = await PosRefundPlanner.OwedOnSaleAsync(
             db, request.OrganizationId, invoice, NepalTime.LocalDate(DateTimeOffset.UtcNow), cancellationToken);
 
-        var canRefund = invoice.LocationId is { } locationId
-            && await GrantedPermissionReader.IsGrantedAtLocationAsync(
-                db, request.OrganizationId, currentUser.UserId, PermissionKeys.CreditNoteCreate, locationId, cancellationToken)
-            && await GrantedPermissionReader.IsGrantedAtLocationAsync(
-                db, request.OrganizationId, currentUser.UserId, PermissionKeys.CreditNoteApprove, locationId, cancellationToken);
+        // At the till's location: that is where the refund is made, numbered and paid out.
+        var canRefund = !isHere || await MayRefundHereAsync(request.OrganizationId, till.Location.Id, cancellationToken);
+
+        var soldAtLocationName = isHere
+            ? null
+            : await db.BillingLocations
+                .Where(x => x.Id == invoice.LocationId && x.OrganizationId == request.OrganizationId)
+                .Select(x => x.Name)
+                .SingleOrDefaultAsync(cancellationToken) ?? "";
+
+        var returnWarehouseName = await db.Warehouses
+            .Where(x => x.Id == returnWarehouseId && x.OrganizationId == request.OrganizationId)
+            .Select(x => x.Name)
+            .SingleOrDefaultAsync(cancellationToken);
 
         return new PosRefundableSaleDto(
             invoice.Id,
@@ -120,6 +138,23 @@ public sealed class GetPosRefundableSaleQueryHandler(IAppDbContext db, ICurrentU
             owed,
             lines,
             [.. priorRefunds.Select(x => new PosPriorRefundDto(x.Id, x.Code, x.Date, x.GrandTotal))],
-            canRefund);
+            canRefund,
+            soldAtLocationName,
+            returnWarehouseName);
+    }
+
+    private async Task<bool> MayRefundHereAsync(Guid organizationId, Guid locationId, CancellationToken cancellationToken) =>
+        await GrantedPermissionReader.IsGrantedAtLocationAsync(
+            db, organizationId, currentUser.UserId, PermissionKeys.CreditNoteCreate, locationId, cancellationToken)
+        && await GrantedPermissionReader.IsGrantedAtLocationAsync(
+            db, organizationId, currentUser.UserId, PermissionKeys.CreditNoteApprove, locationId, cancellationToken);
+
+    /// <summary>The same two keys, refused with the missing key's own 403.</summary>
+    private async Task EnsureMayRefundHereAsync(Guid organizationId, Guid locationId, CancellationToken cancellationToken)
+    {
+        await GrantedPermissionReader.EnsureGrantedAtLocationAsync(
+            db, organizationId, currentUser.UserId, PermissionKeys.CreditNoteCreate, locationId, cancellationToken);
+        await GrantedPermissionReader.EnsureGrantedAtLocationAsync(
+            db, organizationId, currentUser.UserId, PermissionKeys.CreditNoteApprove, locationId, cancellationToken);
     }
 }

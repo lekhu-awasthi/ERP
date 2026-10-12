@@ -31,8 +31,12 @@ public sealed record PosPriorRefundDto(Guid CreditNoteId, string Code, DateOnly 
 /// </summary>
 /// <param name="Settled">What was paid at the till: tendered less change.</param>
 /// <param name="Owed">What the customer still owes on this sale now; a refund comes off this first.</param>
-/// <param name="CanRefund">Whether the caller holds <c>Sales.CreditNote.Approve</c> at the sale's location,
-/// which every refund needs (Decision E), so the screen can say so before the cashier picks lines.</param>
+/// <param name="CanRefund">Whether the caller holds <c>Sales.CreditNote.Create</c> and <c>.Approve</c> at the till's
+/// location, which every refund needs (Decision E), so the screen can say so before the cashier picks lines.</param>
+/// <param name="SoldAtLocationName">Phase 84 -- the selling location's name when it is not this till's; null for a
+/// sale of this location.</param>
+/// <param name="ReturnWarehouseName">Phase 84 -- where the returned goods go back into stock: the sale's warehouse at
+/// home, this till's default warehouse for another branch's sale.</param>
 public sealed record PosRefundableSaleDto(
     Guid InvoiceId,
     string Code,
@@ -48,15 +52,22 @@ public sealed record PosRefundableSaleDto(
     decimal Owed,
     IReadOnlyList<PosRefundableLineDto> Lines,
     IReadOnlyList<PosPriorRefundDto> PriorRefunds,
-    bool CanRefund);
+    bool CanRefund,
+    string? SoldAtLocationName,
+    string? ReturnWarehouseName);
 
-/// <summary>Read under <c>Sales.Invoice.View</c> at the sale's location, like its receipt.</summary>
-public sealed record GetPosRefundableSaleQuery(Guid OrganizationId, Guid InvoiceId)
-    : IRequest<PosRefundableSaleDto>, IRequirePermission, IOrganizationScoped, IRequireAnyFeature, ILocationScopedDocument
+/// <summary>
+/// A sale as the till at <see cref="LocationId"/> would refund it. Phase 84 moved it under the till: a sale of this
+/// location is read under <c>Sales.Invoice.View</c> here, like its receipt; another location's (phase 84, Decision B)
+/// under the refund's own two keys here, <c>Sales.CreditNote.Create</c> and <c>.Approve</c>, with no grant at the
+/// selling branch -- the customer is holding the bill. Both are re-checked in the handler, because which applies
+/// depends on the loaded sale (the <c>AttachmentAccess</c> shape); the pipeline admits a caller holding View at any
+/// location (<see cref="ILocationFilteredQuery"/>).
+/// </summary>
+public sealed record GetPosRefundableSaleQuery(Guid OrganizationId, Guid LocationId, Guid InvoiceId)
+    : IRequest<PosRefundableSaleDto>, IRequirePermission, IOrganizationScoped, IRequireAnyFeature, ILocationFilteredQuery
 {
     public string PermissionKey => PermissionKeys.InvoiceView;
 
     public IReadOnlyCollection<TenantFeature> AnyOfFeatures => PosFeatures.Any;
-
-    public Guid LocationDocumentId => InvoiceId;
 }
