@@ -1,7 +1,7 @@
 import { Component, input, output } from '@angular/core';
 
 import { BsDateInput } from '../formatting/bs-date-input';
-import { nepalToday } from '../formatting/nepal-time';
+import { nepalToday, shiftDay } from '../formatting/nepal-time';
 
 /** A period of Nepal business days, `yyyy-MM-dd` both ends inclusive. */
 export interface PosPeriod {
@@ -11,8 +11,7 @@ export interface PosPeriod {
 
 /** `yyyy-MM-dd` moved by whole days, on the calendar alone (no clock, so no time zone to get wrong). */
 export function shiftDate(date: string, days: number): string {
-  const ms = Date.parse(`${date}T00:00:00Z`) + days * 86_400_000;
-  return new Date(ms).toISOString().slice(0, 10);
+  return shiftDay(date, days);
 }
 
 /** The last `days` Nepal business days, ending today. */

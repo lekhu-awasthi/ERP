@@ -120,6 +120,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 86: a sale records the accounts its service charge and packaging fee went into (`Invoice.ServiceChargeAccountId`/`.PackagingFeeAccountId`) and a refund reverses into them; older sales keep the old rule; the credit-note list names where returned goods went (`CreditNoteReturnWarehouses`, shared with the page). Before reversing into an account a setting chose, or giving a list a figure its aggregate lacks — `docs/phase-86-status.md`
 - Phase 87: an invoice and a purchase bill record every account they post to (`RecordPostingAccounts`); credit notes, debit notes, a refund's payout, receipts and supplier payments use them (`RecordedSaleAccounts`, `RecordedBillAccounts`, `PaymentControlAccounts`); no backfill. Before writing anything that reverses, returns or settles a document — `docs/phase-87-status.md`
 - Phase 88: the FIFO Suggest had no membership check since phase 5 (now gated, and `OrganizationScopeSweepGuardTests` fails any request naming an organization unscoped); the payment preview and Approve share `PaymentGlLines`; the four allocation pickers list one contact's open documents (`ListOpenAllocationTargetsQuery`, the shared reader). Before a request that names an organization, a preview of an action, or a picker — `docs/phase-88-status.md`
+- Phase 89: the VAT Summary is the IRD return (a BS fiscal year, twelve month columns, English + the form's Nepali, credit carried across years) read through the registers' readers (`SalesBookReader`, `PurchaseBookReader`); expenses join the purchase book; Annex 5/13 export in BS; the client's day is the Nepal day in 67 sources. Before a statutory report, a client date default, or a new caller of a shared reader — `docs/phase-89-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -315,6 +316,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A GL line has no role, so the account an original used cannot be read back from its entry; record it on the document when decided (`Invoice.ServiceChargeAccountId`, phase-86).
 - Today's settings are a hidden input to every reversal: test it with a default moved between the document and its reversal, against a twin reversed before the move (phase-87).
 - A preview built apart from its action drifts with every phase that changes the action: currency (28) and the split (87) never reached the payment preview. One builder, a test holding them equal (phase-88).
+- A new caller of a shared reader asks what it leaves out: the VAT return on the Purchase Register's reader found expenses in no purchase book since phase 8c (phase-89).
 - A posting that splits only sometimes must emit the old entry when it does not (`SplitLinesAsync` returns null), so the unchanged suite proves nothing else moved (phase-87).
 
 - Rich text is sanitised on write, in the Domain setter, by re-emission from a parsed tree, never by filtering; `Sanitize` must stay idempotent (phase-39).
@@ -415,6 +417,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - Never bind `[value]` on a signal-fed native `<select>`; bind `[selected]` per `<option>` — this persisted wrong `WarehouseId`s, not just display glitches (phase-5/6/7).
 - Footer totals on paginated screens come from a server-computed field over the full filtered set, never a client-side reduce over one page (phase-16c bug #1).
 - A picker that loads the organization's first N and filters by contact in the browser offers what is settled and loses the N+1th; ask the server for one contact's open rows (phase-88).
+- `new Date(y, m, 1).toISOString()` or a `T00:00:00` parse without `Z` is the day before in Kathmandu: reports opened and due dates came out a day early. Use `nepal-time.ts`; a guard bans the shapes (phase-89).
 - The app is zoneless: a `computed()` over a plain `FormControl.value` caches forever; track UI-driving values in their own `signal()` written by the control's event handler (phase-17).
 - A cached signal created lazily inside a `computed()` throws `NG0600` the moment its source resolves **synchronously** (a test double); real HTTP hides it. `untracked()` the subscribe and the writes (phase-35a's `BillingLocationStore`).
 - Bootstrap's JavaScript is not loaded anywhere (`angular.json` has no `scripts`), so `data-bs-toggle` does nothing; drive menus from a signal (phase-22).
@@ -555,6 +558,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A `sed -i` over a glob rewrites every matched file and flips CRLF to LF on Windows even where the pattern never fires; restrict the file list (phase-30).
 - When a generator script emits Angular templates through `str.format`, interpolation braces need escaping in the *format string* but not in a substituted value — `{{{{ x }}}}` in a value ships literally and fails as NG5002 (phase-26b).
 - A benchmark against an empty tenant looks fast (20 ms p95, all 200); a harness must assert its target is populated before timing it (phase-34c).
+- A screen designed before the reference product was opened is a hypothesis however long it ships: the VAT Summary was rate buckets; the vendor's is the IRD return by BS month (phase-89).
 - A route is not a feature: the vendor ships `/sales/recurring-invoices` with full list chrome over an endpoint that 404s and a key that does not exist. Census its **permission keys**, not its screens (phase-53).
 - A settings key no client writes is a default, not a control: the vendor's `_sorts` is in every print template and in none of its scripts, so "block ordering" was retired, not built (phase-79).
 - A census is evidence only when it **reproduces to the row**: 162 against phase 53's 166 was four `-alter` keys the stricter regex did not list, on a byte-identical bundle (phase-57).
@@ -574,27 +578,27 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 
 ## Current status
 
-**Phases 0-88 are complete. Next: not yet scheduled** (the user picks; candidates in `docs/roadmap.md`).
+**Phases 0-89 are complete. Next: not yet scheduled** (the user picks; candidates in `docs/roadmap.md`).
 Each phase's story is in its `docs/phase-N-status.md`, and finished planning entries are archived in
 `docs/roadmap-history.md`.
 
-**Phase 88 fixed the payment screens.**
+**Phase 89 made the VAT Summary the IRD return and dated the statutory exports in BS.**
 
-- `GET /payments/default-allocations` (Suggest) skipped `AuthorizationBehavior` from phase 5 to 87: any signed-in user
-  could read another organization's open documents. It now takes the target's view key; a guard covers the class.
-- The payment GL preview takes currency, rate and allocations and is built by Approve's own builder
-  (`PaymentGlLines`), so it shows phase 87's split and the forex. The four allocation pickers list one contact's
-  open documents in one currency, due date first (`GET /payments/open-allocation-targets`), and Suggest fills those
-  rows. No migration, no new keys.
+- The VAT Summary takes a BS fiscal year (`?fiscalYear=`) and returns the return's lines by BS month, English with the
+  form's Nepali, a month's credit brought forward across the year's end. It reads the registers' own readers, so a
+  month equals the Sales and Purchase Registers; expenses are now in the purchase book and the return.
+- The return, Annex 5 and Annex 13 export in BS with AD beside it; Annex 5 gains Fiscal Year, Discount (Amount is
+  before it), prints and Entered By; both annexes open on this fiscal year to date; an ERP return names its warehouse.
+- The client's calendar day is the Nepal day in 67 sources (`nepal-time.ts`, guarded). No migration, no new keys.
 
-**Next:** not yet scheduled. Candidates: phase 86 § 5 (an ERP return's page naming its warehouse), phase 83 § 5 (a
-per-part service charge waiver), phase 79 § 5 (positioning, renames, the vendor's DN/GRN/WT templates, lakh grouping,
-the money receipt on the roll), phase 71 § 5 (the annex exports in BS), phase 88 § 5 (the vendor's per-row allocation
-table).
+**Next:** not yet scheduled. Candidates: phase 89 § 5 (the vendor's expense VAT, a tax advisor on the carry), phase 83
+§ 5 (a per-part service charge waiver), phase 79 § 5 (positioning, renames, the vendor's DN/GRN/WT templates, lakh
+grouping, the money receipt on the roll), phase 88 § 5 (the vendor's per-row allocation table), phase 87 § 5 /
+Decision G.
 
-Tests: Domain 1032, Application.UnitTests **1805**, Infrastructure.UnitTests 14,
-Api.IntegrationTests 71, Angular **864**. Everything was green at phase 88's close with Docker up.
-The bundle sits at **652.58 kB** against `build-budget.spec.ts`'s 680 kB; every POS screen is lazy.
+Tests: Domain 1032, Application.UnitTests **1813**, Infrastructure.UnitTests 14,
+Api.IntegrationTests **76**, Angular **881**. Everything was green at phase 89's close with Docker up.
+The bundle sits at **653.05 kB** against `build-budget.spec.ts`'s 680 kB; every POS screen is lazy.
 
 - `Api.IntegrationTests` needs Docker Desktop running. Without it the Testcontainers-backed tests
   fail in their constructors with `DockerEndpointAuthConfig` before any assertion, which reads like

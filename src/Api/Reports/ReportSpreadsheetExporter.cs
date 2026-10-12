@@ -150,25 +150,41 @@ public static partial class ReportSpreadsheetExporter
             report.Rows,
             sheet => WriteTotalRow(sheet, report.Rows.Count, "Total Amount", 19, report.TotalAmount));
 
+    /// <summary>Phase 89 -- the bill date in BS and AD, whatever the toggle says, as the statutory registers have printed it
+    /// since phase 71; the fiscal year the vendor's view leads with; and the columns this app can now back (Discount, the
+    /// counted prints, who entered the bill). Amount is before discount, as on the vendor's view.</summary>
     public static IResult ExportAnnexFiveReport(AnnexFiveReportDto report, DateOnly fromDate, DateOnly toDate) =>
         ExportTable(
             "Annex 5",
             FileName("AnnexFiveReport", fromDate, toDate),
             [
-                ("Bill Date", (AnnexFiveReportRowDto r) => (object?)r.BillDate),
+                ("Fiscal Year", (AnnexFiveReportRowDto r) => r.FiscalYear is { } fy ? $"{fy}-{fy + 1}" : null),
+                (RegisterBsDateHeader, r => RegisterBsDate(r.BillDate)),
+                (RegisterAdDateHeader, r => RegisterAdDate(r.BillDate)),
                 ("Document Type", r => r.DocumentType.ToString()),
                 ("Bill No", r => r.BillNo),
                 ("Contact Code", r => r.ContactCode),
                 ("Contact Name", r => r.ContactName),
                 ("Contact PAN", r => r.ContactPan),
                 ("Amount", r => r.Amount),
+                ("Discount", r => r.Discount),
                 ("Taxable Amount", r => r.TaxableAmount),
                 ("Tax Amount", r => r.TaxAmount),
                 ("Total Amount", r => r.TotalAmount),
                 ("Active", r => r.IsActive),
+                ("Print Count", r => r.PrintCount),
+                // The original bill's print, on the Nepal wall clock: its day as a bill's date is written, then the time.
+                ("Printed At", r => r.PrintedAt is { } at
+                    ? $"{BillDate.Format(NepalTime.LocalDate(at))} {NepalTime.ToLocal(at):HH:mm}"
+                    : null),
+                ("Printed By", r => r.PrintedBy),
+                ("Entered By", r => r.EnteredBy),
             ],
-            report.Rows);
+            report.Rows,
+            periodLine: BillDate.FormatRange(fromDate, toDate));
 
+    /// <summary>Phase 89 -- a per-contact rollup carries no date of its own, so the period it covers is printed above it,
+    /// BS with AD beside it, whatever the toggle says.</summary>
     public static IResult ExportAnnexThirteenReport(AnnexThirteenReportDto report, DateOnly fromDate, DateOnly toDate) =>
         ExportTable(
             "Annex 13",
@@ -188,7 +204,8 @@ public static partial class ReportSpreadsheetExporter
                 ("Total Activity", r => r.TotalActivity),
                 ("Closing Balance", r => r.ClosingBalance),
             ],
-            report.Rows);
+            report.Rows,
+            periodLine: BillDate.FormatRange(fromDate, toDate));
 
     public static IResult ExportTdsReport(TdsReportDto report, DateOnly fromDate, DateOnly toDate) =>
         ExportTable(
@@ -311,59 +328,76 @@ public static partial class ReportSpreadsheetExporter
             XlsxContentType,
             FileName($"{contactTypeLabel}Statement", report.FromDate, report.ToDate));
 
+    /// <summary>
+    /// Phase 89 -- the VAT return as the screen shows it: a line per row (English, then the IRD form's Nepali), a BS month
+    /// per column with the AD range it covers beneath, and the year's total. <b>BS whatever the toggle says</b> (phase 71's
+    /// rule for a statutory export, the user's 2026-10-12 choice): the columns are BS months by construction, and the
+    /// period line and the AD ranges are printed BS first with AD beside. So the file name carries no calendar marker.
+    /// Negative figures print in parentheses, which is how the settlement lines' "(credit)" reads.
+    /// </summary>
     public static IResult ExportVatSummaryReport(VatSummaryReportDto report) =>
         Results.Stream(
             async stream =>
             {
                 using var workbook = new XLWorkbook();
+                var sheet = workbook.Worksheets.Add("VAT Return");
 
-                var salesSheet = workbook.Worksheets.Add("Sales VAT");
-                string[] salesHeaders = ["VAT Rate", "Net Sales Amount", "Output VAT Amount"];
-                for (var c = 0; c < salesHeaders.Length; c++)
-                {
-                    salesSheet.Cell(1, c + 1).Value = salesHeaders[c];
-                    salesSheet.Cell(1, c + 1).Style.Font.Bold = true;
-                }
-                for (var r = 0; r < report.SalesBuckets.Count; r++)
-                {
-                    var bucket = report.SalesBuckets[r];
-                    salesSheet.Cell(r + 2, 1).Value = bucket.VatRate.ToString();
-                    WriteNumericCell(salesSheet, r + 2, 2, bucket.NetSalesAmount);
-                    WriteNumericCell(salesSheet, r + 2, 3, bucket.OutputVatAmount);
-                }
-                var salesTotalRow = report.SalesBuckets.Count + 2;
-                salesSheet.Cell(salesTotalRow, 1).Value = "Total Output VAT";
-                salesSheet.Cell(salesTotalRow, 1).Style.Font.Bold = true;
-                WriteNumericCell(salesSheet, salesTotalRow, 3, report.TotalOutputVat);
-                salesSheet.Columns().AdjustToContents();
+                sheet.Cell(1, 1).Value = $"VAT Summary, fiscal year {report.FiscalYear}-{report.FiscalYear + 1}";
+                sheet.Cell(1, 1).Style.Font.Bold = true;
+                sheet.Cell(2, 1).Value = BillDate.FormatRange(report.FromDate, report.ToDate);
 
-                var purchaseSheet = workbook.Worksheets.Add("Purchase VAT");
-                string[] purchaseHeaders = ["VAT Rate", "Net Purchase Amount", "Input VAT Amount"];
-                for (var c = 0; c < purchaseHeaders.Length; c++)
+                const int headerRow = 4;
+                sheet.Cell(headerRow, 1).Value = "Line";
+                sheet.Cell(headerRow, 2).Value = "Line (Nepali)";
+                for (var c = 0; c < report.Columns.Count; c++)
                 {
-                    purchaseSheet.Cell(1, c + 1).Value = purchaseHeaders[c];
-                    purchaseSheet.Cell(1, c + 1).Style.Font.Bold = true;
+                    var column = report.Columns[c];
+                    sheet.Cell(headerRow, c + 3).Value = column.Label;
+                    sheet.Cell(headerRow + 1, c + 3).Value = $"{BillDate.Ad(column.FromDate)} to {BillDate.Ad(column.ToDate)} AD";
                 }
-                for (var r = 0; r < report.PurchaseBuckets.Count; r++)
-                {
-                    var bucket = report.PurchaseBuckets[r];
-                    purchaseSheet.Cell(r + 2, 1).Value = bucket.VatRate.ToString();
-                    WriteNumericCell(purchaseSheet, r + 2, 2, bucket.NetPurchaseAmount);
-                    WriteNumericCell(purchaseSheet, r + 2, 3, bucket.InputVatAmount);
-                }
-                var purchaseTotalRow = report.PurchaseBuckets.Count + 2;
-                purchaseSheet.Cell(purchaseTotalRow, 1).Value = "Total Input VAT";
-                purchaseSheet.Cell(purchaseTotalRow, 1).Style.Font.Bold = true;
-                WriteNumericCell(purchaseSheet, purchaseTotalRow, 3, report.TotalInputVat);
-                purchaseSheet.Cell(purchaseTotalRow + 2, 1).Value = "Net VAT Payable";
-                purchaseSheet.Cell(purchaseTotalRow + 2, 1).Style.Font.Bold = true;
-                WriteNumericCell(purchaseSheet, purchaseTotalRow + 2, 3, report.NetVatPayable);
-                purchaseSheet.Columns().AdjustToContents();
+                var totalColumn = report.Columns.Count + 3;
+                sheet.Cell(headerRow, totalColumn).Value = "Total";
+                sheet.Row(headerRow).Style.Font.Bold = true;
 
+                var row = headerRow + 2;
+                VatReturnSection? section = null;
+                foreach (var line in report.Lines)
+                {
+                    if (section is not null && section != line.Section)
+                    {
+                        row++;
+                    }
+                    section = line.Section;
+
+                    sheet.Cell(row, 1).Value = line.Label;
+                    sheet.Cell(row, 2).Value = line.LabelNepali;
+                    for (var c = 0; c < line.Monthly.Count; c++)
+                    {
+                        WriteSignedCell(sheet, row, c + 3, line.Monthly[c]);
+                    }
+                    if (line.Total is { } total)
+                    {
+                        WriteSignedCell(sheet, row, totalColumn, total);
+                    }
+                    if (line.IsTotal)
+                    {
+                        sheet.Row(row).Style.Font.Bold = true;
+                    }
+                    row++;
+                }
+
+                sheet.Columns().AdjustToContents();
                 await WriteWorkbookAsync(workbook, stream);
             },
             XlsxContentType,
-            FileName("VatSummaryReport", report.FromDate, report.ToDate));
+            $"VatSummaryReport_BS{report.FiscalYear}-{report.FiscalYear + 1}.xlsx");
+
+    private static void WriteSignedCell(IXLWorksheet sheet, int row, int column, decimal value)
+    {
+        // A zero is written as zero: decimal keeps a sign on -0m, which a cell would print as "(0.00)" (phase-26c bug #1).
+        sheet.Cell(row, column).Value = value == 0 ? 0d : (double)value;
+        sheet.Cell(row, column).Style.NumberFormat.Format = "#,##0.00;(#,##0.00)";
+    }
 
     public static IResult ExportCashFlowSummary(CashFlowSummaryDto report) =>
         Results.Stream(
@@ -1157,35 +1191,45 @@ public static partial class ReportSpreadsheetExporter
     private static string FiscalYearFileName(string reportName, int fiscalYear) =>
         $"{reportName}_BS{fiscalYear}-{fiscalYear + 1}{RequestCalendar.FileNameMarker}.xlsx";
 
+    /// <param name="periodLine">Phase 89 -- a statutory export's period, printed above the header (BS with AD beside it,
+    /// <see cref="BillDate.FormatRange"/>). Columns are sized from the header down, so the line does not widen column A.</param>
     private static IResult ExportTable<T>(
         string sheetName,
         string fileName,
         (string Header, Func<T, object?> Value)[] columns,
         IReadOnlyList<T> rows,
-        Action<IXLWorksheet>? afterRows = null) =>
+        Action<IXLWorksheet>? afterRows = null,
+        string? periodLine = null) =>
         Results.Stream(
             async stream =>
             {
                 using var workbook = new XLWorkbook();
                 var sheet = workbook.Worksheets.Add(sheetName);
 
+                var headerRow = 1;
+                if (periodLine is not null)
+                {
+                    sheet.Cell(1, 1).Value = periodLine;
+                    headerRow = 3;
+                }
+
                 for (var c = 0; c < columns.Length; c++)
                 {
-                    sheet.Cell(1, c + 1).Value = columns[c].Header;
-                    sheet.Cell(1, c + 1).Style.Font.Bold = true;
+                    sheet.Cell(headerRow, c + 1).Value = columns[c].Header;
+                    sheet.Cell(headerRow, c + 1).Style.Font.Bold = true;
                 }
 
                 for (var r = 0; r < rows.Count; r++)
                 {
                     for (var c = 0; c < columns.Length; c++)
                     {
-                        SetCellValue(sheet.Cell(r + 2, c + 1), columns[c].Value(rows[r]));
+                        SetCellValue(sheet.Cell(headerRow + r + 1, c + 1), columns[c].Value(rows[r]));
                     }
                 }
 
                 afterRows?.Invoke(sheet);
 
-                sheet.Columns().AdjustToContents();
+                sheet.Columns().AdjustToContents(headerRow);
                 await WriteWorkbookAsync(workbook, stream);
             },
             XlsxContentType,

@@ -617,20 +617,20 @@ public static class AccountingEndpoints
             return ReportSpreadsheetExporter.ExportRatioAnalysis(result);
         });
 
+        // Phase 89 -- the VAT return takes a BS fiscal year, not a date range: a VAT period is a BS month (Rule 26) and the
+        // vendor's return is a fiscal year of them (read live 2026-10-12).
         group.MapGet("/reports/vat-summary", async (
-            Guid organizationId, DateOnly fromDate, DateOnly toDate, ISender sender, CancellationToken ct) =>
+            Guid organizationId, int fiscalYear, ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new VatSummaryReportQuery(organizationId, fromDate, toDate), ct);
+            var result = await sender.Send(new VatSummaryReportQuery(organizationId, fiscalYear), ct);
             return Results.Ok(result);
         });
 
-        // No "current view" vs "full dataset" distinction -- VatSummaryReportQuery always returns
-        // every bucket (fixed 2x3 cardinality, never paginated, see VatSummaryReportQuery's own
-        // doc comment), so both export variants would be identical; one export route is enough.
+        // The return is twelve columns of fixed lines, never paginated, so there is one export route.
         group.MapGet("/reports/vat-summary/export", async (
-            Guid organizationId, DateOnly fromDate, DateOnly toDate, ISender sender, CancellationToken ct) =>
+            Guid organizationId, int fiscalYear, ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new VatSummaryReportQuery(organizationId, fromDate, toDate), ct);
+            var result = await sender.Send(new VatSummaryReportQuery(organizationId, fiscalYear), ct);
             return ReportSpreadsheetExporter.ExportVatSummaryReport(result);
         });
     }

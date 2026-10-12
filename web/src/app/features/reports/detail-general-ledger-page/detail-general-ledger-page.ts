@@ -17,6 +17,7 @@ import { triggerBlobDownload } from '../../../shared/download-file';
 import { glDetailRoute, txnTypeLabel } from '../gl-report-shared';
 import { ReportLocationFilter } from '../../../shared/locations/report-location-filter';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
+import { nepalFirstOfMonth, nepalToday } from '../../../shared/formatting/nepal-time';
 
 const EMPTY_REPORT: PagedResult<DetailGeneralLedgerAccountDto> = {
   items: [],
@@ -177,11 +178,10 @@ export class DetailGeneralLedgerPage {
   }
 
   private today(): string {
-    return new Date().toISOString().slice(0, 10);
+    return nepalToday();
   }
 
   private firstOfMonth(): string {
-    const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+    return nepalFirstOfMonth();
   }
 }

@@ -64,13 +64,6 @@ public sealed record CreditNotePosRefundDto(
     decimal PaidOutAmount,
     decimal ToAccountAmount)
 {
-    /// <summary>
-    /// Phase 85 -- the warehouse the refund's goods went back into: the note's own (phase 84, another branch's when the
-    /// sale was refunded there), else the sale's, which is where every refund before phase 84 put them. Null when the
-    /// refund carried no goods, because then nothing went back into stock anywhere. Phase 86: read through
-    /// <c>CreditNoteReturnWarehouses</c>, the list's reader, so it is also null once the refund is voided.
-    /// </summary>
-    public string? WarehouseName { get; init; }
 }
 
 public sealed record PostedGlLineDto(Guid Id, Guid AccountId, decimal Debit, decimal Credit);
@@ -125,6 +118,15 @@ public sealed record CreditNoteDetailDto(
     /// <summary>Phase 69 -- the invoice in this system the note relates to, as a return or as a price
     /// adjustment, so the page can show and link it the way the reference product's card does.</summary>
     public RelatedInvoiceDto? RelatedInvoice { get; init; }
+
+    /// <summary>
+    /// Phase 89 -- the warehouse the note's goods went back into, on every credit note, ERP return and till refund alike.
+    /// Phase 85 put it on the till panel (<see cref="CreditNotePosRefundDto"/>) and phase 86 on the list's card, so an ERP
+    /// return's own page was the one place that did not say (phase 86 § 5). Moved here and read through
+    /// <c>CreditNoteReturnWarehouses</c>, the list's reader: null on a draft, a void, a standalone note, a price
+    /// adjustment, or a return of services only, because then nothing went back into stock.
+    /// </summary>
+    public string? ReturnWarehouseName { get; init; }
 }
 
 /// <summary>Phase 69 -- the tax invoice a credit note relates to, as Rule 20(1)(e) asks it named: its

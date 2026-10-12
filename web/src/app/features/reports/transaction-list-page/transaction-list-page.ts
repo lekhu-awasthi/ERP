@@ -16,6 +16,7 @@ import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { triggerBlobDownload } from '../../../shared/download-file';
 import { ReportLocationFilter } from '../../../shared/locations/report-location-filter';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
+import { nepalToday } from '../../../shared/formatting/nepal-time';
 
 const EMPTY_REPORT: PagedResult<TransactionListRowDto> = {
   items: [],
@@ -150,7 +151,7 @@ export class TransactionListPage {
       .subscribe({
         next: (blob) => {
           this.exporting.set(false);
-          triggerBlobDownload(blob, `TransactionList_${new Date().toISOString().slice(0, 10)}.xlsx`);
+          triggerBlobDownload(blob, `TransactionList_${nepalToday()}.xlsx`);
         },
         error: (err: unknown) => {
           this.exporting.set(false);

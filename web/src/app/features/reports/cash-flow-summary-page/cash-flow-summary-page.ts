@@ -10,6 +10,7 @@ import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { ReportLocationFilter } from '../../../shared/locations/report-location-filter';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
+import { nepalFirstOfMonth, nepalToday } from '../../../shared/formatting/nepal-time';
 
 /**
  * Read-only report screen -- Phase 19's CashFlowSummaryQuery, a direct-method summary of actual
@@ -103,11 +104,10 @@ export class CashFlowSummaryPage {
   }
 
   private today(): string {
-    return new Date().toISOString().slice(0, 10);
+    return nepalToday();
   }
 
   private firstOfMonth(): string {
-    const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+    return nepalFirstOfMonth();
   }
 }

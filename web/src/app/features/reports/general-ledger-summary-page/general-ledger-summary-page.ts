@@ -15,6 +15,7 @@ import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { triggerBlobDownload } from '../../../shared/download-file';
 import { ReportLocationFilter } from '../../../shared/locations/report-location-filter';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
+import { nepalFirstOfMonth, nepalToday } from '../../../shared/formatting/nepal-time';
 
 const EMPTY_REPORT: PagedResult<GeneralLedgerSummaryRowDto> = {
   items: [],
@@ -172,11 +173,10 @@ export class GeneralLedgerSummaryPage {
   }
 
   private today(): string {
-    return new Date().toISOString().slice(0, 10);
+    return nepalToday();
   }
 
   private firstOfMonth(): string {
-    const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+    return nepalFirstOfMonth();
   }
 }

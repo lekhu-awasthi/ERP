@@ -99,6 +99,9 @@
                   <td>
                     @if (row.documentType === 'PurchaseBill') {
                       <span class="badge bg-primary-subtle text-primary-emphasis">Purchase Bill</span>
+                    } @else if (row.documentType === 'Expense') {
+                      <!-- Phase 89 -- an expense is a purchase: its VAT is claimed on the return, so it is in the book. -->
+                      <span class="badge bg-info-subtle text-info-emphasis">Expense</span>
                     } @else {
                       <span class="badge bg-warning-subtle text-warning-emphasis">Debit Note</span>
                     }

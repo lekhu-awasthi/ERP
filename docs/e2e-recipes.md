@@ -469,3 +469,13 @@ beside a 200 from the same user, and create a fresh Organization per phase.
   role copied from Member minus one is a 403 beside a 200 on the other direction, and a nonexistent contact is a 200
   `[]`, never a 404. `GET /roles/{id}/permissions` is `{groups: [{module, permissions: [{permissionKey, isGranted}]}]}`;
   the system Member role is `…-0001-000000000002`.
+- Phase 89. `GET /reports/vat-summary?fiscalYear=2083` (and `/export`) answers `{fiscalYear, fromDate, toDate, columns,
+  lines: [{key, section, label, labelNepali, isTotal, monthly[12], total}], netVat}`; no `fiscalYear` is a 400, one
+  outside the BS table (2095) a 404. Hold a month to `GET /reports/sales-register` and `/purchase-register` over its
+  `columns[i].fromDate/toDate` (the registers net returns, so compare line minus its return line). `POST /expenses
+  {contactId, date, dueDate, supplierInvoiceReference, notes, tdsApplicable: false, tdsTypeId, lines: [{accountId,
+  amount, vatRate}]}` + `POST /expenses/{id}/approve {}`; an import bill is `isImport: true` with `importCountry`,
+  `importDate`, `importDocumentNo`; a capital line is `expenditureClassification: "Capital"`. A counted print is `POST
+  /print/Invoice/{id}` (200, a PDF). The audit table is **`workflow.Audits`** (`Action = 'Create'`). Its 403 pair: a
+  role copied from Member minus `Reports.VatSummary.View` is 403 naming the key beside a 200 on `GET
+  /reports/trial-balance?asOfDate=`; put the membership back with `UPDATE tenancy.OrganizationMemberships`.

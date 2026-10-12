@@ -1,5 +1,5 @@
-import { VatRate } from '../catalog/catalog.models';
 import { PaymentDirection } from '../payments/payments.models';
+import { TradeMonthlyColumnDto } from '../trade/trade-reports.models';
 
 export type AccountRootType = 'Asset' | 'Liability' | 'Equity' | 'Income' | 'Expense';
 
@@ -540,26 +540,32 @@ export interface IncomeStatementDto {
 
 // --- Reports (Phase 8c) ---
 
-export interface VatSummarySalesBucketDto {
-  vatRate: VatRate;
-  netSalesAmount: number;
-  outputVatAmount: number;
+/** Phase 89 -- the VAT return's five blocks, in the IRD form's order. */
+export type VatReturnSection = 'Sales' | 'SalesReturns' | 'Purchases' | 'PurchaseReturns' | 'Settlement';
+
+/**
+ * One line of the VAT return: its English label, the IRD form's own Nepali wording, and a figure per BS month of the
+ * fiscal year (`monthly[i]` is `columns[i]`). `total` is null on the two balance lines (credit brought forward and
+ * payable), whose months add up to nothing.
+ */
+export interface VatReturnLineDto {
+  key: string;
+  section: VatReturnSection;
+  label: string;
+  labelNepali: string;
+  isTotal: boolean;
+  monthly: number[];
+  total: number | null;
 }
 
-export interface VatSummaryPurchaseBucketDto {
-  vatRate: VatRate;
-  netPurchaseAmount: number;
-  inputVatAmount: number;
-}
-
+/** Phase 89 -- the VAT return for one BS fiscal year: twelve month columns, Shrawan to Asar (read live 2026-10-12). */
 export interface VatSummaryReportDto {
+  fiscalYear: number;
   fromDate: string;
   toDate: string;
-  salesBuckets: VatSummarySalesBucketDto[];
-  purchaseBuckets: VatSummaryPurchaseBucketDto[];
-  totalOutputVat: number;
-  totalInputVat: number;
-  netVatPayable: number;
+  columns: TradeMonthlyColumnDto[];
+  lines: VatReturnLineDto[];
+  netVat: number;
 }
 
 // --- Reports (Phase 19) ---

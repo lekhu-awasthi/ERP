@@ -24,60 +24,12 @@ public sealed class PurchaseRegisterQueryHandler(IAppDbContext db, ICurrentUserS
 
         var rows = new List<PurchaseRegisterRowDto>();
 
-        var purchaseBillQuery = db.PurchaseBills.Where(x =>
-            x.OrganizationId == request.OrganizationId && x.Status == PurchaseBillStatus.Approved
-            && x.Date >= request.FromDate && x.Date <= request.ToDate);
-        if (request.ContactId is { } purchaseBillContactId)
-        {
-            purchaseBillQuery = purchaseBillQuery.Where(x => x.ContactId == purchaseBillContactId);
-        }
-
-        // Phase 44 -- the Billing Location filter, which this half never applied. Phase 35b gave the
-        // query its LocationId and taught PurchaseReturnReader to honour it, so the debit-note rows
-        // narrowed and the purchase-bill rows did not: picking a location removed the returns from
-        // the register and left every bill in it. The Purchase Master Report has applied it to both
-        // its document queries since phase 32; this is the same two lines, missing.
-        //
-        // ReportLocationSweepGuardTests could not see it -- it asserts the *query record* accepts a
-        // LocationId, which this one always did. That is phase-34b's rule exactly: a filter a screen
-        // displays but does not apply is worse than no filter. The guard is widened in this phase.
-        purchaseBillQuery = purchaseBillQuery.AtLocations(request.LocationId, reportLocations);
-
-        var purchaseBills = await purchaseBillQuery
-            .Select(x => new
-            {
-                x.Id, x.ContactId, x.Code, x.Date, x.SupplierInvoiceReference, x.IsImport, x.ImportDocumentNo,
-                // Phase 44 (43 Decision D) -- carried for the fold to base currency below.
-                x.ExchangeRate,
-            })
-            .ToListAsync(cancellationToken);
-        var purchaseBillIds = purchaseBills.Select(x => x.Id).ToList();
-        var purchaseBillLines = await db.PurchaseBillLines
-            .Where(x => purchaseBillIds.Contains(x.PurchaseBillId))
-            .Select(x => new { x.PurchaseBillId, x.Amount, x.VatAmount, x.ExpenditureClassification, x.ProductId, x.Rate, x.VatRate })
-            .ToListAsync(cancellationToken);
-
-        var purchaseBillsById = purchaseBills.ToDictionary(x => x.Id);
-
-        // Phase 44 (43 Decision D) -- <b>the register is filed in NPR, so it reports NPR.</b> The
-        // same decision phase 43 applied to the Sales Register, applied to the purchase side: a
-        // foreign bill used to contribute its own 100 to a statutory purchase book beside a domestic
-        // bill's 100, with nothing on the page saying the two were not the same kind of thing.
-        //
-        // Folded per line, before Bucket, never on the finished buckets -- Bucketed.Total is the sum
-        // of the other seven, so converting buckets independently would let Total stop equalling its
-        // parts. In memory, because ExchangeRates.ToBase is a static call SQL Server cannot translate
-        // and InMemory silently runs in C# (phase-34b).
-        var purchaseBillBuckets = purchaseBillLines
-            .GroupBy(x => x.PurchaseBillId)
-            .ToDictionary(
-                g => g.Key,
-                g => PurchaseReturnReader.Bucket(
-                    g.Select(l => (
-                        ExchangeRates.ToBase(l.Amount, purchaseBillsById[g.Key].ExchangeRate),
-                        ExchangeRates.ToBase(l.VatAmount, purchaseBillsById[g.Key].ExchangeRate),
-                        l.ExpenditureClassification)),
-                    purchaseBillsById[g.Key].IsImport));
+        // Phase 89 -- the bill half (and, since this phase, every approved expense) comes from PurchaseBookReader, which
+        // the VAT return also reads, so a month of the return equals this register over that month by construction.
+        // The reader carries phase 44's location filter on both types and phase 44's fold to base currency.
+        var purchaseBook = await PurchaseBookReader.LoadAsync(
+            db, request.OrganizationId, request.FromDate, request.ToDate, request.ContactId, cancellationToken,
+            request.LocationId, reportLocations);
 
         // Phase 26c: the debit-note half now comes from PurchaseReturnReader, which the new
         // Purchase Return Register also reads -- so the two registers show the same magnitudes for
@@ -87,18 +39,18 @@ public sealed class PurchaseRegisterQueryHandler(IAppDbContext db, ICurrentUserS
             db, request.OrganizationId, request.FromDate, request.ToDate, request.ContactId, cancellationToken,
             request.LocationId, reportLocations);
 
-        var contactIds = purchaseBills.Select(x => x.ContactId).Concat(debitNotes.Select(x => x.ContactId)).Distinct().ToList();
+        var contactIds = purchaseBook.Select(x => x.ContactId).Concat(debitNotes.Select(x => x.ContactId)).Distinct().ToList();
         var contacts = await db.Contacts
             .Where(x => contactIds.Contains(x.Id))
             .Select(x => new { x.Id, x.Name, x.Pan })
             .ToDictionaryAsync(x => x.Id, cancellationToken);
 
-        rows.AddRange(purchaseBills.Select(x =>
+        rows.AddRange(purchaseBook.Select(x =>
         {
-            var b = purchaseBillBuckets.GetValueOrDefault(x.Id) ?? PurchaseReturnReader.Bucketed.Empty;
+            var b = x.Buckets;
             var contact = contacts[x.ContactId];
             return new PurchaseRegisterRowDto(
-                x.Date, DocumentType.PurchaseBill, x.Code, x.ImportDocumentNo, x.ContactId, contact.Name, contact.Pan,
+                x.Date, x.DocumentType, x.Code, x.ImportDocumentNo, x.ContactId, contact.Name, contact.Pan,
                 b.TaxExempt, b.NonCapitalLocalValue, b.NonCapitalLocalVat,
                 b.NonCapitalImportValue, b.NonCapitalImportVat, b.CapitalValue, b.CapitalVat);
         }));

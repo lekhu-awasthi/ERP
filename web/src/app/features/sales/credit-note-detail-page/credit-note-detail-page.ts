@@ -30,6 +30,7 @@ import { StatusBanner } from '../../../shared/a11y/status-banner';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 import { LineUnitControl, LineUnitOption } from '../../../shared/catalog/line-unit-control';
 import { UnitOfMeasurementStore } from '../../../shared/catalog/unit-of-measurement-store';
+import { nepalToday } from '../../../shared/formatting/nepal-time';
 
 interface EditableLine {
   key: number;
@@ -625,7 +626,7 @@ export class CreditNoteDetailPage {
   }
 
   private today(): string {
-    return new Date().toISOString().slice(0, 10);
+    return nepalToday();
   }
 
   private round(value: number): number {

@@ -25,6 +25,7 @@ import { defaultWarehouseSeed } from '../../../shared/locations/default-warehous
 import { locationAwareProducts } from '../../../shared/catalog/location-aware-products';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
+import { nepalToday } from '../../../shared/formatting/nepal-time';
 
 interface EditableMaterial {
   key: number;
@@ -512,7 +513,7 @@ export class ProductionJournalDetailPage {
   }
 
   private today(): string {
-    return new Date().toISOString().slice(0, 10);
+    return nepalToday();
   }
 
   /** Phase 27b -- print/PDF, wired for this document type alongside the other eight the phase

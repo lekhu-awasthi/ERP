@@ -1,4 +1,4 @@
-<div class="container py-5" style="max-width: 900px;">
+<div class="container py-5" style="max-width: 1600px;">
   <div class="card border-0 shadow-sm mb-4">
     <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
       <div class="d-flex align-items-center gap-3">
@@ -7,7 +7,7 @@
         </div>
         <div>
           <h1 class="h3 fw-bold mb-0 text-dark">VAT Summary Report</h1>
-          <p class="text-muted small mb-0">Output/Input VAT by rate bucket for a filing period</p>
+          <p class="text-muted small mb-0">The VAT return, one Bikram Sambat month per column, for a fiscal year</p>
         </div>
       </div>
       <div class="d-flex align-items-center gap-2">
@@ -26,100 +26,87 @@
   <div class="card border-0 shadow-sm mb-4">
     <div class="card-body p-4">
       <div class="row g-3">
-        <div class="col-12 col-sm-6">
-          <label class="form-label small fw-semibold" for="vat-summary-report-page-from-date">From Date</label>
-          <app-bs-date-input [inputId]="'vat-summary-report-page-from-date'"
-            [inputClass]="'form-control'"
-            [value]="fromDate()"
-            (valueChange)="onFromDateChange($event)"
-          />
-        </div>
-        <div class="col-12 col-sm-6">
-          <label class="form-label small fw-semibold" for="vat-summary-report-page-to-date">To Date</label>
-          <app-bs-date-input [inputId]="'vat-summary-report-page-to-date'" [inputClass]="'form-control'" [value]="toDate()" (valueChange)="onToDateChange($event)" />
+        <div class="col-12 col-sm-6 col-lg-3">
+          <label class="form-label small fw-semibold" for="vat-summary-report-page-fiscal-year">Fiscal Year</label>
+          <select id="vat-summary-report-page-fiscal-year" class="form-select" (change)="onFiscalYearChange($event)">
+            @for (year of fiscalYears; track year) {
+              <option [value]="year" [selected]="year === fiscalYear()">{{ fiscalYearLabel(year) }}</option>
+            }
+          </select>
         </div>
       </div>
     </div>
   </div>
 
-  @if (loading()) {
-    <div class="card border-0 shadow-sm text-center py-5">
-      <div class="card-body">
-        <div class="spinner-border text-primary mb-3" role="status"></div>
-        <p class="text-muted mb-0">Loading VAT Summary Report...</p>
-      </div>
-    </div>
-  } @else if (report(); as r) {
-    <div class="card border-0 shadow-sm mb-4">
-      <div class="card-body p-4">
-        <h6 class="text-muted small fw-bold text-uppercase mb-2">Sales (Output VAT)</h6>
-        <table class="table align-middle mb-0">
-          <thead>
-            <tr class="text-muted small">
-              <th scope="col">VAT Rate</th>
-              <th scope="col" class="text-end">Net Sales Amount</th>
-              <th scope="col" class="text-end">Output VAT Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (bucket of r.salesBuckets; track bucket.vatRate) {
-              <tr>
-                <td>{{ bucket.vatRate }}</td>
-                <td class="text-end">{{ (bucket.netSalesAmount | amount) }}</td>
-                <td class="text-end">{{ (bucket.outputVatAmount | amount) }}</td>
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-4">
+      @if (loading()) {
+        <div class="text-center py-5">
+          <div class="spinner-border text-primary mb-3" role="status"></div>
+          <p class="text-muted mb-0">Loading VAT Summary Report...</p>
+        </div>
+      } @else if (report(); as r) {
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0">
+            <caption class="visually-hidden">VAT return for fiscal year {{ fiscalYearLabel(r.fiscalYear) }}, one column per month</caption>
+            <thead>
+              <tr class="text-muted small">
+                <!-- A minimum width, so a narrow screen scrolls the months rather than wrapping a label word by word. -->
+                <th scope="col" style="min-width: 17rem;">Line</th>
+                @for (column of r.columns; track column.bsMonth) {
+                  <!-- The BS month is the column's name; the dates it covers sit beneath it, smaller and on two lines, so
+                       the range reads as a note on the month and not as part of it (the user, 2026-10-12). -->
+                  <th scope="col" class="text-end text-nowrap align-bottom ps-4">
+                    <span class="d-block text-dark fw-bold">{{ column.label }}</span>
+                    <span class="d-block fw-normal" style="font-size: 0.75rem;">{{ column.fromDate | nepaliDate }}</span>
+                    <span class="d-block fw-normal" style="font-size: 0.75rem;">to {{ column.toDate | nepaliDate }}</span>
+                  </th>
+                }
+                <th scope="col" class="text-end">Total</th>
               </tr>
+            </thead>
+            @for (block of sections(); track block.section) {
+              <tbody>
+                <tr class="table-light">
+                  <th scope="rowgroup" [attr.colspan]="r.columns.length + 2" class="small text-uppercase text-muted">{{ block.title }}</th>
+                </tr>
+                @for (line of block.lines; track line.key) {
+                  <tr [class.fw-bold]="line.isTotal" [attr.data-line]="line.key">
+                    <th scope="row" class="fw-normal" [class.fw-bold]="line.isTotal">
+                      {{ line.label }}
+                      <span class="d-block small text-muted" lang="ne">{{ line.labelNepali }}</span>
+                    </th>
+                    @for (figure of line.monthly; track $index) {
+                      <td class="text-end text-nowrap ps-4">
+                        @if (figure === 0) {
+                          <span class="text-muted" aria-hidden="true">–</span><span class="visually-hidden">nil</span>
+                        } @else if (figure < 0) {
+                          ({{ (-figure | amount) }})
+                        } @else {
+                          {{ (figure | amount) }}
+                        }
+                      </td>
+                    }
+                    <td class="text-end text-nowrap">
+                      @if (line.total === null) {
+                        <span class="visually-hidden">no year total</span>
+                      } @else if (line.total < 0) {
+                        ({{ (-line.total | amount) }})
+                      } @else {
+                        {{ (line.total | amount) }}
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
             }
-          </tbody>
-          <tfoot>
-            <tr class="fw-bold border-top">
-              <td>Total Output VAT</td>
-              <td></td>
-              <td class="text-end">{{ (r.totalOutputVat | amount) }}</td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
+          </table>
+        </div>
+        <p class="text-muted small mt-3 mb-0">
+          Figures in parentheses are a credit. A month's credit is brought forward into the next month, across the fiscal
+          year's end, until a month's VAT uses it up.
+        </p>
+      }
     </div>
-
-    <div class="card border-0 shadow-sm mb-4">
-      <div class="card-body p-4">
-        <h6 class="text-muted small fw-bold text-uppercase mb-2">Purchases (Input VAT)</h6>
-        <table class="table align-middle mb-0">
-          <thead>
-            <tr class="text-muted small">
-              <th scope="col">VAT Rate</th>
-              <th scope="col" class="text-end">Net Purchase Amount</th>
-              <th scope="col" class="text-end">Input VAT Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (bucket of r.purchaseBuckets; track bucket.vatRate) {
-              <tr>
-                <td>{{ bucket.vatRate }}</td>
-                <td class="text-end">{{ (bucket.netPurchaseAmount | amount) }}</td>
-                <td class="text-end">{{ (bucket.inputVatAmount | amount) }}</td>
-              </tr>
-            }
-          </tbody>
-          <tfoot>
-            <tr class="fw-bold border-top">
-              <td>Total Input VAT</td>
-              <td></td>
-              <td class="text-end">{{ (r.totalInputVat | amount) }}</td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
-    </div>
-
-    <div class="card border-0 shadow-sm">
-      <div class="card-body p-4 text-end">
-        @if (r.netVatPayable >= 0) {
-          <span class="badge bg-warning-subtle text-warning-emphasis fs-6">Net VAT Payable: {{ (r.netVatPayable | amount) }}</span>
-        } @else {
-          <span class="badge bg-success-subtle text-success-emphasis fs-6">Net VAT Refundable: {{ ((-r.netVatPayable) | amount) }}</span>
-        }
-      </div>
-    </div>
-  }
+  </div>
 </div>

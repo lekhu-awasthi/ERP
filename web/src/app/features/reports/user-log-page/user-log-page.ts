@@ -12,6 +12,7 @@ import { triggerBlobDownload } from '../../../shared/download-file';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
+import { nepalFirstOfMonth, nepalToday } from '../../../shared/formatting/nepal-time';
 
 /**
  * Phase 26c -- the login/logout/failed-login event log. Admin-only, because it discloses per-person
@@ -152,10 +153,9 @@ export class UserLogPage {
 }
 
 function today(): string {
-  return new Date().toISOString().slice(0, 10);
+  return nepalToday();
 }
 
 function firstOfMonth(): string {
-  const now = new Date();
-  return new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1)).toISOString().slice(0, 10);
+  return nepalFirstOfMonth();
 }

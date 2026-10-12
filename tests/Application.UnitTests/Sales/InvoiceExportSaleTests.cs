@@ -216,27 +216,25 @@ public class InvoiceExportSaleTests
     }
 
     [Fact]
-    public async Task An_export_sale_lands_in_the_VAT_summarys_zero_rated_bucket_not_its_taxable_one()
+    public async Task An_export_sale_lands_on_the_VAT_returns_exports_line_not_its_taxable_or_exempt_one()
     {
         var db = TestAppDbContext.Create();
         var seed = await SeedAsync(db);
 
         await CreateAndApproveAsync(db, seed, VatRate.ThirteenPercentVat, isExport: true);
 
+        // Phase 89 -- the return is a BS fiscal year; Jan10 (2026) falls in 2082-83.
         var report = await new VatSummaryReportQueryHandler(db).Handle(
-            new VatSummaryReportQuery(seed.OrganizationId, Jan01, Jan31), CancellationToken.None);
+            new VatSummaryReportQuery(seed.OrganizationId, BsCalendar.FiscalYearOf(Jan10)!.Value), CancellationToken.None);
+        decimal Year(string key) => Assert.Single(report.Lines, x => x.Key == key).Total ?? 0;
 
-        var thirteen = Assert.Single(report.SalesBuckets, b => b.VatRate == VatRate.ThirteenPercentVat);
-        var zeroRated = Assert.Single(report.SalesBuckets, b => b.VatRate == VatRate.ZeroVat);
-        var exempt = Assert.Single(report.SalesBuckets, b => b.VatRate == VatRate.NoVat);
-
-        Assert.Equal(0m, thirteen.NetSalesAmount);
-        Assert.Equal(0m, thirteen.OutputVatAmount);
-        Assert.Equal(100m, zeroRated.NetSalesAmount);
-        Assert.Equal(0m, zeroRated.OutputVatAmount);
-        // Zero-rated and exempt are different statutory buckets; the sale must be in exactly one.
-        Assert.Equal(0m, exempt.NetSalesAmount);
-        Assert.Equal(0m, report.TotalOutputVat);
+        Assert.Equal(0m, Year(VatReturnLines.TaxableSales));
+        Assert.Equal(0m, Year(VatReturnLines.TaxableSalesVat));
+        Assert.Equal(100m, Year(VatReturnLines.ExportSales));
+        // An export and a local exempt sale are different lines of the return; the sale must be on exactly one.
+        Assert.Equal(0m, Year(VatReturnLines.LocalExemptSales));
+        Assert.Equal(100m, Year(VatReturnLines.TotalSales));
+        Assert.Equal(0m, report.NetVat);
     }
 
     // --- helpers --------------------------------------------------------------

@@ -19,6 +19,7 @@ import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 import { ReportLocationFilter } from '../../../shared/locations/report-location-filter';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
+import { nepalFirstOfMonth, nepalToday } from '../../../shared/formatting/nepal-time';
 
 /**
  * Phase 26c -- the kardex as a report: every movement of one product over a period, bracketed by an
@@ -179,10 +180,9 @@ export class InventoryLedgerReportPage {
 }
 
 function today(): string {
-  return new Date().toISOString().slice(0, 10);
+  return nepalToday();
 }
 
 function firstOfMonth(): string {
-  const now = new Date();
-  return new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1)).toISOString().slice(0, 10);
+  return nepalFirstOfMonth();
 }

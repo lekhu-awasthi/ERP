@@ -6,7 +6,7 @@ Guiding rule for phase sizing: each phase ends with something *runnable and demo
 
 ---
 
-## Completed phases (0–87)
+## Completed phases (0–89)
 
 One line each; phase *N*'s full story is `docs/phase-N-status.md`. The verbose index as it stood on
 2026-09-28 is archived verbatim in `roadmap-history.md` ("Completed-phases index, verbose form").
@@ -73,6 +73,8 @@ One line each; phase *N*'s full story is `docs/phase-N-status.md`. The verbose i
 | 85 | A restaurant bill refunded at another branch: its service charge and packaging fee come back out of the selling location's accounts, in one entry stamped with the refunding branch, so its lines equal the same refund at home. The ERP credit note names a till refund's warehouse; removing a tender on the till or a restaurant bill keeps focus |
 | 86 | A sale records the accounts its service charge and packaging fee went into (`Invoice.ServiceChargeAccountId`, `.PackagingFeeAccountId`), and a refund reverses into them after the location's setting changes; older sales keep the old rule. The credit-note list names the warehouse each note's goods went back into, through one reader with the note's page |
 | 87 | An invoice and a purchase bill record every account they post to, and what reverses or settles them uses those: credit notes (returns, till refunds, price adjustments), debit notes, a refund's payout, and receipts and supplier payments (split per control account; a later allocation moves its share). No backfill; the Allocate screen keeps focus |
+| 88 | The payment screens: the FIFO Suggest gains the membership and permission check it never had (`OrganizationScopeSweepGuardTests` fails any request naming an organization unscoped); the payment GL preview is built by Approve's own builder (`PaymentGlLines`); the four allocation pickers list one contact's open documents in the payment's currency, oldest due first (`ListOpenAllocationTargetsQuery`) |
+| 89 | The VAT Summary is the IRD VAT return (a BS fiscal year, twelve month columns, the return's lines in English with the form's Nepali, a month's credit brought forward across the year's end), read through the registers' own readers (`SalesBookReader`, `PurchaseBookReader`) so a month equals the registers; expenses are purchases in the register and the return; Annex 5/13 and the return export in BS with AD beside it; Annex 5 gains Fiscal Year, Discount, prints and Entered By; both annexes open on this fiscal year to date; an ERP return's page names its warehouse; the client's calendar day is the Nepal day in 67 sources (reports opened, and due dates were suggested, a day early) |
 
 ---
 
@@ -191,8 +193,9 @@ switch defaulting to AD (read live on 2026-10-09); ours has no switch on a tax d
 printing-templates item below: no per-type "date system" toggle may switch BS off on a tax document.
 
 **Carried from phase 71** (§ 5 there): the money receipt (a Payment's PDF) dates in BS with AD beside it since phase
-84, as a bill and not a tax document. Annex 5/13, the VAT Summary export and the on-screen register grids follow the
-toggle; the email body's `$[DATE]$` stays AD; a tax advisor's word on the calendar is still open.
+84, as a bill and not a tax document. Annex 5/13 and the VAT Summary export are BS with AD beside it since phase 89. The
+on-screen register grids follow the toggle; the email body's `$[DATE]$` stays AD; a tax advisor's word on the calendar
+is still open.
 
 **Raised 2026-10-03, done in phase 73: real printing templates.** Three fixed layouts with show/hide toggles and
 the custom fields to print; no date-system toggle (phase 71), no renamed labels, one template per type.
@@ -271,7 +274,7 @@ till's *Remove* focus were done in phase 85; the money receipt on the roll and t
 phase 86.
 
 **Carried from phase 86** (§ 5 there): every other account on a credit note was done in phase 87 (with debit notes and
-payments); an ERP return's own page does not name its warehouse.
+payments); an ERP return's own page names its warehouse since phase 89.
 
 **Carried from phase 87** (§ 5 there): the payment GL preview and the Allocate picker were done in phase 88; documents
 approved before phase 87 recorded nothing and keep today's rule; a debit note's Inventory Adjustment, Rounding, the
@@ -280,6 +283,11 @@ stock catch-up and journal-voucher allocations stay today's.
 **Carried from phase 88** (§ 5 there): the vendor's per-row *This Allocation* table (a layout choice, not asked
 for); a foreign-currency allocation on the vendor is unread; `OutstandingDocumentReader`'s settlement queries stay
 organization-wide (measure on `tools/scale` before narrowing them by contact).
+
+**Carried from phase 89** (§ 5 there): how the vendor treats an expense's VAT (unread; its tenant has none); a tax
+advisor's word on carrying a VAT credit across the fiscal year's end and on a domestic zero-rated supply; Annex 5's
+Payment Method, VAT Refund and IRD-sync columns (no backing); the return reads the books from their beginning for the
+carry (measure on `tools/scale` before narrowing it).
 
 **Carried from phase 62** (§ 5 there):
 

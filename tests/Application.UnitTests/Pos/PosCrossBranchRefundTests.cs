@@ -340,7 +340,7 @@ public sealed class PosCrossBranchRefundTests
 
         async Task<string?> WarehouseOfAsync(Guid id) =>
             (await new GetCreditNoteQueryHandler(home.Db).Handle(
-                new GetCreditNoteQuery(home.OrganizationId, id), CancellationToken.None)).PosRefund!.WarehouseName;
+                new GetCreditNoteQuery(home.OrganizationId, id), CancellationToken.None)).ReturnWarehouseName;
 
         var homeWarehouse = await home.Db.Warehouses.Where(x => x.Id == home.Seed.WarehouseId).Select(x => x.Name).SingleAsync();
         Assert.Equal("Lakeside Branch Store", await WarehouseOfAsync(away.Id));

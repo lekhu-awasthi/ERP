@@ -10,6 +10,7 @@ import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { triggerBlobDownload } from '../../../shared/download-file';
 import { ReportLocationFilter } from '../../../shared/locations/report-location-filter';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
+import { nepalToday } from '../../../shared/formatting/nepal-time';
 
 /** Read-only report screen -- roadmap Phase 8a's TrialBalanceQuery, every active Account's net
  * Debit/Credit balance as of a cutoff date.
@@ -91,6 +92,6 @@ export class TrialBalancePage {
   }
 
   private today(): string {
-    return new Date().toISOString().slice(0, 10);
+    return nepalToday();
   }
 }

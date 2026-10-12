@@ -10,6 +10,7 @@ import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 import { ReportLocationFilter } from '../../../shared/locations/report-location-filter';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
+import { nepalFirstOfMonth, nepalToday } from '../../../shared/formatting/nepal-time';
 
 /**
  * Phase 26c -- Net Trading Assets: Receivables less Payables plus Inventory, each grouped row
@@ -121,10 +122,9 @@ export class NetTradingAssetsPage {
 }
 
 function today(): string {
-  return new Date().toISOString().slice(0, 10);
+  return nepalToday();
 }
 
 function firstOfMonth(): string {
-  const now = new Date();
-  return new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1)).toISOString().slice(0, 10);
+  return nepalFirstOfMonth();
 }

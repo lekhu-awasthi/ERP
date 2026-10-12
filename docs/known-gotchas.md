@@ -4678,3 +4678,15 @@ The payment preview was right in phase 5. Phase 28 converted the amount and adde
 ## Load N, filter in the browser (phase 88)
 
 Four allocation pickers loaded the organization's first 200 approved documents and filtered by contact and currency client-side. That offered documents already settled and silently dropped any open document past the 200th. Neither shows on a tenant with a dozen invoices. Ask the server for one contact's open rows.
+
+## A local-midnight date printed in UTC is yesterday in Nepal (phase 89)
+
+`new Date(y, m, 1).toISOString().slice(0, 10)` builds local midnight on the 1st and prints it in UTC, which in Kathmandu is 18:15 on the last day of the previous month; `new Date(`${d}T00:00:00`)` (no `Z`) does the same to a parsed day, and `new Date().toISOString().slice(0, 10)` is yesterday from 00:00 to 05:45. Eighteen report pages opened a day early and the invoice and purchase-bill forms suggested every due date a day early, all day. None of it shows on a UTC build machine or in a test without a faked clock. A day on the client comes from `nepal-time.ts` (`nepalToday`, `nepalFirstOfMonth`, `nepalDayOf`, `shiftDay`); `nepal-day-sweep-guard.spec.ts` bans the four shapes, and `nepal-time.spec.ts` fakes the clock at 18:15 UTC.
+
+## A screen designed before the reference product was opened is a hypothesis, however long it has shipped (phase 89)
+
+Phase 8c built the VAT Summary as three VAT-rate buckets over any date range, and wrote down that it had never seen the vendor's. Opening it eighty phases later replaced the input (a BS fiscal year, because a VAT period is a BS month), the shape (the return's lines, twelve month columns) and the arithmetic (a month's credit is brought forward). A recorded "designed, not observed" is an open confirm-live question, not a settled screen.
+
+## A new caller of a shared reader asks what the reader leaves out (phase 89)
+
+Building the VAT return on the Purchase Register's reader showed the register had never listed an expense, so their input VAT was in no purchase book and on no VAT summary since phase 8c, while Annex 13 counted them. Two reports agreeing through one reader agree on its omissions too; when a reader gains a caller with a different question, read its `Where` against that question.

@@ -29,6 +29,7 @@ import { DocumentLocationPicker } from '../../../shared/locations/document-locat
 import { FieldError, FieldErrorMessage } from '../../../shared/a11y/field-error';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
+import { nepalToday } from '../../../shared/formatting/nepal-time';
 
 interface EditableLine {
   key: number;
@@ -396,7 +397,7 @@ this.exchangeRate.set(1);
   }
 
   private today(): string {
-    return new Date().toISOString().slice(0, 10);
+    return nepalToday();
   }
 
   private round(value: number): number {

@@ -44,5 +44,27 @@ export function instantToNepal(value: string): { date: string; time: string; sec
 
 /** Today's calendar date on the Nepal wall clock, as `yyyy-MM-dd`. Never the UTC date. */
 export function nepalToday(): string {
-  return new Date(Date.now() + NEPAL_OFFSET_MS).toISOString().slice(0, 10);
+  return nepalDayOf(new Date());
+}
+
+/** The Nepal calendar date an instant falls on, as `yyyy-MM-dd`. */
+export function nepalDayOf(instant: Date): string {
+  return new Date(instant.getTime() + NEPAL_OFFSET_MS).toISOString().slice(0, 10);
+}
+
+/**
+ * The first of this (AD) month on the Nepal wall clock, as `yyyy-MM-dd` — a report's default From date.
+ *
+ * <p><b>Phase 89.</b> Eighteen report pages built it as `new Date(y, m, 1).toISOString().slice(0, 10)`: local midnight
+ * on the 1st, which in Kathmandu is 18:15 UTC on the last day of the previous month, so every report opened a day early.
+ * And `new Date().toISOString().slice(0, 10)` was "today" in 67 files, which is yesterday from 00:00 to 05:45 in Nepal.
+ * `nepal-day-sweep-guard.spec.ts` keeps both shapes out.</p>
+ */
+export function nepalFirstOfMonth(): string {
+  return `${nepalToday().slice(0, 8)}01`;
+}
+
+/** A `yyyy-MM-dd` moved by whole days on the calendar alone (no clock, so no time zone to get wrong). */
+export function shiftDay(date: string, days: number): string {
+  return new Date(Date.parse(`${date}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
 }

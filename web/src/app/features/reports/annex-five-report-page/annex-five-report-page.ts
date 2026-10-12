@@ -12,6 +12,9 @@ import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 import { ReportLocationFilter } from '../../../shared/locations/report-location-filter';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
+import { nepalToday } from '../../../shared/formatting/nepal-time';
+import { currentFiscalYear, fiscalYearLabel } from '../../../shared/formatting/bs-fiscal-year';
+import { fiscalYearBounds } from '../../../shared/platform/date-range.service';
 
 /**
  * Read-only report screen -- roadmap Phase 8f's AnnexFiveReportQuery, a flat Sales bill register
@@ -40,8 +43,12 @@ export class AnnexFiveReportPage {
   protected readonly loading = signal(true);
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly report = signal<AnnexFiveReportDto | null>(null);
-  protected readonly fromDate = signal(this.firstOfMonth());
+  /** Phase 89 -- this fiscal year to date, as the vendor's annexes open (read 2026-10-12): an annex is filed for a
+   * fiscal year, so a month-to-date default was never the period anyone files. */
+  protected readonly fromDate = signal(fiscalYearBounds(currentFiscalYear()).from);
   protected readonly toDate = signal(this.today());
+
+  protected readonly fiscalYearLabel = fiscalYearLabel;
 
   protected readonly page = signal(1);
   protected readonly pageSize = signal(DEFAULT_PAGE_SIZE);
@@ -123,11 +130,7 @@ export class AnnexFiveReportPage {
   }
 
   private today(): string {
-    return new Date().toISOString().slice(0, 10);
+    return nepalToday();
   }
 
-  private firstOfMonth(): string {
-    const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
-  }
 }

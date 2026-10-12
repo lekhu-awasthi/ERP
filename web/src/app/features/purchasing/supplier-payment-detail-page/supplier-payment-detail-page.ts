@@ -26,6 +26,7 @@ import { BASE_CURRENCY_CODE } from '../../../core/organizations/organizations.mo
 import { FieldError, FieldErrorMessage } from '../../../shared/a11y/field-error';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
+import { nepalToday } from '../../../shared/formatting/nepal-time';
 
 interface EditableAllocation {
   key: number;
@@ -434,7 +435,7 @@ Approve anyway?`)) {
   }
 
   private today(): string {
-    return new Date().toISOString().slice(0, 10);
+    return nepalToday();
   }
 
   private round(value: number): number {

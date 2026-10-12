@@ -79,6 +79,8 @@ public sealed class GetCreditNoteQueryHandler(IAppDbContext db) : IRequestHandle
             AgainstInvoiceDate = creditNote.AgainstInvoiceDate,
             Reason = creditNote.Reason,
             RelatedInvoice = await ReadRelatedInvoiceAsync(creditNote, cancellationToken),
+            ReturnWarehouseName = (await CreditNoteReturnWarehouses.LoadAsync(
+                db, creditNote.OrganizationId, [creditNote], cancellationToken)).GetValueOrDefault(creditNote.Id),
         };
     }
 
@@ -126,11 +128,6 @@ public sealed class GetCreditNoteQueryHandler(IAppDbContext db) : IRequestHandle
             [.. creditNote.Payouts.Select(x => new CreditNotePayoutDto(
                 x.PaymentModeId, modeNames.GetValueOrDefault(x.PaymentModeId, ""), x.Kind, x.Amount))],
             creditNote.PaidOutAmount,
-            creditNote.ToAccountAmount)
-        {
-            // Phase 86 -- the list's reader, so the card and the page name the same warehouse.
-            WarehouseName = (await CreditNoteReturnWarehouses.LoadAsync(
-                db, creditNote.OrganizationId, [creditNote], cancellationToken)).GetValueOrDefault(creditNote.Id),
-        };
+            creditNote.ToAccountAmount);
     }
 }

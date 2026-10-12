@@ -539,19 +539,21 @@ export class AccountingService {
     });
   }
 
-  getVatSummaryReport(organizationId: string, fromDate: string, toDate: string): Observable<VatSummaryReportDto> {
+  /** Phase 89 -- the VAT return takes a BS fiscal year, not a date range: a VAT period is a BS month. */
+  getVatSummaryReport(organizationId: string, fiscalYear: number): Observable<VatSummaryReportDto> {
+    const params: Record<string, string> = { fiscalYear: String(fiscalYear) };
     return this.http.get<VatSummaryReportDto>(`${this.baseUrl(organizationId)}/reports/vat-summary`, {
       withCredentials: true,
-      params: { fromDate, toDate },
+      params,
     });
   }
 
-  /** No "current view" vs "full dataset" distinction -- VAT Summary is always the complete fixed
-   * 2x3-bucket result (see the endpoint's own comment), so there's only one export variant. */
-  exportVatSummaryReport(organizationId: string, fromDate: string, toDate: string): Observable<Blob> {
+  /** The return is twelve columns of fixed lines, never paginated, so there is one export variant. */
+  exportVatSummaryReport(organizationId: string, fiscalYear: number): Observable<Blob> {
+    const params: Record<string, string> = { fiscalYear: String(fiscalYear) };
     return this.http.get(`${this.baseUrl(organizationId)}/reports/vat-summary/export`, {
       withCredentials: true,
-      params: { fromDate, toDate },
+      params,
       responseType: 'blob',
     });
   }

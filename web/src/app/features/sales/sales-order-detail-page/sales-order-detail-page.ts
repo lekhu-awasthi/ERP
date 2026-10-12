@@ -28,6 +28,7 @@ import { StatusBanner } from '../../../shared/a11y/status-banner';
 import { LineUnitControl, LineUnitOption } from '../../../shared/catalog/line-unit-control';
 import { UnitOfMeasurementStore } from '../../../shared/catalog/unit-of-measurement-store';
 import { PendingTemplateStore } from '../../../core/sales/pending-template.store';
+import { nepalToday } from '../../../shared/formatting/nepal-time';
 
 interface EditableLine {
   key: number;
@@ -505,7 +506,7 @@ export class SalesOrderDetailPage {
   }
 
   private today(): string {
-    return new Date().toISOString().slice(0, 10);
+    return nepalToday();
   }
 
   private round(value: number): number {

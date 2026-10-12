@@ -17,7 +17,7 @@ import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { CalendarToggle } from '../../../shared/formatting/calendar-toggle';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
-import { nepalToday } from '../../../shared/formatting/nepal-time';
+import { nepalToday, shiftDay } from '../../../shared/formatting/nepal-time';
 import { PaginationControl } from '../../../shared/pagination/pagination-control';
 import { QuickLinks } from '../../../shared/platform/quick-links';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
@@ -332,7 +332,7 @@ function daysBetween(from: string, to: string): number {
 }
 
 function addDays(iso: string, days: number): string {
-  return new Date(Date.parse(`${iso}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
+  return shiftDay(iso, days);
 }
 
 

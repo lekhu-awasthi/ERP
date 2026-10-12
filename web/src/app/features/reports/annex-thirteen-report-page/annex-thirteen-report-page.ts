@@ -10,6 +10,9 @@ import { triggerBlobDownload } from '../../../shared/download-file';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
+import { nepalToday } from '../../../shared/formatting/nepal-time';
+import { currentFiscalYear } from '../../../shared/formatting/bs-fiscal-year';
+import { fiscalYearBounds } from '../../../shared/platform/date-range.service';
 
 /**
  * Read-only report screen -- roadmap Phase 8e's AnnexThirteenReportQuery, a per-Contact rollup of
@@ -34,7 +37,9 @@ export class AnnexThirteenReportPage {
   protected readonly loading = signal(true);
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly report = signal<AnnexThirteenReportDto | null>(null);
-  protected readonly fromDate = signal(this.firstOfMonth());
+  /** Phase 89 -- this fiscal year to date, as the vendor's annexes open (read 2026-10-12): an annex is filed for a
+   * fiscal year, so a month-to-date default was never the period anyone files. */
+  protected readonly fromDate = signal(fiscalYearBounds(currentFiscalYear()).from);
   protected readonly toDate = signal(this.today());
   protected readonly thresholdAmount = signal(100000);
 
@@ -121,11 +126,7 @@ export class AnnexThirteenReportPage {
   }
 
   private today(): string {
-    return new Date().toISOString().slice(0, 10);
+    return nepalToday();
   }
 
-  private firstOfMonth(): string {
-    const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
-  }
 }

@@ -30,4 +30,12 @@ public static class BillDate
         BsCalendar.FromGregorian(date) is { } bs ? BsCalendar.Format(bs) : null;
 
     public static string Ad(DateOnly date) => date.ToString("yyyy-MM-dd");
+
+    /// <summary>Phase 89 -- a statutory export's period, by the same rule: <c>2083-04-01 to 2083-06-26 BS (2026-07-17 to
+    /// 2026-10-12 AD)</c>. AD alone when either end is outside the BS table.</summary>
+    public static string FormatRange(DateOnly from, DateOnly to)
+    {
+        var ad = $"{Ad(from)} to {Ad(to)}";
+        return Bs(from) is { } bsFrom && Bs(to) is { } bsTo ? $"{bsFrom} to {bsTo} BS ({ad} AD)" : $"{ad} AD";
+    }
 }

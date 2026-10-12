@@ -11,6 +11,7 @@ import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { ReportLocationFilter } from '../../../shared/locations/report-location-filter';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
+import { nepalToday } from '../../../shared/formatting/nepal-time';
 
 /**
  * Read-only report screen -- roadmap Phase 9's ContactAgeingSummaryQuery (ContactType=Customer).
@@ -126,6 +127,6 @@ export class CustomerAgeingSummaryPage {
   }
 
   private today(): string {
-    return new Date().toISOString().slice(0, 10);
+    return nepalToday();
   }
 }

@@ -618,9 +618,6 @@ export interface CreditNotePosRefundDto {
   payouts: CreditNotePayoutDto[];
   paidOutAmount: number;
   toAccountAmount: number;
-  /** Phase 85 -- the warehouse its goods went back into (another branch's when refunded there); null when it carried
-   * no goods. */
-  warehouseName?: string | null;
 }
 
 export interface CreditNoteDetail extends CreditNote {
@@ -636,6 +633,10 @@ export interface CreditNoteDetail extends CreditNote {
   /** Phase 69 -- the invoice in this system the note relates to, as a return or as a price
    * adjustment: its number and date (VAT Rules Rule 20(1)(e)) and its total. */
   relatedInvoice: RelatedInvoice | null;
+  /** Phase 89 -- the warehouse the note's goods went back into, on every credit note (an ERP return as well as a till
+   * refund, which carried it alone since phase 85). Null on a draft, a void, a standalone note, a price adjustment or a
+   * return of services only: nothing went back into stock. */
+  returnWarehouseName?: string | null;
 }
 
 /** Phase 69 -- the tax invoice a credit note relates to. */
@@ -802,6 +803,14 @@ export interface AnnexFiveReportRowDto {
   taxAmount: number;
   totalAmount: number;
   isActive: boolean;
+  /** Phase 89 -- the vendor's columns this app can now back. `amount` is before discount; `discount` beside it. */
+  fiscalYear: number | null;
+  discount: number;
+  printCount: number;
+  /** The first print, the original bill. */
+  printedAt: string | null;
+  printedBy: string | null;
+  enteredBy: string | null;
 }
 
 export interface AnnexFiveReportDto {

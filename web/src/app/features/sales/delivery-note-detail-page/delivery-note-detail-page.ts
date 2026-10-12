@@ -34,6 +34,7 @@ import { FieldError, FieldErrorMessage } from '../../../shared/a11y/field-error'
 import { StatusBanner } from '../../../shared/a11y/status-banner';
 import { LineUnitControl, LineUnitOption } from '../../../shared/catalog/line-unit-control';
 import { UnitOfMeasurementStore } from '../../../shared/catalog/unit-of-measurement-store';
+import { nepalToday, shiftDay } from '../../../shared/formatting/nepal-time';
 
 interface EditableLine {
   key: number;
@@ -477,14 +478,12 @@ export class DeliveryNoteDetailPage {
   }
 
   private today(): string {
-    return new Date().toISOString().slice(0, 10);
+    return nepalToday();
   }
 
   /** The live form's default Expected Delivery Date: the day after the note's own date. */
   private tomorrow(): string {
-    const next = new Date();
-    next.setDate(next.getDate() + 1);
-    return next.toISOString().slice(0, 10);
+    return shiftDay(nepalToday(), 1);
   }
 
   private round(value: number): number {

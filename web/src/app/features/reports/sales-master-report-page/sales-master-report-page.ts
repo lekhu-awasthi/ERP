@@ -21,6 +21,7 @@ import { SalesChannelFilter, initialSalesChannel } from '../../../shared/sales/s
 import { SalesChannel } from '../../../core/sales/sales.models';
 import { PosTab } from '../../../core/pos/pos.models';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
+import { nepalFirstOfMonth, nepalToday } from '../../../shared/formatting/nepal-time';
 
 /**
  * Read-only report screen -- roadmap Phase 8b's SalesMasterReportQuery, a flat unaggregated
@@ -211,11 +212,10 @@ export class SalesMasterReportPage {
   }
 
   private today(): string {
-    return new Date().toISOString().slice(0, 10);
+    return nepalToday();
   }
 
   private firstOfMonth(): string {
-    const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+    return nepalFirstOfMonth();
   }
 }

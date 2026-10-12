@@ -10,6 +10,7 @@ import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { triggerBlobDownload } from '../../../shared/download-file';
 import { ReportLocationFilter } from '../../../shared/locations/report-location-filter';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
+import { nepalToday } from '../../../shared/formatting/nepal-time';
 
 /** Read-only report screen -- roadmap Phase 8a's BalanceSheetQuery, Asset/Liability/Equity
  * accounts grouped by top-level AccountGroup (full-subtree rollup) as of a cutoff date, with a
@@ -89,6 +90,6 @@ export class BalanceSheetPage {
   }
 
   private today(): string {
-    return new Date().toISOString().slice(0, 10);
+    return nepalToday();
   }
 }

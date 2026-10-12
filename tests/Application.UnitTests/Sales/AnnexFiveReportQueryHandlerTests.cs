@@ -23,12 +23,67 @@ using ErpApp.Domain.Catalog;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Contacts;
 using ErpApp.Domain.Sales;
+using ErpApp.Domain.Identity;
 using ErpApp.Domain.Tenancy;
+using ErpApp.Domain.Workflow;
+using Microsoft.EntityFrameworkCore;
 
 namespace ErpApp.Application.UnitTests.Sales;
 
 public class AnnexFiveReportQueryHandlerTests
 {
+    /// <summary>
+    /// Phase 89 -- the vendor's columns this app can now back. Amount is before discount and Discount is beside it (the
+    /// vendor's view: Amount 1,006.50, Discount 50, Taxable 956.50), the fiscal year is the BS one the bill falls in, the
+    /// print columns come from phase 67's counted prints (the first print is the original bill), and Entered By is the
+    /// user on the Create audit row, not the approver.
+    /// </summary>
+    [Fact]
+    public async Task A_bill_row_carries_its_discount_fiscal_year_prints_and_who_entered_it()
+    {
+        var db = TestAppDbContext.Create();
+        var seed = await SeedAsync(db);
+
+        // 10 x 100 with a 10% line discount and a 5% header discount: 1,000 -> 900 -> 855, VAT 111.15.
+        var created = await new CreateInvoiceCommandHandler(db, await SalesPricing.PricerAsync(db, seed.OrganizationId)).Handle(
+            new CreateInvoiceCommand(
+                seed.OrganizationId, seed.CustomerId, seed.WarehouseId, new DateOnly(2026, 1, 15), null,
+                [new InvoiceLineInput(seed.ProductId, 10m, 100m, VatRate.ThirteenPercentVat, DiscountPct: 10m)],
+                ReferrerType: null, ReferrerId: null, DiscountPct: 5m),
+            CancellationToken.None);
+        var stockLedgerService = new StockLedgerService(db);
+        await new ApproveInvoiceCommandHandler(
+            db, seed.NumberGenerator, new FakeCurrentUserService(Guid.NewGuid()), new InvoicePostingRule(),
+            new FifoStockAvailabilityPolicy(db, stockLedgerService), stockLedgerService, new ContactCreditLimitPolicy(db))
+            .Handle(new ApproveInvoiceCommand(seed.OrganizationId, created.Id, OverrideWarning: false), CancellationToken.None);
+
+        var clerk = User.Register("Sita Clerk", "sita@example.test", "9800000001", "x");
+        var cashier = User.Register("Hari Cashier", "hari@example.test", "9800000002", "x");
+        db.Users.AddRange(clerk, cashier);
+        db.Audits.Add(Audit.Create(seed.OrganizationId, clerk.Id, "Create", DocumentType.Invoice, created.Id));
+        var invoice = await db.Invoices.SingleAsync(x => x.Id == created.Id);
+        var firstPrint = new DateTimeOffset(2026, 1, 15, 10, 0, 0, TimeSpan.Zero);
+        db.InvoicePrints.Add(InvoicePrint.Record(invoice, 0, cashier.Id, firstPrint, PrintMedium.Pdf));
+        db.InvoicePrints.Add(InvoicePrint.Record(invoice, 1, clerk.Id, firstPrint.AddHours(2), PrintMedium.Email));
+        await db.SaveChangesAsync(CancellationToken.None);
+
+        var result = await new AnnexFiveReportQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
+            new AnnexFiveReportQuery(seed.OrganizationId, new DateOnly(2026, 1, 1), new DateOnly(2026, 1, 31)),
+            CancellationToken.None);
+
+        var row = Assert.Single(result.Rows);
+        Assert.Equal(1_000m, row.Amount);
+        Assert.Equal(145m, row.Discount);
+        Assert.Equal(855m, row.TaxableAmount);
+        Assert.Equal(111.15m, row.TaxAmount);
+        Assert.Equal(966.15m, row.TotalAmount);
+        Assert.Equal(2082, row.FiscalYear);
+        Assert.Equal(2, row.PrintCount);
+        Assert.Equal(firstPrint, row.PrintedAt);
+        Assert.Equal("Hari Cashier", row.PrintedBy);
+        Assert.Equal("Sita Clerk", row.EnteredBy);
+    }
+
     [Fact]
     public async Task Handle_computes_amount_taxable_amount_and_tax_amount_from_mixed_vat_rate_lines()
     {

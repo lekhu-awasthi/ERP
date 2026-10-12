@@ -4,6 +4,7 @@ import { PlatformService } from '../../core/platform/platform.service';
 import { UserPreferenceKeys } from '../../core/platform/platform.models';
 import { bsToAd } from '../formatting/bs-date';
 import { FISCAL_YEAR_START_MONTH, currentFiscalYear } from '../formatting/bs-fiscal-year';
+import { nepalDayOf } from '../formatting/nepal-time';
 
 /**
  * Phase 34b — the global date range the top bar sets and list screens read.
@@ -189,8 +190,9 @@ export function fiscalYearBounds(fiscalYear: number): { from: string; to: string
   return { from, to: iso(lastDay) };
 }
 
+/** Phase 89 -- the Nepal day an instant falls on: "Today" and "Last 7 days" end on Kathmandu's date, never UTC's. */
 function iso(date: Date): string {
-  return date.toISOString().slice(0, 10);
+  return nepalDayOf(date);
 }
 
 function parseStored(value: string): DateRange | null {

@@ -216,6 +216,13 @@
                 <span class="text-body-secondary">None named</span>
               }
             </div>
+            <!-- Phase 89 (phase 86 § 5) -- where the goods went back into stock, on every return, as the list's card says. -->
+            @if (cn.returnWarehouseName) {
+              <div class="col-12">
+                <span class="form-label small fw-semibold d-block">Goods returned into</span>
+                {{ cn.returnWarehouseName }}
+              </div>
+            }
           }
           @if (!posRefund()) {
             <div class="col-12">
@@ -486,9 +493,6 @@
             <p class="small text-muted mb-2">
               Session {{ refund.sessionCode ?? '—' }}@if (refund.reason) { · {{ refund.reason }} }
             </p>
-            @if (refund.warehouseName) {
-              <p class="small mb-2">Goods returned into {{ refund.warehouseName }}</p>
-            }
             <table class="table table-sm mb-0" aria-label="Payouts">
               <thead>
                 <tr>

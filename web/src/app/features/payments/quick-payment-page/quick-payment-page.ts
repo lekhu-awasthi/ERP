@@ -18,6 +18,7 @@ import { BASE_CURRENCY_CODE } from '../../../core/organizations/organizations.mo
 import { InboxConversionPanel } from '../../../shared/source-document/inbox-conversion-panel';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
+import { nepalToday } from '../../../shared/formatting/nepal-time';
 
 /**
  * Phase 17 -- Quick Payment/Quick Receipt (docs/phase-17-status.md decision #7): a thin variant of
@@ -94,14 +95,14 @@ export class QuickPaymentPage {
 
   protected readonly form = this.fb.nonNullable.group({
     contactId: ['', Validators.required],
-    date: [new Date().toISOString().slice(0, 10), Validators.required],
+    date: [nepalToday(), Validators.required],
     paymentModeId: [''],
     accountId: ['', Validators.required],
     amount: [0, [Validators.required, Validators.min(0.01)]],
     reference: [''],
     chequeNo: [''],
-    chequeDate: [new Date().toISOString().slice(0, 10)],
-    receivedDate: [new Date().toISOString().slice(0, 10)],
+    chequeDate: [nepalToday()],
+    receivedDate: [nepalToday()],
   });
 
   /** Plain signal (not a computed() over the FormGroup's own .value) -- FormControl.value is a
@@ -288,14 +289,14 @@ Approve anyway?`)) {
     this.form.enable();
     this.form.reset({
       contactId: '',
-      date: new Date().toISOString().slice(0, 10),
+      date: nepalToday(),
       paymentModeId: '',
       accountId: '',
       amount: 0,
       reference: '',
       chequeNo: '',
-      chequeDate: new Date().toISOString().slice(0, 10),
-      receivedDate: new Date().toISOString().slice(0, 10),
+      chequeDate: nepalToday(),
+      receivedDate: nepalToday(),
     });
   }
 

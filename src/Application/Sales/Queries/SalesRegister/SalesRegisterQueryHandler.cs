@@ -31,98 +31,20 @@ public sealed class SalesRegisterQueryHandler(IAppDbContext db, ICurrentUserServ
 
         if (!tagFilterActive || taggedInvoiceIds is { Count: > 0 })
         {
-            var invoiceQuery = db.Invoices.Where(x =>
-                x.OrganizationId == request.OrganizationId && x.Status == InvoiceStatus.Approved
-                && x.Date >= request.FromDate && x.Date <= request.ToDate);
-            if (request.ContactId is { } invoiceContactId)
-            {
-                invoiceQuery = invoiceQuery.Where(x => x.ContactId == invoiceContactId);
-            }
-            if (taggedInvoiceIds is not null)
-            {
-                invoiceQuery = invoiceQuery.Where(x => taggedInvoiceIds.Contains(x.Id));
-            }
+            // Phase 89 -- the invoice half comes from SalesBookReader, which the VAT return also reads, so a month of the
+            // return equals this register over that month by construction. The reader carries every filter this half
+            // applied (contact, tags, phase 44's location, phase 66's channel), phase 61/70's fees inside the VAT base,
+            // phase 43's fold to base currency, and phase 42's join to the invoice query rather than a list of ids.
+            var invoices = await SalesBookReader.LoadAsync(
+                db, request.OrganizationId, request.FromDate, request.ToDate, request.ContactId, cancellationToken,
+                request.LocationId, reportLocations, request.Channel, taggedInvoiceIds);
 
-            // Phase 44 -- the Billing Location filter, which this half never applied. Phase 35b gave
-            // the query its LocationId and taught SalesReturnReader to honour it, so the credit-note
-            // rows narrowed and the invoice rows did not: picking a location removed the returns from
-            // the register and left every invoice in it, which is worse than not offering the filter.
-            // The Sales Master Report has applied it to both its document queries since phase 32.
-            // See the Purchase Register's copy of this comment for why the sweep guard missed it.
-            invoiceQuery = invoiceQuery.AtLocations(request.LocationId, reportLocations);
-
-            // Phase 66 -- the channel, on this half and (below, through SalesReturnReader) the other.
-            if (request.Channel is { } onlyChannel)
-            {
-                invoiceQuery = invoiceQuery.Where(x => x.Channel == onlyChannel);
-            }
-
-            var invoices = await invoiceQuery
-                .Select(x => new
-                {
-                    x.Id, x.ContactId, x.Code, x.Date,
-                    x.IsExport, x.ExportCountry, x.ExportDeclarationNo, x.ExportDeclarationDate,
-                    // Phase 43 (36 carried item #5) -- carried so the four statutory magnitudes
-                    // below can be folded to the base currency. See the fold beneath the join.
-                    x.ExchangeRate,
-                })
-                .ToListAsync(cancellationToken);
-
-            // Phase 42 -- the lines are joined to the invoice *query*, not fetched for a list of
-            // ids read back out of `invoices`. That list is one id per invoice in the period --
-            // 50,000 over three years on the scale dataset -- and reaches SQL Server as an OPENJSON
-            // parameter of the same length, which is phase-34c's gotcha at full size. Joining the
-            // query keeps the date filter where the optimizer can use the (OrganizationId, Date)
-            // index and sends no parameter at all. Same rows, same order, same grouping below.
-            var rawInvoiceLines = await (
-                from line in db.InvoiceLines
-                join invoice in invoiceQuery on line.InvoiceId equals invoice.Id
-                select new
-                {
-                    // Phase 61 -- a till line's service charge is inside the VAT base, so the register
-                    // counts it with the line it was charged on (zero on every ERP line). The round-off
-                    // is not a supply, so no register row carries it: Total stays Exempt + Taxable + VAT.
-                    line.InvoiceId, line.ProductId, line.Quantity, Amount = line.Amount + line.ServiceChargeAmount + line.PackagingFeeAmount,
-                    line.VatAmount, invoice.ExchangeRate,
-                })
-                .ToListAsync(cancellationToken);
-
-            // Phase 43 (36 carried item #5) -- <b>the register is filed in NPR, so it reports NPR.</b>
+            // Phase 36 -- the item's name and unit, needed only when Group By Bill is off. Loaded once for the period
+            // either way rather than branching two data paths.
             //
-            // A foreign invoice used to contribute its own 100 to a statutory sales book, beside a
-            // domestic invoice's 100, with nothing on the page saying the two numbers were not the
-            // same kind of thing. The four magnitudes this register exists to report -- total,
-            // tax-exempt, taxable and VAT -- are the figures a VAT return is built from, and that
-            // return is denominated in rupees.
-            //
-            // <b>Folded per line, before the bucketing, never on the finished buckets.</b> That is
-            // phase-28's posting-rule rule arriving in a report: Total is derived as a *sum* of the
-            // other three, so converting the buckets independently would let Total differ from
-            // TaxExempt + Taxable + VAT by a paisa on some rates -- and the footer, the page and the
-            // per-line view would each round it differently. Converting the inputs keeps every view
-            // summing to the same number by construction.
-            //
-            // In memory, after ToListAsync, because ExchangeRates.ToBase is a static call: inside the
-            // query it is untranslatable on SQL Server and silently evaluated in C# by InMemory, so
-            // every handler test would pass while the endpoint 500s (phase-34b, phase-25).
-            var invoiceLines = rawInvoiceLines
-                .Select(x => new
-                {
-                    x.InvoiceId,
-                    x.ProductId,
-                    x.Quantity,
-                    Amount = ExchangeRates.ToBase(x.Amount, x.ExchangeRate),
-                    VatAmount = ExchangeRates.ToBase(x.VatAmount, x.ExchangeRate),
-                })
-                .ToList();
-
-            // Phase 36 -- the item's name and unit, needed only when Group By Bill is off. Loaded
-            // once for the period either way rather than branching two data paths.
-            //
-            // Phase 42 -- and loaded for the tenant rather than for the distinct product ids the
-            // period's lines mention, for the reason above: 20,000 ids sent back is dearer than the
-            // index scan that returns 20,000 rows. The dictionaries are lookups, so extra entries
-            // change nothing.
+            // Phase 42 -- and loaded for the tenant rather than for the distinct product ids the period's lines mention:
+            // 20,000 ids sent back is dearer than the index scan that returns 20,000 rows. The dictionaries are lookups, so
+            // extra entries change nothing.
             var lineProducts = await db.Products
                 .Where(x => x.OrganizationId == request.OrganizationId)
                 .Select(x => new { x.Id, x.Name, x.PrimaryUnitId })
@@ -133,66 +55,48 @@ public sealed class SalesRegisterQueryHandler(IAppDbContext db, ICurrentUserServ
                 .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
             var lineProductLookup = lineProducts.ToDictionary(
                 x => x.Id, x => (x.Name, Unit: lineUnits.GetValueOrDefault(x.PrimaryUnitId, string.Empty)));
-            var invoiceTotals = invoiceLines.GroupBy(x => x.InvoiceId)
-                .ToDictionary(g => g.Key, g => (
-                    Total: g.Sum(x => x.Amount + x.VatAmount),
-                    TaxExempt: g.Where(x => x.VatAmount == 0).Sum(x => x.Amount),
-                    Taxable: g.Where(x => x.VatAmount != 0).Sum(x => x.Amount),
-                    Vat: g.Sum(x => x.VatAmount)));
 
-            // Phase 42 -- the tenant's contacts, not the 35,001 ids the period's invoices name. See
-            // the lines above; this read alone measured 155,435 logical reads and 582 ms as an
-            // OPENJSON join.
+            // Phase 42 -- the tenant's contacts, not the 35,001 ids the period's invoices name. This read alone measured
+            // 155,435 logical reads and 582 ms as an OPENJSON join.
             var invoiceContacts = await db.Contacts
                 .Where(x => x.OrganizationId == request.OrganizationId)
                 .Select(x => new { x.Id, x.Name, x.Pan })
                 .ToDictionaryAsync(x => x.Id, cancellationToken);
 
-            rows.AddRange(invoices.Select(x =>
+            if (request.GroupByBill)
             {
-                var totals = invoiceTotals.GetValueOrDefault(x.Id);
-                var contact = invoiceContacts[x.ContactId];
-                // FR-5.8 (Phase 23). These four columns existed from Phase 19 and were hardcoded to
-                // zero/null because Invoice had no export flag until now.
-                //
-                // ExportValue is the invoice's own total, reported in its own statutory column --
-                // and deliberately NOT added to TaxableValue. An export sale is zero-rated, so its
-                // lines are ZeroVat (Invoice.AddLine enforces that), which means the existing
-                // "VatAmount == 0 => tax-exempt" split already keeps it out of Taxable. Stating it
-                // here because the alternative -- letting an export sale inflate Taxable Sales --
-                // is exactly the kind of wrong-column error Phase 6's bug #3 is the reminder for.
-                return new SalesRegisterRowDto(
-                    x.Date, DocumentType.Invoice, x.Code, x.ContactId, contact.Name, contact.Pan,
-                    totals.Total, totals.TaxExempt, totals.Taxable, totals.Vat,
-                    ExportValue: x.IsExport ? totals.Total : 0,
-                    ExportCountry: x.IsExport ? x.ExportCountry : null,
-                    ExportDeclarationNo: x.IsExport ? x.ExportDeclarationNo : null,
-                    ExportDeclarationDate: x.IsExport ? x.ExportDeclarationDate : null);
-            }));
-
-            if (!request.GroupByBill)
+                rows.AddRange(invoices.Select(x =>
+                {
+                    var contact = invoiceContacts[x.ContactId];
+                    // FR-5.8 (Phase 23). ExportValue is the invoice's own total, reported in its own statutory column --
+                    // and deliberately NOT added to TaxableValue. An export sale is zero-rated, so its lines are ZeroVat
+                    // (Invoice.AddLine enforces that), and the "VatAmount == 0 => tax-exempt" split keeps it out of
+                    // Taxable. Letting an export sale inflate Taxable Sales is exactly the wrong-column error phase 6's
+                    // bug #3 is the reminder for.
+                    return new SalesRegisterRowDto(
+                        x.Date, DocumentType.Invoice, x.Code, x.ContactId, contact.Name, contact.Pan,
+                        x.Buckets.Total, x.Buckets.TaxExempt, x.Buckets.Taxable, x.Buckets.Vat,
+                        ExportValue: x.ExportValue,
+                        ExportCountry: x.IsExport ? x.ExportCountry : null,
+                        ExportDeclarationNo: x.IsExport ? x.ExportDeclarationNo : null,
+                        ExportDeclarationDate: x.IsExport ? x.ExportDeclarationDate : null);
+                }));
+            }
+            else
             {
-                // Phase 36 -- one row per line instead. Built by replacing the document rows just
-                // added rather than by a second query, so the two views read the same invoices, the
-                // same lines and the same split: a line's four magnitudes sum to its document's.
-                var byInvoice = invoiceLines.GroupBy(x => x.InvoiceId).ToDictionary(g => g.Key, g => g.ToList());
-
-                rows = [.. rows.Where(row => row.DocumentType != DocumentType.Invoice)];
-
+                // Phase 36 -- one row per line instead, from the same folded lines, so a line's four magnitudes sum to
+                // its document's.
                 rows.AddRange(invoices.SelectMany(invoice =>
                 {
                     var contact = invoiceContacts[invoice.ContactId];
-                    return byInvoice.GetValueOrDefault(invoice.Id, []).Select(line =>
+                    return invoice.Lines.Select(line =>
                     {
                         var product = lineProductLookup.GetValueOrDefault(line.ProductId);
-                        var lineTotal = line.Amount + line.VatAmount;
+                        var split = SalesBookReader.Split([line]);
                         return new SalesRegisterRowDto(
                             invoice.Date, DocumentType.Invoice, invoice.Code, invoice.ContactId, contact.Name, contact.Pan,
-                            lineTotal,
-                            line.VatAmount == 0 ? line.Amount : 0,
-                            line.VatAmount != 0 ? line.Amount : 0,
-                            line.VatAmount,
-                            ExportValue: invoice.IsExport ? lineTotal : 0,
+                            split.Total, split.TaxExempt, split.Taxable, split.Vat,
+                            ExportValue: invoice.IsExport ? split.Total : 0,
                             ExportCountry: invoice.IsExport ? invoice.ExportCountry : null,
                             ExportDeclarationNo: invoice.IsExport ? invoice.ExportDeclarationNo : null,
                             ExportDeclarationDate: invoice.IsExport ? invoice.ExportDeclarationDate : null,

@@ -1,4 +1,5 @@
 import { FIRST_BS_YEAR, LAST_BS_YEAR, adToBs } from './bs-date';
+import { nepalDayOf } from './nepal-time';
 
 /**
  * The Bikram Sambat fiscal year, client side (phase 26b).
@@ -28,9 +29,10 @@ export function fiscalYearOf(isoDate: string): number | null {
   return bs.month >= FISCAL_YEAR_START_MONTH ? bs.year : bs.year - 1;
 }
 
-/** Today's fiscal year, falling back to the last expressible one outside the supported range. */
+/** Today's fiscal year, falling back to the last expressible one outside the supported range. Phase 89: on the Nepal
+ * day, so Shrawan 1 opens the new year at midnight in Kathmandu and not at 05:45. */
 export function currentFiscalYear(today: Date = new Date()): number {
-  const iso = today.toISOString().slice(0, 10);
+  const iso = nepalDayOf(today);
   return fiscalYearOf(iso) ?? LAST_BS_YEAR - 1;
 }
 

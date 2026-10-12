@@ -15,6 +15,7 @@ import { ReportLocationFilter } from '../../../shared/locations/report-location-
 import { ConfigurationService } from '../../../core/configuration/configuration.service';
 import { ReportingTagOption } from '../../../core/configuration/configuration.models';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
+import { nepalFirstOfMonth, nepalToday } from '../../../shared/formatting/nepal-time';
 
 const EMPTY_REPORT: PagedResult<JournalReportEntryDto> = {
   items: [],
@@ -167,11 +168,10 @@ export class JournalReportPage {
   }
 
   private today(): string {
-    return new Date().toISOString().slice(0, 10);
+    return nepalToday();
   }
 
   private firstOfMonth(): string {
-    const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+    return nepalFirstOfMonth();
   }
 }

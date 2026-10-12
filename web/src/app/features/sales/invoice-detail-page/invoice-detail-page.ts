@@ -41,6 +41,7 @@ import { FieldError, FieldErrorMessage } from '../../../shared/a11y/field-error'
 import { StatusBanner } from '../../../shared/a11y/status-banner';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 import { POS_TAB_LABELS } from '../../../core/pos/pos.models';
+import { nepalToday, shiftDay } from '../../../shared/formatting/nepal-time';
 
 interface EditableLine {
   key: number;
@@ -488,13 +489,13 @@ export class InvoiceDetailPage {
       return;
     }
 
-    const from = new Date(`${this.date()}T00:00:00`);
-    if (Number.isNaN(from.getTime())) {
+    // Phase 89 -- on the calendar alone. This parsed local midnight (no `Z`) and printed it in UTC, so in Kathmandu
+    // (18:15 UTC the day before) every suggested due date came out a day early.
+    if (Number.isNaN(Date.parse(`${this.date()}T00:00:00Z`))) {
       return;
     }
 
-    from.setDate(from.getDate() + term.dueDays);
-    this.dueDate.set(from.toISOString().slice(0, 10));
+    this.dueDate.set(shiftDay(this.date(), term.dueDays));
   }
 
   protected onProductChange(key: number, event: Event): void {
@@ -903,7 +904,7 @@ Approve anyway?`)) {
   }
 
   private today(): string {
-    return new Date().toISOString().slice(0, 10);
+    return nepalToday();
   }
 
   private round(value: number): number {

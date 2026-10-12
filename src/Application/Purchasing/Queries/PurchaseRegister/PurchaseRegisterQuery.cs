@@ -12,6 +12,8 @@ namespace ErpApp.Application.Purchasing.Queries.PurchaseRegister;
 /// Phase 26c added a separate Purchase Return Register and confirmed live that this one keeps its
 /// debit-note rows: the same notes appear in both, negative here and positive there. Both read the
 /// shared <c>PurchaseReturnReader</c>, so the magnitudes cannot drift apart.
+/// Phase 89: approved Expenses are rows too (positive, typed Expense), since their VAT is input tax the VAT return
+/// claims (the user's ruling, 2026-10-12); bills and expenses come from <c>PurchaseBookReader</c>, which the return reads.
 /// Unlike Sales Register, no domain gap: PurchaseBill already carries IsImport/ExpenditureClassification
 /// (Phase 6/8e) -- the exact split this register's 4 value/tax column-pairs need. No Reporting Tag
 /// filter -- decision #1 confirmed tags attach only to Quotation/Invoice (Sales side), so there is

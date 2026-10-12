@@ -15,6 +15,7 @@ import { SalesChannelFilter, initialSalesChannel } from '../../../shared/sales/s
 import { SalesChannel } from '../../../core/sales/sales.models';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
+import { nepalToday } from '../../../shared/formatting/nepal-time';
 
 const EMPTY_REPORT: PagedResult<AuditRowDto> = { items: [], page: 1, pageSize: DEFAULT_PAGE_SIZE, totalCount: 0 };
 
@@ -165,7 +166,7 @@ export class SystemAuditReportPage {
       .subscribe({
         next: (blob) => {
           this.exporting.set(false);
-          triggerBlobDownload(blob, `SystemAuditReport_${new Date().toISOString().slice(0, 10)}.xlsx`);
+          triggerBlobDownload(blob, `SystemAuditReport_${nepalToday()}.xlsx`);
         },
         error: (err: unknown) => {
           this.exporting.set(false);

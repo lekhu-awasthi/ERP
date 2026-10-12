@@ -6,6 +6,7 @@ using ErpApp.Application.Purchasing.Queries.TdsReport;
 using ErpApp.Application.Sales.Queries.AnnexFiveReport;
 using ErpApp.Application.UnitTests.Purchasing;
 using ErpApp.Application.UnitTests.TestSupport;
+using ErpApp.Domain.Common;
 using Microsoft.EntityFrameworkCore;
 
 namespace ErpApp.Application.UnitTests.Sales;
@@ -66,13 +67,11 @@ public class MigratedRegisterReportReachTests
         var db = TestAppDbContext.Create();
         var organizationId = await SeedMigratedOnlyTenantAsync(db);
 
+        // Phase 89 -- the return is a BS fiscal year; the migrated rows' period falls in one.
         var result = await new VatSummaryReportQueryHandler(db).Handle(
-            new VatSummaryReportQuery(organizationId, From, To), CancellationToken.None);
+            new VatSummaryReportQuery(organizationId, BsCalendar.FiscalYearOf(new DateOnly(2024, 3, 1))!.Value), CancellationToken.None);
 
-        Assert.Equal(0m, result.TotalOutputVat);
-        Assert.Equal(0m, result.TotalInputVat);
-        Assert.All(result.SalesBuckets, b => Assert.Equal(0m, b.NetSalesAmount));
-        Assert.All(result.PurchaseBuckets, b => Assert.Equal(0m, b.NetPurchaseAmount));
+        Assert.All(result.Lines, line => Assert.All(line.Monthly, figure => Assert.Equal(0m, figure)));
     }
 
     /// <summary>

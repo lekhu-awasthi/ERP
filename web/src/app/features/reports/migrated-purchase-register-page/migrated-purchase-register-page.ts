@@ -11,6 +11,7 @@ import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { BsDateInput } from '../../../shared/formatting/bs-date-input';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
+import { nepalToday } from '../../../shared/formatting/nepal-time';
 
 /**
  * Phase 21c / FR-2.10 / FR-9.4 -- the Migrated Purchase Register. The Purchase-side twin of
@@ -143,12 +144,11 @@ export class MigratedPurchaseRegisterPage {
   }
 
   private today(): string {
-    return new Date().toISOString().slice(0, 10);
+    return nepalToday();
   }
 
   /** Migrated rows are pre-cutover by definition -- see the Sales-side page. */
   private startOfPreviousYear(): string {
-    const now = new Date();
-    return new Date(now.getFullYear() - 2, 0, 1).toISOString().slice(0, 10);
+    return `${Number(nepalToday().slice(0, 4)) - 2}-01-01`;
   }
 }

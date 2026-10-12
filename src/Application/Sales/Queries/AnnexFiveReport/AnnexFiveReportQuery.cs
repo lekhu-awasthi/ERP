@@ -47,11 +47,20 @@ public sealed record AnnexFiveReportQuery(
 }
 
 /// <summary>
-/// One row per Approved Invoice/CreditNote. Amount is the pre-VAT sum across all lines (taxable and
-/// non-taxable); TaxableAmount/TaxAmount are the ThirteenPercentVat-line subset; TotalAmount is
-/// Amount + TaxAmount -- matching the arithmetic confirmed against the live screen's own rows (e.g.
-/// Amount 91,001 / Taxable_Amount 5,400 / Total_Amount 91,703, where 703 = round(5,400 * 0.13)).
+/// One row per Approved (or Void) Invoice/CreditNote. TaxableAmount/TaxAmount are the ThirteenPercentVat-line subset;
+/// TotalAmount is the value after discount plus TaxAmount -- matching the arithmetic confirmed against the live screen's
+/// own rows (e.g. Amount 91,001 / Taxable_Amount 5,400 / Total_Amount 91,703, where 703 = round(5,400 * 0.13)).
+///
+/// <para><b>Phase 89 -- Amount is before discount, and Discount is beside it</b>, as the vendor's view prints them (read
+/// 2026-10-12: Amount 1,006.50, Discount 50, Taxable 956.50). A line's stored Amount is already net of every discount
+/// (line %, per unit, the header's %, a bill's or a guest's share), so Discount is what quantity times rate lost on the
+/// way there, and Amount is the stored value plus it: Amount less Discount is the value the old Amount column showed.</para>
 /// </summary>
+/// <param name="FiscalYear">The BS fiscal year the bill date falls in, named by its first year (2083 for 2083-84); null
+/// outside the BS table. Phase 8f left the vendor's Fiscal_Year out because no BS calendar existed on the server.</param>
+/// <param name="PrintCount">Every copy that left (till, PDF, email), from phase 67's counted prints.</param>
+/// <param name="PrintedAt">The first print: the original bill. Later copies are counted, not dated here.</param>
+/// <param name="EnteredBy">Who created the document, from its Create audit row (phase 16d); null before that existed.</param>
 public sealed record AnnexFiveReportRowDto(
     Guid ContactId,
     string ContactCode,
@@ -64,7 +73,13 @@ public sealed record AnnexFiveReportRowDto(
     decimal TaxableAmount,
     decimal TaxAmount,
     decimal TotalAmount,
-    bool IsActive);
+    bool IsActive,
+    int? FiscalYear,
+    decimal Discount,
+    int PrintCount,
+    DateTimeOffset? PrintedAt,
+    string? PrintedBy,
+    string? EnteredBy);
 
 public sealed record AnnexFiveReportDto(
     DateOnly FromDate,

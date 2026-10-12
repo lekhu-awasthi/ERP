@@ -15,6 +15,7 @@ import { ReportLocationFilter } from '../../../shared/locations/report-location-
 import { SalesChannelFilter, initialSalesChannel } from '../../../shared/sales/sales-channel-filter';
 import { SalesChannel } from '../../../core/sales/sales.models';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
+import { nepalToday } from '../../../shared/formatting/nepal-time';
 
 /**
  * Sales By Item -- confirmed live 2026-09-03.
@@ -169,7 +170,7 @@ export class SalesByItemPage {
 }
 
 function today(): string {
-  return new Date().toISOString().slice(0, 10);
+  return nepalToday();
 }
 
 function startOfYear(): string {
