@@ -30,6 +30,8 @@ public sealed class MigratedPurchaseRegisterQueryHandler(IAppDbContext db)
                 x.Date,
                 DocumentType.MigratedPurchaseEntry,
                 x.DocumentCode,
+                // The imported register's Bill No is the supplier's number already.
+                x.DocumentCode,
                 x.ImportDeclarationNo,
                 x.ContactId,
                 x.PartyName,

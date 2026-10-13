@@ -80,6 +80,8 @@
                 <th scope="col">Date</th>
                 <th scope="col">Type</th>
                 <th scope="col">Document No</th>
+                <!-- Phase 90 -- the book's बीजक नं.: the supplier's own number, so IRD can match it to their sales book. -->
+                <th scope="col">Invoice No</th>
                 <th scope="col">Import Declaration No</th>
                 <th scope="col">Supplier</th>
                 <th scope="col">PAN</th>
@@ -107,6 +109,7 @@
                     }
                   </td>
                   <td>{{ row.documentCode }}</td>
+                  <td class="text-nowrap">{{ row.invoiceNo || '—' }}</td>
                   <td>{{ row.importDeclarationNo || '—' }}</td>
                   <td>{{ row.contactName }}</td>
                   <td>{{ row.contactPan || '—' }}</td>
@@ -122,7 +125,7 @@
             </tbody>
             <tfoot>
               <tr class="fw-bold border-top">
-                <td colspan="6">Total</td>
+                <td colspan="7">Total</td>
                 <td class="text-end">{{ (totalTaxExemptValue() | amount) }}</td>
                 <td class="text-end">{{ (totalTaxableNonCapitalLocalValue() | amount) }}</td>
                 <td class="text-end">{{ (totalTaxableNonCapitalLocalVat() | amount) }}</td>

@@ -9,8 +9,10 @@ using ErpApp.Application.Contacts.Commands.CreateContact;
 using ErpApp.Application.Inventory.Stock;
 using ErpApp.Application.Purchasing;
 using ErpApp.Application.Purchasing.Commands.ApproveDebitNote;
+using ErpApp.Application.Purchasing.Commands.ApproveExpense;
 using ErpApp.Application.Purchasing.Commands.ApprovePurchaseBill;
 using ErpApp.Application.Purchasing.Commands.CreateDebitNote;
+using ErpApp.Application.Purchasing.Commands.CreateExpense;
 using ErpApp.Application.Purchasing.Commands.CreatePurchaseBill;
 using ErpApp.Application.Purchasing.Posting;
 using ErpApp.Application.Purchasing.Queries.PurchaseRegister;
@@ -108,6 +110,57 @@ public class PurchaseRegisterQueryHandlerTests
         Assert.Equal(DocumentType.DebitNote, debitNoteRow.DocumentType);
         Assert.Equal(-200m, debitNoteRow.TaxableCapitalValue); // -(2 * 100), resolved as Capital from the source line
         Assert.Equal(-26m, debitNoteRow.TaxableCapitalVat);
+    }
+
+    /// <summary>
+    /// Phase 90 -- the purchase book's बीजक नं. is the <b>supplier's</b> invoice number, as the reference product prints
+    /// it (read 2026-10-13: its expense row showed P90-EXP-1, the supplier reference, and a bill with none showed
+    /// nothing), so IRD can match it against the supplier's sales book. A debit note is ours, so it shows its own number,
+    /// as the reference product's does. Our number stays in Document No.
+    /// </summary>
+    [Fact]
+    public async Task Invoice_No_is_the_suppliers_number_for_a_bill_or_an_expense_and_a_debit_notes_own()
+    {
+        var db = TestAppDbContext.Create();
+        var seed = await SeedAsync(db);
+        var day = new DateOnly(2026, 1, 10);
+
+        var referenced = await CreateAndApprovePurchaseBillAsync(
+            db, seed, day, isImport: false, importDocumentNo: null,
+            [(seed.ProductId, 2m, 100m, VatRate.ThirteenPercentVat, ExpenditureClassification.Others)],
+            supplierInvoiceReference: "SUP-INV-77");
+        var unreferenced = await CreateAndApprovePurchaseBillAsync(
+            db, seed, day, isImport: false, importDocumentNo: null,
+            [(seed.ProductId, 1m, 100m, VatRate.NoVat, ExpenditureClassification.Others)]);
+        var debitNote = await CreateAndApproveDebitNoteAsync(db, seed, day, 1m, 100m, referenced.Id);
+
+        var group = await new CreateAccountGroupCommandHandler(db).Handle(
+            new CreateAccountGroupCommand(seed.OrganizationId, "Office", AccountRootType.Expense, null), CancellationToken.None);
+        var office = await new CreateAccountCommandHandler(db, seed.NumberGenerator).Handle(
+            new CreateAccountCommand(seed.OrganizationId, "Office Expense", group.Id), CancellationToken.None);
+        var expense = await new CreateExpenseCommandHandler(db).Handle(
+            new CreateExpenseCommand(
+                seed.OrganizationId, seed.SupplierId, day, null, "P90-EXP-1", null, false, null,
+                [new ExpenseLineInput(office.Id, 1_000m, VatRate.ThirteenPercentVat)]),
+            CancellationToken.None);
+        var approvedExpense = await new ApproveExpenseCommandHandler(
+                db, seed.NumberGenerator, new FakeCurrentUserService(Guid.NewGuid()), new ExpensePostingRule())
+            .Handle(new ApproveExpenseCommand(seed.OrganizationId, expense.Id), CancellationToken.None);
+
+        var result = await new PurchaseRegisterQueryHandler(db, new FakeCurrentUserService(Guid.NewGuid())).Handle(
+            new PurchaseRegisterQuery(seed.OrganizationId, day, day, null), CancellationToken.None);
+
+        Assert.Equal("SUP-INV-77", Assert.Single(result.Items, r => r.DocumentCode == referenced.Code).InvoiceNo);
+        Assert.Null(Assert.Single(result.Items, r => r.DocumentCode == unreferenced.Code).InvoiceNo);
+        Assert.Equal("P90-EXP-1", Assert.Single(result.Items, r => r.DocumentCode == approvedExpense.Code).InvoiceNo);
+        var debitNoteRow = Assert.Single(result.Items, r => r.DocumentCode == debitNote.Code);
+        Assert.Equal(debitNote.Code, debitNoteRow.InvoiceNo);
+
+        // The note's empty buckets are zero without a sign: -0m == 0m, so only the sign bit shows the "-0" the export
+        // used to print (phase-26c bug #1).
+        Assert.Equal(-100m, debitNoteRow.TaxableNonCapitalLocalValue);
+        Assert.False(decimal.IsNegative(debitNoteRow.TaxExemptValue));
+        Assert.False(decimal.IsNegative(debitNoteRow.TaxableCapitalValue));
     }
 
     private sealed record Seed(
@@ -378,11 +431,12 @@ public class PurchaseRegisterQueryHandlerTests
 
     private static async Task<(Guid Id, string Code)> CreateAndApprovePurchaseBillAsync(
         IAppDbContext db, Seed seed, DateOnly date, bool isImport, string? importDocumentNo,
-        IReadOnlyList<(Guid ProductId, decimal Quantity, decimal Rate, VatRate VatRate, ExpenditureClassification Classification)> lines)
+        IReadOnlyList<(Guid ProductId, decimal Quantity, decimal Rate, VatRate VatRate, ExpenditureClassification Classification)> lines,
+        string? supplierInvoiceReference = null)
     {
         var created = await new CreatePurchaseBillCommandHandler(db).Handle(
             new CreatePurchaseBillCommand(
-                seed.OrganizationId, seed.SupplierId, seed.WarehouseId, date, null, null,
+                seed.OrganizationId, seed.SupplierId, seed.WarehouseId, date, null, supplierInvoiceReference,
                 isImport, isImport ? "Nepal" : null, isImport ? date : null, isImport ? importDocumentNo : null, null,
                 lines.Select(l => new PurchaseBillLineInput(l.ProductId, l.Quantity, l.Rate, l.VatRate, l.Classification)).ToList()),
             CancellationToken.None);

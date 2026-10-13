@@ -689,6 +689,11 @@ export interface PurchaseRegisterRowDto {
   date: string;
   documentType: DocumentType;
   documentCode: string;
+  /**
+   * Phase 90 -- the purchase book's बीजक नं.: the supplier's own invoice number for a bill or an expense (null when none
+   * was entered), a debit note's own number, a migrated row's Bill No.
+   */
+  invoiceNo: string | null;
   importDeclarationNo: string | null;
   /** Null on a migrated row whose free-text party matched no Contact by PAN (Phase 21c). */
   contactId: string | null;

@@ -38,6 +38,10 @@ public sealed record PurchaseRegisterRowDto(
     DateOnly Date,
     DocumentType DocumentType,
     string DocumentCode,
+    // Phase 90 -- the purchase book's बीजक नं., as the reference product prints it (read 2026-10-13): the supplier's own
+    // invoice number for a bill or an expense (null when none was entered), so IRD can match it against the supplier's
+    // sales book; a debit note's own number, since we issue it; a migrated row's Bill No. DocumentCode stays our record.
+    string? InvoiceNo,
     string? ImportDeclarationNo,
     // Nullable since Phase 21c: a migrated register row's party is free text carried over from a
     // prior system (see MigratedSalesRegisterEntry), so it has a name and a PAN but need not

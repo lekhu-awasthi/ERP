@@ -154,13 +154,19 @@ public sealed class SalesRegisterQueryHandler(IAppDbContext db, ICurrentUserServ
                 // here rather than being derived from the Invoice it reverses.
                 return new SalesRegisterRowDto(
                     x.Date, DocumentType.CreditNote, x.Code, x.ContactId, contact.Name, contact.Pan,
-                    -x.Buckets.Total, -x.Buckets.TaxExempt, -x.Buckets.Taxable, -x.Buckets.Vat,
+                    Negated(x.Buckets.Total), Negated(x.Buckets.TaxExempt), Negated(x.Buckets.Taxable),
+                    Negated(x.Buckets.Vat),
                     ExportValue: 0, ExportCountry: null, ExportDeclarationNo: null, ExportDeclarationDate: null);
             }));
         }
 
         return Finish(request, rows);
     }
+
+    /// <summary>Phase 90 -- a return's figure, negated without giving a zero decimal's sign bit: <c>-0m</c> is
+    /// serialised and written to a cell as "-0" (phase-26c bug #1), which the export showed on every note's empty
+    /// bucket.</summary>
+    private static decimal Negated(decimal value) => value == 0 ? 0 : -value;
 
     /// <summary>Ordering, paging and the footer totals -- shared by both the grouped and the
     /// per-line path, so the footer is the same sum either way (phase 36).</summary>

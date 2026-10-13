@@ -27,6 +27,7 @@ internal static class PurchaseBookReader
         Guid ContactId,
         string Code,
         DateOnly Date,
+        string? SupplierInvoiceReference,
         string? ImportDocumentNo,
         PurchaseReturnReader.Bucketed Buckets);
 
@@ -59,7 +60,7 @@ internal static class PurchaseBookReader
 
         var bills = await billQuery
             // Phase 44 (43 Decision D) -- ExchangeRate is carried for the fold to base currency below.
-            .Select(x => new { x.Id, x.ContactId, x.Code, x.Date, x.IsImport, x.ImportDocumentNo, x.ExchangeRate })
+            .Select(x => new { x.Id, x.ContactId, x.Code, x.Date, x.SupplierInvoiceReference, x.IsImport, x.ImportDocumentNo, x.ExchangeRate })
             .ToListAsync(cancellationToken);
 
         // Phase 42 -- the lines are joined to the document *query*, never fetched for the list of ids read back out of it,
@@ -71,7 +72,7 @@ internal static class PurchaseBookReader
             .ToListAsync(cancellationToken);
 
         var expenses = await expenseQuery
-            .Select(x => new { x.Id, x.ContactId, x.Code, x.Date, x.ExchangeRate })
+            .Select(x => new { x.Id, x.ContactId, x.Code, x.Date, x.SupplierInvoiceReference, x.ExchangeRate })
             .ToListAsync(cancellationToken);
         var expenseLines = await (
                 from line in db.ExpenseLines
@@ -108,10 +109,10 @@ internal static class PurchaseBookReader
         return
         [
             .. bills.Select(x => new PurchaseBookRow(
-                x.Id, DocumentType.PurchaseBill, x.ContactId, x.Code, x.Date, x.ImportDocumentNo,
+                x.Id, DocumentType.PurchaseBill, x.ContactId, x.Code, x.Date, x.SupplierInvoiceReference, x.ImportDocumentNo,
                 billBuckets.GetValueOrDefault(x.Id) ?? PurchaseReturnReader.Bucketed.Empty)),
             .. expenses.Select(x => new PurchaseBookRow(
-                x.Id, DocumentType.Expense, x.ContactId, x.Code, x.Date, null,
+                x.Id, DocumentType.Expense, x.ContactId, x.Code, x.Date, x.SupplierInvoiceReference, null,
                 expenseBuckets.GetValueOrDefault(x.Id) ?? PurchaseReturnReader.Bucketed.Empty)),
         ];
     }

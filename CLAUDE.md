@@ -121,6 +121,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 87: an invoice and a purchase bill record every account they post to (`RecordPostingAccounts`); credit notes, debit notes, a refund's payout, receipts and supplier payments use them (`RecordedSaleAccounts`, `RecordedBillAccounts`, `PaymentControlAccounts`); no backfill. Before writing anything that reverses, returns or settles a document — `docs/phase-87-status.md`
 - Phase 88: the FIFO Suggest had no membership check since phase 5 (now gated, and `OrganizationScopeSweepGuardTests` fails any request naming an organization unscoped); the payment preview and Approve share `PaymentGlLines`; the four allocation pickers list one contact's open documents (`ListOpenAllocationTargetsQuery`, the shared reader). Before a request that names an organization, a preview of an action, or a picker — `docs/phase-88-status.md`
 - Phase 89: the VAT Summary is the IRD return (a BS fiscal year, twelve month columns, English + the form's Nepali, credit carried across years) read through the registers' readers (`SalesBookReader`, `PurchaseBookReader`); expenses join the purchase book; Annex 5/13 export in BS; the client's day is the Nepal day in 67 sources. Before a statutory report, a client date default, or a new caller of a shared reader — `docs/phase-89-status.md`
+- Phase 90: an expense's VAT read live (as ours); Annex 13 before VAT (gross since 8e); the purchase book's *Invoice No* is the supplier's; one contact's settlements read through a subquery (38,015 → 238 reads); the return's history read measured and left. Before narrowing a slow query, filtering a shared reader by contact, or a statutory figure's basis — `docs/phase-90-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -205,6 +206,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A shared matcher cannot live inside a LINQ predicate: a **static call** is untranslatable and so is `Contains(term, StringComparison)` — and InMemory evaluates both in C#, so every handler test passes while all 25 endpoints 500 (phase-34b, phase-25's captured-`Func` through another door).
 - Same door, third time: a store-side `Sum` over an already-projected record is untranslatable, InMemory evaluates it, and only an E2E sees the 500. Project after `Skip`/`Take` (phase-42).
 - …and a fourth: `OrderBy` over a projected record is untranslatable too. Stop a shared reader handing back `IQueryable` at all — order on the entities' columns, project after `ToListAsync` (phase-56).
+- Narrow a shared reader to one contact through an `IQueryable<Guid>` subquery, never a list: one customer's picker read 38,015 pages of the organization's settlements, 238 narrowed (phase-90).
 - Single-argument `Contains` is case-**insensitive** on SQL Server (collation) and case-**sensitive** on InMemory; a handler test must search with the stored casing or it pins a behaviour production lacks (phase-34b).
 - Every tenant-scoped table needs an index leading on `OrganizationId`; `TenantIndexConvention` derives them and throws at model build for an entity it cannot classify (phase-34c).
 - …but it recognises a business date by **name** (`Date`, `PostedAt`), so `Cheque.ChequeDate` is invisible to it and the Cheque Register has always ordered by an unindexed column (phase-47).
@@ -215,6 +217,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - …and the answer can be clean: phase 51's serial index is 64× on its own path (5 reads vs 319) and **319 to the read** on the three it did not target (phase-54).
 - …including a change *you* reasoned into: tenant predicates on a join's other three tables fixed the search path and took a sibling tab from 2,143 logical reads to 83,308 (phase-50).
 - A list that searches a **joined** column (only `ListChequesQuery` does) cannot be indexed out of it — the OR spans two tables, so the row is formed before the term is evaluated; a covering index bought 0.03% (phase-50).
+- Measure where a slow path's reads go before narrowing it: the VAT return reads 39,992 with or without history, while the picker's 38,015 were 99% discarded rows (phase-90).
 - A materialised id list handed back to SQL becomes an `OPENJSON` parameter as long as the list; a report that loads its period then re-queries children by `ids.Contains` is linear in the period, not in the page. `JournalReportQueryHandler` is the shape that is not (phase-34c).
 - …and the converse: a list long enough to be worth avoiding is too long to send. Narrowing by 35,001 ids cost 182,545 reads against ~1,500 for the scan; join the *query*, or drop it (phase-42).
 - A page's rows are fetched before they are eliminated: an offset of 49,950 costs 153,705 logical reads for whole entities and 571 for ids. Count, page the keys, fetch those rows (`ToKeyPagedResultAsync`, phase-42).
@@ -249,6 +252,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A flag defaulting to on gets its own mutator, never a trailing optional `Update` parameter: 57 callers that never heard of it would re-enable every exemption (`Product.PackagingFeeApplicable`, phase-70).
 - A filter over a tree of tenant-defined groups must match on group **id**, never group name — names are not unique across a chart of accounts (phase-26a bug #1).
 - `decimal` has a signed zero: `-0m` keeps its sign bit and surfaces as `-0` / `-0.00` once cast to `double` for a spreadsheet cell. Accumulate a magnitude only when the value is strictly non-zero — no test catches this, because `-0m == 0m` (phase-26c bug #1).
+- …and negating a return's zero bucket did it again in both registers' exports since phase 19; assert `decimal.IsNegative(x)` is false (phase-90).
 
 **GL posting, documents and domain invariants**
 - A line stores the unit it was entered in **and the factor that applied when it was written**; editing the product's conversion rate governs the next document and never an approved one — confirmed live, including through the unit row being deleted outright (phase-52).
@@ -409,6 +413,8 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A stamped audit column records where a document **was when the action happened**; do not backfill it when you backfill the documents (phase-44).
 - Net + VAT is no total once a line carries service charge (its VAT is in the VAT): `TradeLineReader` carries service charge as its own measure, total = net + SC + VAT (phase-66).
 - A filter that cuts instants into days uses Nepal midnights: System Audit's UTC bounds filed every 00:00–05:45 action under yesterday (phase-66, phase 48's rule on the filter side).
+- A statutory figure's basis is its form's: Annex 13 is before VAT (the vendor's and the income-tax filing's); ours was gross for 82 phases, pinned only by NoVat fixtures (phase-90).
+- The purchase book's बीजक नं. is the **supplier's** invoice number (a debit note's own), so IRD can match their sales book; our number is *Document No* beside it (phase-90).
 
 **Angular**
 - A component serving both `.../new` and `.../:id` must read the id from `route.paramMap` (an Observable) and re-derive "is new" on every emission (phase-3 bug #1).
@@ -578,26 +584,27 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 
 ## Current status
 
-**Phases 0-89 are complete. Next: not yet scheduled** (the user picks; candidates in `docs/roadmap.md`).
+**Phases 0-90 are complete. Next: not yet scheduled** (the user picks; candidates in `docs/roadmap.md`).
 Each phase's story is in its `docs/phase-N-status.md`, and finished planning entries are archived in
 `docs/roadmap-history.md`.
 
-**Phase 89 made the VAT Summary the IRD return and dated the statutory exports in BS.**
+**Phase 90 read an expense's VAT live, made Annex 13 before VAT, and narrowed one contact's settlements.**
 
-- The VAT Summary takes a BS fiscal year (`?fiscalYear=`) and returns the return's lines by BS month, English with the
-  form's Nepali, a month's credit brought forward across the year's end. It reads the registers' own readers, so a
-  month equals the Sales and Purchase Registers; expenses are now in the purchase book and the return.
-- The return, Annex 5 and Annex 13 export in BS with AD beside it; Annex 5 gains Fiscal Year, Discount (Amount is
-  before it), prints and Entered By; both annexes open on this fiscal year to date; an ERP return names its warehouse.
-- The client's calendar day is the Nepal day in 67 sources (`nepal-time.ts`, guarded). No migration, no new keys.
+- An expense on the vendor files as ours does (taxable at 13%, its No-VAT and 0-VAT lines exempt); nothing changed.
+- Annex 13 counts every figure before VAT, as the vendor's does; it had added VAT since phase 8e. The Purchase
+  Register's new *Invoice No* is the supplier's own number (a debit note's own), beside *Document No*, on screen and in
+  the export; both registers' returns no longer export `-0`.
+- `OutstandingDocumentReader` narrows every settlement through one contact's documents when one is named (picker,
+  Suggest, till refund): 38,015 → 238 reads per picker. Its voucher read is one join for every caller. The VAT return's
+  history read was measured (39,992 reads with or without history, 1.37 s) and left. No migration, no new keys.
 
-**Next:** not yet scheduled. Candidates: phase 89 § 5 (the vendor's expense VAT, a tax advisor on the carry), phase 83
-§ 5 (a per-part service charge waiver), phase 79 § 5 (positioning, renames, the vendor's DN/GRN/WT templates, lakh
-grouping, the money receipt on the roll), phase 88 § 5 (the vendor's per-row allocation table), phase 87 § 5 /
+**Next:** not yet scheduled. Candidates: phase 90 § 5 (a till refund's walk-in read, measured on a till-heavy tenant),
+phase 83 § 5 (a per-part service charge waiver), phase 79 § 5 (positioning, renames, the vendor's DN/GRN/WT templates,
+lakh grouping, the money receipt on the roll), phase 88 § 5 (the vendor's per-row allocation table), phase 87 § 5 /
 Decision G.
 
-Tests: Domain 1032, Application.UnitTests **1813**, Infrastructure.UnitTests 14,
-Api.IntegrationTests **76**, Angular **881**. Everything was green at phase 89's close with Docker up.
+Tests: Domain 1032, Application.UnitTests **1817**, Infrastructure.UnitTests 14,
+Api.IntegrationTests 76, Angular 881. Everything was green at phase 90's close with Docker up.
 The bundle sits at **653.05 kB** against `build-budget.spec.ts`'s 680 kB; every POS screen is lazy.
 
 - `Api.IntegrationTests` needs Docker Desktop running. Without it the Testcontainers-backed tests

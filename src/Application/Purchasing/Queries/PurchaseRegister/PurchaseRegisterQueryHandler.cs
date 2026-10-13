@@ -50,7 +50,7 @@ public sealed class PurchaseRegisterQueryHandler(IAppDbContext db, ICurrentUserS
             var b = x.Buckets;
             var contact = contacts[x.ContactId];
             return new PurchaseRegisterRowDto(
-                x.Date, x.DocumentType, x.Code, x.ImportDocumentNo, x.ContactId, contact.Name, contact.Pan,
+                x.Date, x.DocumentType, x.Code, x.SupplierInvoiceReference, x.ImportDocumentNo, x.ContactId, contact.Name, contact.Pan,
                 b.TaxExempt, b.NonCapitalLocalValue, b.NonCapitalLocalVat,
                 b.NonCapitalImportValue, b.NonCapitalImportVat, b.CapitalValue, b.CapitalVat);
         }));
@@ -60,9 +60,10 @@ public sealed class PurchaseRegisterQueryHandler(IAppDbContext db, ICurrentUserS
             var b = x.Buckets;
             var contact = contacts[x.ContactId];
             return new PurchaseRegisterRowDto(
-                x.Date, DocumentType.DebitNote, x.Code, null, x.ContactId, contact.Name, contact.Pan,
-                -b.TaxExempt, -b.NonCapitalLocalValue, -b.NonCapitalLocalVat,
-                -b.NonCapitalImportValue, -b.NonCapitalImportVat, -b.CapitalValue, -b.CapitalVat);
+                x.Date, DocumentType.DebitNote, x.Code, x.Code, null, x.ContactId, contact.Name, contact.Pan,
+                Negated(b.TaxExempt), Negated(b.NonCapitalLocalValue), Negated(b.NonCapitalLocalVat),
+                Negated(b.NonCapitalImportValue), Negated(b.NonCapitalImportVat), Negated(b.CapitalValue),
+                Negated(b.CapitalVat));
         }));
 
         var orderedRows = rows.OrderBy(x => x.Date).ThenBy(x => x.DocumentCode).ToList();
@@ -75,5 +76,10 @@ public sealed class PurchaseRegisterQueryHandler(IAppDbContext db, ICurrentUserS
             orderedRows.Sum(x => x.TaxableNonCapitalImportValue), orderedRows.Sum(x => x.TaxableNonCapitalImportVat),
             orderedRows.Sum(x => x.TaxableCapitalValue), orderedRows.Sum(x => x.TaxableCapitalVat));
     }
+
+    /// <summary>Phase 90 -- a debit note's figure, negated without giving a zero decimal's sign bit: <c>-0m</c> is
+    /// serialised and written to a cell as "-0" (phase-26c bug #1), which the export showed on every note's empty
+    /// bucket.</summary>
+    private static decimal Negated(decimal value) => value == 0 ? 0 : -value;
 
 }

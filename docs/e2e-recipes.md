@@ -479,3 +479,12 @@ beside a 200 from the same user, and create a fresh Organization per phase.
   /print/Invoice/{id}` (200, a PDF). The audit table is **`workflow.Audits`** (`Action = 'Create'`). Its 403 pair: a
   role copied from Member minus `Reports.VatSummary.View` is 403 naming the key beside a 200 on `GET
   /reports/trial-balance?asOfDate=`; put the membership back with `UPDATE tenancy.OrganizationMemberships`.
+- Phase 90. `GET /reports/purchase-register` rows carry `invoiceNo` (a bill's or expense's `supplierInvoiceReference`,
+  a debit note's own code) and `/export` an *Invoice No* column after *Document No*. A purchase bill's supplier number is
+  `supplierInvoiceReference` on `POST /purchase-bills` (after `reference`); `GET /reports/annex-thirteen?fromDate&toDate
+  &thresholdAmount` is before VAT. `GET /reports/invoice-age?fromDate&asOfDate&contactId` is the per-contact read to hold
+  against the organization-wide one. A `.xlsx` from the exporter is namespaced (`<x:row>`, `<x:c>`, `<x:v>`), and an empty
+  cell has no element, so read cells by their `r` column letter. Its 403 pair: a role holding only
+  `Reports.PurchaseRegister.View` + `Purchasing.PurchaseBill.View` is 403 naming `Reports.AnnexThirteen.View` beside a
+  200 on the register, and 403 naming `Sales.Invoice.View` on the Received picker for a nonexistent contact beside a
+  200 on Paid.

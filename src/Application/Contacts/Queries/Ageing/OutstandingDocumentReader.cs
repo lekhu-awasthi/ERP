@@ -170,16 +170,26 @@ internal static class OutstandingDocumentReader
         candidates.AddRange(await LoadOpeningBalancesAsync(
             db, organizationId, contactType, asOfDate, contactId, cancellationToken));
 
+        // Phase 90 -- one contact's settlements are read through that contact's documents, as a subquery, never as a
+        // list of ids. Organization-wide, the settlement queries read every allocation, tender and note the
+        // organization has; measured on the 50,001-invoice tenant with 30,000 allocations and 20,000 tenders, one
+        // customer's picker read 38,015 logical reads for documents worth about 30 (tools/scale/probe-phase90-*.csv).
+        // Null for the organization-wide callers, which phase 42 measured and left scoped by the organization alone.
+        IQueryable<Guid>? targetIds = null;
         if (contactId is { } onlyContact)
         {
             candidates = [.. candidates.Where(x => x.ContactId == onlyContact)];
+            targetIds = contactType == ContactType.Customer
+                ? db.Invoices.Where(x => x.OrganizationId == organizationId && x.ContactId == onlyContact).Select(x => x.Id)
+                : db.PurchaseBills.Where(x => x.OrganizationId == organizationId && x.ContactId == onlyContact).Select(x => x.Id);
         }
 
         var reductions = contactType == ContactType.Customer
-            ? await LoadCreditNoteReductionsAsync(db, organizationId, asOfDate, candidates, cancellationToken)
-            : await LoadDebitNoteReductionsAsync(db, organizationId, asOfDate, candidates, cancellationToken);
+            ? await LoadCreditNoteReductionsAsync(db, organizationId, asOfDate, candidates, targetIds, cancellationToken)
+            : await LoadDebitNoteReductionsAsync(db, organizationId, asOfDate, candidates, targetIds, cancellationToken);
 
-        var allocations = await LoadAllocationsAsync(db, organizationId, contactType, candidates, cancellationToken);
+        var allocations = await LoadAllocationsAsync(
+            db, organizationId, contactType, candidates, contactId, targetIds, cancellationToken);
 
         return
         [
@@ -347,47 +357,40 @@ internal static class OutstandingDocumentReader
         IAppDbContext db, Guid organizationId, ContactType contactType, DateOnly asOfDate, Guid? contactId, Guid? locationId,
         IReadOnlyList<Guid>? reportLocations, CancellationToken cancellationToken)
     {
-        var vouchers = await db.JournalVouchers
+        var voucherQuery = db.JournalVouchers
             .Where(x => x.OrganizationId == organizationId
                 && x.Status == JournalVoucherStatus.Approved && x.Date <= asOfDate)
-            .AtLocations(locationId, reportLocations)
-            .Select(x => new { x.Id, x.Date, x.Code, x.Reference, x.ExchangeRate })
-            .ToListAsync(cancellationToken);
+            .AtLocations(locationId, reportLocations);
 
-        if (vouchers.Count == 0)
-        {
-            return [];
-        }
-
-        var voucherIds = vouchers.Select(x => x.Id).ToList();
-        var lineQuery = db.JournalVoucherLines
-            .Where(x => voucherIds.Contains(x.JournalVoucherId) && x.ContactId != null);
+        // Phase 90 -- one query joining the vouchers, their contact-tagged lines and the contact, where there were three:
+        // every approved voucher, then their lines by a list of those ids (an OPENJSON parameter as long as the
+        // organization's vouchers, phase-34c's gotcha), then every contact's type (50,003 rows on the scale tenant) to
+        // keep the lines of this report's own type. A supplier-tagged line still never appears in a customer ageing
+        // (ContactLedgerReader makes the same check); the join to the contact is that check, made in SQL.
+        var lineQuery =
+            from line in db.JournalVoucherLines
+            join voucher in voucherQuery on line.JournalVoucherId equals voucher.Id
+            join contact in db.Contacts on line.ContactId equals (Guid?)contact.Id
+            where contact.OrganizationId == organizationId && contact.Type == contactType
+            select new
+            {
+                line.JournalVoucherId, ContactId = contact.Id, line.Debit, line.Credit,
+                voucher.Date, voucher.Code, voucher.Reference, voucher.ExchangeRate,
+            };
         if (contactId is { } onlyContact)
         {
             lineQuery = lineQuery.Where(x => x.ContactId == onlyContact);
         }
 
-        var lines = await lineQuery
-            .Select(x => new { x.JournalVoucherId, ContactId = x.ContactId!.Value, x.Debit, x.Credit })
-            .ToListAsync(cancellationToken);
-
-        // Only lines tagged with a contact of this report's own type -- a supplier-tagged line can
-        // never appear in a customer ageing (ContactLedgerReader makes the same check).
-        var contactTypes = await db.Contacts
-            .Where(x => x.OrganizationId == organizationId)
-            .Select(x => new { x.Id, x.Type })
-            .ToDictionaryAsync(x => x.Id, x => x.Type, cancellationToken);
-
-        var voucherLookup = vouchers.ToDictionary(x => x.Id);
+        var lines = await lineQuery.ToListAsync(cancellationToken);
 
         return
         [
             .. lines
-                .Where(x => contactTypes.GetValueOrDefault(x.ContactId) == contactType)
                 .GroupBy(x => new { x.JournalVoucherId, x.ContactId })
                 .Select(g =>
                 {
-                    var voucher = voucherLookup[g.Key.JournalVoucherId];
+                    var voucher = g.First();
                     var netDebit = g.Sum(x => x.Debit - x.Credit);
                     var outstanding = contactType == ContactType.Customer ? netDebit : -netDebit;
                     return new OutstandingDocument(
@@ -401,7 +404,7 @@ internal static class OutstandingDocumentReader
 
     private static async Task<Dictionary<Guid, decimal>> LoadAllocationsAsync(
         IAppDbContext db, Guid organizationId, ContactType contactType, List<OutstandingDocument> candidates,
-        CancellationToken cancellationToken)
+        Guid? contactId, IQueryable<Guid>? targetIds, CancellationToken cancellationToken)
     {
         var targetType = contactType == ContactType.Customer ? DocumentType.Invoice : DocumentType.PurchaseBill;
         var paymentDirection = contactType == ContactType.Customer ? PaymentDirection.Received : PaymentDirection.Paid;
@@ -425,26 +428,33 @@ internal static class OutstandingDocumentReader
         // that is not a candidate lands in the dictionary and is never looked up. Same figures,
         // no parameter.
 
+        // Phase 90 -- that reasoning is about the organization-wide callers. One contact's documents are a subquery
+        // (targetIds), not a list: SQL Server seeks the target index per document instead of reading the
+        // organization's allocations, and no parameter grows with anything.
+        var allocations = db.PaymentAllocations.Where(a => a.TargetDocumentType == targetType);
+        if (targetIds is not null)
+        {
+            allocations = allocations.Where(a => targetIds.Contains(a.TargetDocumentId));
+        }
+
         // Two queries rather than one union: a Payment is validated by its Direction and a voucher
         // by its own Status, and the joins differ.
         var fromPayments = await (
-                from a in db.PaymentAllocations
+                from a in allocations
                 where a.SourceType == DocumentType.Payment
                 join p in db.Payments on a.SourceId equals p.Id
-                where a.TargetDocumentType == targetType
-                      && p.OrganizationId == organizationId
+                where p.OrganizationId == organizationId
                       && p.Direction == paymentDirection && p.Status == PaymentStatus.Approved
                 group a by a.TargetDocumentId into g
                 select new { TargetId = g.Key, Allocated = g.Sum(x => x.Amount) })
             .ToListAsync(cancellationToken);
 
         var fromVouchers = await (
-                from a in db.PaymentAllocations
+                from a in allocations
                 where a.SourceType == DocumentType.JournalVoucher
                 join l in db.JournalVoucherLines on a.SourceId equals l.Id
                 join v in db.JournalVouchers on l.JournalVoucherId equals v.Id
-                where a.TargetDocumentType == targetType
-                      && v.OrganizationId == organizationId && v.Status == JournalVoucherStatus.Approved
+                where v.OrganizationId == organizationId && v.Status == JournalVoucherStatus.Approved
                 group a by a.TargetDocumentId into g
                 select new { TargetId = g.Key, Allocated = g.Sum(x => x.Amount) })
             .ToListAsync(cancellationToken);
@@ -457,7 +467,7 @@ internal static class OutstandingDocumentReader
 
         if (contactType == ContactType.Customer)
         {
-            foreach (var (invoiceId, settled) in await LoadTenderSettlementsAsync(db, organizationId, cancellationToken))
+            foreach (var (invoiceId, settled) in await LoadTenderSettlementsAsync(db, organizationId, cancellationToken, contactId))
             {
                 result[invoiceId] = result.GetValueOrDefault(invoiceId) + settled;
             }
@@ -473,15 +483,21 @@ internal static class OutstandingDocumentReader
     /// the part left on credit -- the same figure the sale's two GL entries leave on the receivable,
     /// so ageing, Customer Receivable Summary and the ledger agree by construction rather than by a
     /// second calculation. Scoped like the two queries above: by organization through the invoice,
-    /// never by a materialised id list (phase 42).
+    /// never by a materialised id list (phase 42), and by <paramref name="contactId"/> through the
+    /// invoice too when one contact is asked about (phase 90).
     /// </summary>
     internal static async Task<Dictionary<Guid, decimal>> LoadTenderSettlementsAsync(
-        IAppDbContext db, Guid organizationId, CancellationToken cancellationToken)
+        IAppDbContext db, Guid organizationId, CancellationToken cancellationToken, Guid? contactId = null)
     {
+        var invoices = db.Invoices.Where(x => x.OrganizationId == organizationId && x.Status == InvoiceStatus.Approved);
+        if (contactId is { } onlyContact)
+        {
+            invoices = invoices.Where(x => x.ContactId == onlyContact);
+        }
+
         var tendered = await (
                 from t in db.InvoiceTenders
-                join i in db.Invoices on t.InvoiceId equals i.Id
-                where i.OrganizationId == organizationId && i.Status == InvoiceStatus.Approved
+                join i in invoices on t.InvoiceId equals i.Id
                 group t by t.InvoiceId into g
                 select new { InvoiceId = g.Key, Amount = g.Sum(x => x.Amount) })
             .ToDictionaryAsync(x => x.InvoiceId, x => x.Amount, cancellationToken);
@@ -491,8 +507,8 @@ internal static class OutstandingDocumentReader
             return tendered;
         }
 
-        var change = await db.Invoices
-            .Where(x => x.OrganizationId == organizationId && x.Status == InvoiceStatus.Approved && x.ChangeAmount > 0)
+        var change = await invoices
+            .Where(x => x.ChangeAmount > 0)
             .Select(x => new { x.Id, x.ChangeAmount })
             .ToListAsync(cancellationToken);
 
@@ -506,7 +522,7 @@ internal static class OutstandingDocumentReader
 
     private static async Task<Dictionary<Guid, decimal>> LoadCreditNoteReductionsAsync(
         IAppDbContext db, Guid organizationId, DateOnly asOfDate, List<OutstandingDocument> candidates,
-        CancellationToken cancellationToken)
+        IQueryable<Guid>? targetIds, CancellationToken cancellationToken)
     {
         if (!candidates.Any(x => x.Type == AgeableDocumentType.Invoice))
         {
@@ -522,6 +538,11 @@ internal static class OutstandingDocumentReader
             .Where(x => x.OrganizationId == organizationId && x.Status == CreditNoteStatus.Approved
                 && x.Date <= asOfDate && x.ReferrerType == DocumentType.Invoice
                 && x.ReferrerId != null);
+        // Phase 90 -- one contact: the notes against that contact's invoices (see LoadAllocationsAsync).
+        if (targetIds is not null)
+        {
+            creditNoteQuery = creditNoteQuery.Where(x => targetIds.Contains(x.ReferrerId!.Value));
+        }
 
         var creditNotes = await creditNoteQuery
             .Select(x => new { x.Id, ReferrerId = x.ReferrerId!.Value, x.RoundOff })
@@ -567,7 +588,7 @@ internal static class OutstandingDocumentReader
 
     private static async Task<Dictionary<Guid, decimal>> LoadDebitNoteReductionsAsync(
         IAppDbContext db, Guid organizationId, DateOnly asOfDate, List<OutstandingDocument> candidates,
-        CancellationToken cancellationToken)
+        IQueryable<Guid>? targetIds, CancellationToken cancellationToken)
     {
         if (!candidates.Any(x => x.Type == AgeableDocumentType.PurchaseBill))
         {
@@ -579,6 +600,10 @@ internal static class OutstandingDocumentReader
             .Where(x => x.OrganizationId == organizationId && x.Status == DebitNoteStatus.Approved
                 && x.Date <= asOfDate && x.ReferrerType == DocumentType.PurchaseBill
                 && x.ReferrerId != null);
+        if (targetIds is not null)
+        {
+            debitNoteQuery = debitNoteQuery.Where(x => targetIds.Contains(x.ReferrerId!.Value));
+        }
 
         var debitNotes = await debitNoteQuery
             .Select(x => new { x.Id, ReferrerId = x.ReferrerId!.Value, x.TdsAmount })

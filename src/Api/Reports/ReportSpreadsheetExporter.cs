@@ -480,6 +480,8 @@ public static partial class ReportSpreadsheetExporter
                 (RegisterAdDateHeader, r => RegisterAdDate(r.Date)),
                 ("Type", r => r.DocumentType.ToString()),
                 ("Document No", r => r.DocumentCode),
+                // Phase 90 -- the purchase book's बीजक नं.: the supplier's own number for a bill or expense.
+                ("Invoice No", r => r.InvoiceNo),
                 ("Import Declaration No", r => r.ImportDeclarationNo),
                 ("Supplier Name", r => r.ContactName),
                 ("Supplier PAN", r => r.ContactPan),

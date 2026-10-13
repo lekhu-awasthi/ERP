@@ -4690,3 +4690,23 @@ Phase 8c built the VAT Summary as three VAT-rate buckets over any date range, an
 ## A new caller of a shared reader asks what the reader leaves out (phase 89)
 
 Building the VAT return on the Purchase Register's reader showed the register had never listed an expense, so their input VAT was in no purchase book and on no VAT summary since phase 8c, while Annex 13 counted them. Two reports agreeing through one reader agree on its omissions too; when a reader gains a caller with a different question, read its `Where` against that question.
+
+## Measure where a slow path's reads go before narrowing it (phase 90)
+
+Phase 89 named the VAT return's history read as the thing to narrow, and phase 88 named the settlement queries. A statement-level breakdown (`sys.dm_exec_query_stats` per statement after `DBCC FREEPROCCACHE`, `tools/scale/probe-phase90-io.sh`) answered them in opposite ways. The return reads 39,992 pages for a year with no history and for three years, because every line table is scanned either way: its history costs rows and CPU, not reads, and it is inside the 2 s budget, so narrowing it would buy little and risk the registers' rounding. One customer's picker spent 99.4% of its 38,015 reads in four organization-wide settlement queries returning rows it then discarded, so narrowing them took it to 238. The debt's own description named a cause; only the breakdown said which half was real.
+
+## Narrow a shared reader to one contact through a subquery, never a list (phase 90)
+
+`OutstandingDocumentReader`'s settlement queries were organization-wide because phase 42 showed a list of 50,000 candidate ids cost more than it saved. For one contact the list is short, but it is still an OPENJSON parameter, and the right shape is a query: `db.Invoices.Where(org && contact).Select(x => x.Id)` handed to `targetIds.Contains(a.TargetDocumentId)` becomes an `IN` subquery that SQL Server seeks per document. The same review found the voucher read sending every approved voucher's id back as a list and loading every contact in the organization (50,003 rows) to check one line's type. One join replaced all three reads, and the organization-wide ageing reports fell as a side effect.
+
+## A statutory figure's basis comes from the form it is filed with, not from what changed hands (phase 90)
+
+Phase 8e made Annex 13 gross (Amount + VAT) because it "tracks the actual consideration that changed hands with a party". The vendor's annex is before VAT (1,000 at 13% plus 500 without VAT counts 1,500), and Annex 13 is filed with the income-tax return, where a VAT-registered business's figures exclude VAT. Every figure was 13% high and the 1-lakh threshold was crossed early, for 82 phases, with no test exercising a VAT line. Pin a statutory figure with a taxable line; a suite of NoVat fixtures cannot tell gross from net.
+
+## The purchase book's invoice number is the supplier's (phase 90)
+
+The vendor's Purchase Register prints the supplier's own invoice number under बीजक नं. (P90-EXP-1, nothing for a bill without one) and never its own document number, so IRD can match a purchase to the supplier's sales book. A debit note, which the buyer issues, prints its own number. Ours printed our number there since phase 19. `PurchaseRegisterRowDto.InvoiceNo` is now that column, with `DocumentCode` kept beside it.
+
+## Negating a zero is phase 26c's signed zero again (phase 90)
+
+Both registers render a return negative by negating each bucket (`-b.TaxExempt`), so a return with no exempt value carried `-0m`, which the export wrote as `-0` on every such row, since phase 19. `-0m == 0m`, so no equality assertion sees it; assert `decimal.IsNegative(x)` is false, and negate through `value == 0 ? 0 : -value`.

@@ -23,7 +23,7 @@ public sealed class AnnexThirteenReportQueryHandler(IAppDbContext db)
             .Where(x => invoices.Select(i => i.Id).Contains(x.InvoiceId))
             // Phase 61 -- a till line's service charge is part of what was charged for the supply
             // (inside the VAT base), so it counts toward the party's gross. Zero on every ERP line.
-            .Select(x => new { x.InvoiceId, x.ProductId, Amount = x.Amount + x.ServiceChargeAmount + x.PackagingFeeAmount, x.VatAmount })
+            .Select(x => new { x.InvoiceId, x.ProductId, Amount = x.Amount + x.ServiceChargeAmount + x.PackagingFeeAmount })
             .ToListAsync(cancellationToken);
 
         var creditNotes = await db.CreditNotes
@@ -34,7 +34,7 @@ public sealed class AnnexThirteenReportQueryHandler(IAppDbContext db)
         var creditNoteLines = await db.CreditNoteLines
             .Where(x => creditNotes.Select(c => c.Id).Contains(x.CreditNoteId))
             // Phase 63 -- the mirror of the invoice line above: a till refund gives back its service charge.
-            .Select(x => new { x.CreditNoteId, x.ProductId, Amount = x.Amount + x.ServiceChargeAmount + x.PackagingFeeAmount, x.VatAmount })
+            .Select(x => new { x.CreditNoteId, x.ProductId, Amount = x.Amount + x.ServiceChargeAmount + x.PackagingFeeAmount })
             .ToListAsync(cancellationToken);
 
         var purchaseBills = await db.PurchaseBills
@@ -44,7 +44,7 @@ public sealed class AnnexThirteenReportQueryHandler(IAppDbContext db)
             .ToListAsync(cancellationToken);
         var purchaseBillLines = await db.PurchaseBillLines
             .Where(x => purchaseBills.Select(b => b.Id).Contains(x.PurchaseBillId))
-            .Select(x => new { x.PurchaseBillId, x.ProductId, x.Amount, x.VatAmount, x.ExpenditureClassification })
+            .Select(x => new { x.PurchaseBillId, x.ProductId, x.Amount, x.ExpenditureClassification })
             .ToListAsync(cancellationToken);
 
         var expenses = await db.Expenses
@@ -54,7 +54,7 @@ public sealed class AnnexThirteenReportQueryHandler(IAppDbContext db)
             .ToListAsync(cancellationToken);
         var expenseLines = await db.ExpenseLines
             .Where(x => expenses.Select(e => e.Id).Contains(x.ExpenseId))
-            .Select(x => new { x.ExpenseId, x.Amount, x.VatAmount })
+            .Select(x => new { x.ExpenseId, x.Amount })
             .ToListAsync(cancellationToken);
 
         var debitNotes = await db.DebitNotes
@@ -64,7 +64,7 @@ public sealed class AnnexThirteenReportQueryHandler(IAppDbContext db)
             .ToListAsync(cancellationToken);
         var debitNoteLines = await db.DebitNoteLines
             .Where(x => debitNotes.Select(d => d.Id).Contains(x.DebitNoteId))
-            .Select(x => new { x.DebitNoteId, x.ProductId, x.Rate, x.VatRate, x.Amount, x.VatAmount })
+            .Select(x => new { x.DebitNoteId, x.ProductId, x.Rate, x.VatRate, x.Amount })
             .ToListAsync(cancellationToken);
 
         // A DebitNoteLine carries no ExpenditureClassification of its own -- resolve it from the
@@ -129,20 +129,23 @@ public sealed class AnnexThirteenReportQueryHandler(IAppDbContext db)
         // Summary now follow: a contact's row here is a sum across documents, so two documents in
         // two currencies have to be made commensurable before they are added to each other.
         //
-        // Amount and VatAmount are converted separately and then added, not added and then
-        // converted, so that a bill's gross here is exactly the sum of the two figures the Purchase
-        // Register reports for the same bill -- the two reports round identically by construction
-        // rather than by coincidence.
-        static decimal ToBase(decimal amount, decimal vatAmount, decimal exchangeRate) =>
-            ExchangeRates.ToBase(amount, exchangeRate) + ExchangeRates.ToBase(vatAmount, exchangeRate);
+        // Phase 90 -- <b>every figure is before VAT</b>, as the reference product's annex is (read
+        // 2026-10-13: an expense of 1,000 at 13% plus 500 without VAT counts 1,500, and a customer's
+        // sales net of returns count 707.05 of 798.97 billed). Annex 13 is filed with the income-tax
+        // return, where a VAT-registered business's purchases and sales exclude VAT, so the line's VAT
+        // is not read at all and the 1-lakh threshold is measured against the value alone. Before
+        // this phase the annex added each line's VAT, which put every figure 13% high and crossed the
+        // threshold early. Folded per line at its own document's rate, so a line here is exactly the
+        // value the Purchase or Sales Register reports for it.
+        static decimal ToBase(decimal amount, decimal exchangeRate) => ExchangeRates.ToBase(amount, exchangeRate);
 
         var invoicesById = invoices.ToDictionary(x => x.Id);
         foreach (var line in invoiceLines)
         {
             var invoice = invoicesById[line.InvoiceId];
             var contactId = invoice.ContactId;
-            var gross = ToBase(line.Amount, line.VatAmount, invoice.ExchangeRate);
-            Accumulate(productTypes[line.ProductId] == ProductType.Goods ? goodsSales : serviceSales, contactId, gross);
+            var value = ToBase(line.Amount, invoice.ExchangeRate);
+            Accumulate(productTypes[line.ProductId] == ProductType.Goods ? goodsSales : serviceSales, contactId, value);
         }
 
         var creditNotesById = creditNotes.ToDictionary(x => x.Id);
@@ -150,8 +153,8 @@ public sealed class AnnexThirteenReportQueryHandler(IAppDbContext db)
         {
             var creditNote = creditNotesById[line.CreditNoteId];
             var contactId = creditNote.ContactId;
-            var gross = ToBase(line.Amount, line.VatAmount, creditNote.ExchangeRate);
-            Accumulate(productTypes[line.ProductId] == ProductType.Goods ? goodsSales : serviceSales, contactId, -gross);
+            var value = ToBase(line.Amount, creditNote.ExchangeRate);
+            Accumulate(productTypes[line.ProductId] == ProductType.Goods ? goodsSales : serviceSales, contactId, -value);
         }
 
         var purchaseBillsById = purchaseBills.ToDictionary(x => x.Id);
@@ -159,7 +162,7 @@ public sealed class AnnexThirteenReportQueryHandler(IAppDbContext db)
         {
             var purchaseBill = purchaseBillsById[line.PurchaseBillId];
             var contactId = purchaseBill.ContactId;
-            var gross = ToBase(line.Amount, line.VatAmount, purchaseBill.ExchangeRate);
+            var value = ToBase(line.Amount, purchaseBill.ExchangeRate);
             var bucket = (productTypes[line.ProductId], line.ExpenditureClassification) switch
             {
                 (ProductType.Goods, ExpenditureClassification.Capital) => goodsPurchaseCapital,
@@ -167,7 +170,7 @@ public sealed class AnnexThirteenReportQueryHandler(IAppDbContext db)
                 (ProductType.Service, ExpenditureClassification.Capital) => servicePurchaseCapital,
                 _ => servicePurchaseOthers,
             };
-            Accumulate(bucket, contactId, gross);
+            Accumulate(bucket, contactId, value);
         }
 
         var expensesById = expenses.ToDictionary(x => x.Id);
@@ -177,13 +180,13 @@ public sealed class AnnexThirteenReportQueryHandler(IAppDbContext db)
             // bucketed as Service/Others: Expense is inherently non-goods (no inventory, no
             // Quantity) and "Others" is ExpenditureClassification's own documented default.
             var expense = expensesById[line.ExpenseId];
-            Accumulate(servicePurchaseOthers, expense.ContactId, ToBase(line.Amount, line.VatAmount, expense.ExchangeRate));
+            Accumulate(servicePurchaseOthers, expense.ContactId, ToBase(line.Amount, expense.ExchangeRate));
         }
 
         foreach (var line in debitNoteLines)
         {
             var debitNote = debitNotesById[line.DebitNoteId];
-            var gross = ToBase(line.Amount, line.VatAmount, debitNote.ExchangeRate);
+            var value = ToBase(line.Amount, debitNote.ExchangeRate);
 
             var classification = ExpenditureClassification.Others;
             if (debitNote.ReferrerType == DocumentType.PurchaseBill && debitNote.ReferrerId is { } sourcePurchaseBillId
@@ -200,7 +203,7 @@ public sealed class AnnexThirteenReportQueryHandler(IAppDbContext db)
                 (ProductType.Service, ExpenditureClassification.Capital) => servicePurchaseCapital,
                 _ => servicePurchaseOthers,
             };
-            Accumulate(bucket, debitNote.ContactId, -gross);
+            Accumulate(bucket, debitNote.ContactId, -value);
         }
 
         var rows = contactIds

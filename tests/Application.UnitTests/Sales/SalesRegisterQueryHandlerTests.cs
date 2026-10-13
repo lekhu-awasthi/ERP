@@ -66,6 +66,8 @@ public class SalesRegisterQueryHandlerTests
         Assert.Equal(DocumentType.CreditNote, creditNoteRow.DocumentType);
         Assert.Equal(-20m, creditNoteRow.TaxableValue);
         Assert.Equal(-2.6m, creditNoteRow.VatAmount);
+        // Phase 90 -- its empty Tax-Exempt bucket is zero without a sign; -0m printed "-0" in the export.
+        Assert.False(decimal.IsNegative(creditNoteRow.TaxExemptValue));
 
         Assert.Equal(result.Items.Sum(r => r.TotalValue), result.TotalValue);
         Assert.Equal(result.Items.Sum(r => r.TaxableValue), result.TotalTaxableValue);

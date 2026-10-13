@@ -18,10 +18,11 @@ namespace ErpApp.Application.Purchasing.Queries.AnnexThirteenReport;
 /// Filters on each document's own business Date field, not GlJournalEntry.PostedAt -- same
 /// document-register reasoning as every other Phase 8 report since Phase 8b.
 ///
-/// Bucket amounts are gross (Amount + VatAmount), matching TdsReportRowDto.GrossAmount and
-/// SalesMasterReportRowDto's "Total Amount" column -- Annex 13 tracks the actual consideration that
-/// changed hands with a party, not the pre-VAT taxable value (see phase-8e-status.md's scope
-/// decision #1).
+/// Bucket amounts are before VAT (phase 90, the user's ruling on the reference product's annex read
+/// 2026-10-13). Phase 8e made them gross (Amount + VatAmount) on the reasoning that the annex tracks
+/// the consideration that changed hands; the reference product's annex counts the value alone, and the
+/// annex is filed with the income-tax return, where a VAT-registered business's figures exclude VAT.
+/// The threshold is measured against the same pre-VAT total.
 ///
 /// Two open items from the brief are resolved here (see phase-8e-status.md for the full reasoning):
 /// (1) Expense lines carry no ProductId and, despite ExpenditureClassification's own doc comment

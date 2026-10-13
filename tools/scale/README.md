@@ -67,6 +67,23 @@ bash tools/scale/probe-phase54-io.sh <label>
 
 ## The committed results
 
+### Phase 90 (2026-10-13) — the settlement seed and two "narrow it" debts
+
+On the phase 42/50 tenant, after `seed-phase90.sql` (30,000 approved receipts each allocated to an invoice, 20,000
+tendered invoices, 7,143 contact-tagged vouchers). Without that seed the settlement tables are empty and a per-contact
+picker looks cheap for the wrong reason, which `probe-phase90-io.sh` refuses to measure.
+
+| file | what it is |
+|---|---|
+| `seed-phase90.sql` | The settlement rows. Refuses to run twice on one tenant. |
+| `probe-phase90-io.sh` | Logical reads per path (the phase 50 method): the VAT return for three fiscal years, both pickers, Suggest, both ageing summaries. |
+| `probe-phase90-p90-before.csv` | The reader before phase 90. |
+| `probe-phase90-p90-after.csv` | One contact's settlements narrowed through a subquery, and the voucher read as one join. |
+
+One customer's picker went from 38,015 logical reads to 238, and the organization-wide ageing summaries from
+153,964 / 108,213 to 88,985 / 42,969. The VAT return reads 39,992 for every fiscal year, with or without history: its
+line tables are scanned either way, so its history costs rows and CPU, not reads.
+
 ### Phase 50 (2026-09-16) — the current pair, and a second instrument
 
 Taken on the **same** tenant as phase 42, with `seed-cheques.sql` run against it — so `Payments` and

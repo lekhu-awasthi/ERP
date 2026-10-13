@@ -101,6 +101,42 @@ public class AnnexThirteenReportQueryHandlerTests
     }
 
     [Fact]
+    public async Task Every_figure_and_the_threshold_are_before_VAT_as_the_reference_products_annex_is()
+    {
+        // Phase 90 -- the reference product's expense read on 2026-10-13: 1,000 at 13%, 200 without VAT and 300 at
+        // zero VAT is 1,500 on its annex, not 1,630. And its customer's taxable sales of 1,647.50 less returns of 940.45
+        // were 707.05, not the 798.97 billed with VAT.
+        var db = TestAppDbContext.Create();
+        var seed = await SeedAsync(db);
+        var day = new DateOnly(2026, 1, 10);
+
+        await CreateAndApproveExpenseAsync(db, seed, day,
+        [
+            new ExpenseLineInput(seed.ExpenseAccountId, 1_000m, VatRate.ThirteenPercentVat),
+            new ExpenseLineInput(seed.ExpenseAccountId, 200m, VatRate.NoVat),
+            new ExpenseLineInput(seed.ExpenseAccountId, 300m, VatRate.ZeroVat),
+        ]);
+        await CreateAndApproveInvoiceAsync(db, seed, day, [(seed.ServiceProductId, 1m, 1_647.50m)], VatRate.ThirteenPercentVat);
+        await CreateAndApproveCreditNoteAsync(db, seed, day, seed.ServiceProductId, 1m, 940.45m, VatRate.ThirteenPercentVat);
+
+        var handler = new AnnexThirteenReportQueryHandler(db);
+        var all = await handler.Handle(
+            new AnnexThirteenReportQuery(seed.OrganizationId, day, day, ThresholdAmount: 0m), CancellationToken.None);
+
+        Assert.Equal(1_500m, Assert.Single(all.Rows, r => r.ContactId == seed.SupplierId).ServicePurchaseOthers);
+        Assert.Equal(707.05m, Assert.Single(all.Rows, r => r.ContactId == seed.CustomerId).ServiceSales);
+
+        // The threshold is measured against the same value: 1,500 clears 1,500 and does not clear 1,501, although the
+        // expense came to 1,630 with its VAT.
+        var atValue = await handler.Handle(
+            new AnnexThirteenReportQuery(seed.OrganizationId, day, day, ThresholdAmount: 1_500m), CancellationToken.None);
+        Assert.Contains(atValue.Rows, r => r.ContactId == seed.SupplierId);
+        var aboveValue = await handler.Handle(
+            new AnnexThirteenReportQuery(seed.OrganizationId, day, day, ThresholdAmount: 1_501m), CancellationToken.None);
+        Assert.DoesNotContain(aboveValue.Rows, r => r.ContactId == seed.SupplierId);
+    }
+
+    [Fact]
     public async Task Handle_filters_by_threshold_approved_only_status_and_date_range()
     {
         var db = TestAppDbContext.Create();
@@ -360,13 +396,16 @@ public class AnnexThirteenReportQueryHandlerTests
         return (approved.Id, approved.Code);
     }
 
+    private static Task<(Guid Id, string Code)> CreateAndApproveExpenseAsync(
+        IAppDbContext db, Seed seed, DateOnly date, decimal amount) =>
+        CreateAndApproveExpenseAsync(db, seed, date, [new ExpenseLineInput(seed.ExpenseAccountId, amount, VatRate.NoVat)]);
+
     private static async Task<(Guid Id, string Code)> CreateAndApproveExpenseAsync(
-        IAppDbContext db, Seed seed, DateOnly date, decimal amount)
+        IAppDbContext db, Seed seed, DateOnly date, IReadOnlyList<ExpenseLineInput> lines)
     {
         var created = await new CreateExpenseCommandHandler(db).Handle(
             new CreateExpenseCommand(
-                seed.OrganizationId, seed.SupplierId, date, null, null, null, false, null,
-                [new ExpenseLineInput(seed.ExpenseAccountId, amount, VatRate.NoVat)]),
+                seed.OrganizationId, seed.SupplierId, date, null, null, null, false, null, [.. lines]),
             CancellationToken.None);
 
         var approved = await new ApproveExpenseCommandHandler(
@@ -377,12 +416,13 @@ public class AnnexThirteenReportQueryHandlerTests
     }
 
     private static async Task<(Guid Id, string Code)> CreateAndApproveInvoiceAsync(
-        IAppDbContext db, Seed seed, DateOnly date, IReadOnlyList<(Guid ProductId, decimal Quantity, decimal Rate)> lines)
+        IAppDbContext db, Seed seed, DateOnly date, IReadOnlyList<(Guid ProductId, decimal Quantity, decimal Rate)> lines,
+        VatRate vatRate = VatRate.NoVat)
     {
         var created = await new CreateInvoiceCommandHandler(db, await SalesPricing.PricerAsync(db, seed.OrganizationId)).Handle(
             new CreateInvoiceCommand(
                 seed.OrganizationId, seed.CustomerId, seed.WarehouseId, date, null,
-                lines.Select(l => new InvoiceLineInput(l.ProductId, l.Quantity, l.Rate, VatRate.NoVat)).ToList()),
+                lines.Select(l => new InvoiceLineInput(l.ProductId, l.Quantity, l.Rate, vatRate)).ToList()),
             CancellationToken.None);
 
         var stockLedgerService = new StockLedgerService(db);
@@ -395,12 +435,13 @@ public class AnnexThirteenReportQueryHandlerTests
     }
 
     private static async Task<(Guid Id, string Code)> CreateAndApproveCreditNoteAsync(
-        IAppDbContext db, Seed seed, DateOnly date, Guid productId, decimal quantity, decimal rate)
+        IAppDbContext db, Seed seed, DateOnly date, Guid productId, decimal quantity, decimal rate,
+        VatRate vatRate = VatRate.NoVat)
     {
         var created = await new CreateCreditNoteCommandHandler(db).Handle(
             new CreateCreditNoteCommand(
                 seed.OrganizationId, seed.CustomerId, date, null,
-                [new CreditNoteLineInput(productId, quantity, rate, VatRate.NoVat)]),
+                [new CreditNoteLineInput(productId, quantity, rate, vatRate)]),
             CancellationToken.None);
 
         var approved = await new ApproveCreditNoteCommandHandler(

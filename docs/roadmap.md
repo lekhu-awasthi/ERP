@@ -6,7 +6,7 @@ Guiding rule for phase sizing: each phase ends with something *runnable and demo
 
 ---
 
-## Completed phases (0–89)
+## Completed phases (0–90)
 
 One line each; phase *N*'s full story is `docs/phase-N-status.md`. The verbose index as it stood on
 2026-09-28 is archived verbatim in `roadmap-history.md` ("Completed-phases index, verbose form").
@@ -75,6 +75,7 @@ One line each; phase *N*'s full story is `docs/phase-N-status.md`. The verbose i
 | 87 | An invoice and a purchase bill record every account they post to, and what reverses or settles them uses those: credit notes (returns, till refunds, price adjustments), debit notes, a refund's payout, and receipts and supplier payments (split per control account; a later allocation moves its share). No backfill; the Allocate screen keeps focus |
 | 88 | The payment screens: the FIFO Suggest gains the membership and permission check it never had (`OrganizationScopeSweepGuardTests` fails any request naming an organization unscoped); the payment GL preview is built by Approve's own builder (`PaymentGlLines`); the four allocation pickers list one contact's open documents in the payment's currency, oldest due first (`ListOpenAllocationTargetsQuery`) |
 | 89 | The VAT Summary is the IRD VAT return (a BS fiscal year, twelve month columns, the return's lines in English with the form's Nepali, a month's credit brought forward across the year's end), read through the registers' own readers (`SalesBookReader`, `PurchaseBookReader`) so a month equals the registers; expenses are purchases in the register and the return; Annex 5/13 and the return export in BS with AD beside it; Annex 5 gains Fiscal Year, Discount, prints and Entered By; both annexes open on this fiscal year to date; an ERP return's page names its warehouse; the client's calendar day is the Nepal day in 67 sources (reports opened, and due dates were suggested, a day early) |
+| 90 | An expense's VAT read live on the vendor (filed as ours, nothing changed); Annex 13 is before VAT, as the vendor's is (it was gross since phase 8e); the Purchase Register's *Invoice No* is the supplier's own number (a debit note's own), beside *Document No*; one contact's picker, Suggest and till refund read that contact's settlements through a subquery (38,015 → 238 reads per picker), and the voucher read is one join for every caller; the VAT return's history read measured and left; the registers' returns no longer export `-0` |
 
 ---
 
@@ -281,13 +282,17 @@ approved before phase 87 recorded nothing and keep today's rule; a debit note's 
 stock catch-up and journal-voucher allocations stay today's.
 
 **Carried from phase 88** (§ 5 there): the vendor's per-row *This Allocation* table (a layout choice, not asked
-for); a foreign-currency allocation on the vendor is unread; `OutstandingDocumentReader`'s settlement queries stay
-organization-wide (measure on `tools/scale` before narrowing them by contact).
+for); a foreign-currency allocation on the vendor is unread. `OutstandingDocumentReader`'s settlement queries were
+measured and narrowed by contact in phase 90 (38,015 → 238 reads per picker).
 
-**Carried from phase 89** (§ 5 there): how the vendor treats an expense's VAT (unread; its tenant has none); a tax
-advisor's word on carrying a VAT credit across the fiscal year's end and on a domestic zero-rated supply; Annex 5's
-Payment Method, VAT Refund and IRD-sync columns (no backing); the return reads the books from their beginning for the
-carry (measure on `tools/scale` before narrowing it).
+**Carried from phase 89** (§ 5 there): a tax advisor's word on carrying a VAT credit across the fiscal year's end and on
+a domestic zero-rated supply; Annex 5's Payment Method, VAT Refund and IRD-sync columns (no backing). The expense's VAT
+was read live in phase 90 (as ours) and the return's history read was measured there and left (inside budget, reads
+independent of history).
+
+**Carried from phase 90** (§ 5 there): a till refund's owed-on-sale read names the walk-in, who owns every counter sale,
+so narrowing by contact barely helps it (measure on a till-heavy tenant before narrowing by the sale); Annex 13's
+opening and closing balance stay phase 8e's approximation; a tax advisor's word on the annex's before-VAT basis.
 
 **Carried from phase 62** (§ 5 there):
 
