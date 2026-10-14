@@ -174,6 +174,9 @@ public sealed class TillExportTests
             // Phase 83 -- a column of its own would read 0 on the refund that gave it back: a credit note line gives
             // back its sale's Bill Discount whole and does not split it.
             [nameof(InvoiceLine.PartDiscountAmount)] = "inside Bill Discount: the bill's own part of it, one guest's",
+            // Phase 91 -- money never charged: the line's Service Charge is zero, and this is the order planner's record
+            // of what its guest declined, so the rest of the line is not charged it back. No figure of the bill holds it.
+            [nameof(InvoiceLine.PartServiceChargeWaived)] = "never charged: the order planner's record of a declined service charge",
         };
 
         foreach (var type in new[] { typeof(InvoiceLine), typeof(CreditNoteLine) })

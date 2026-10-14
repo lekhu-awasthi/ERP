@@ -129,7 +129,8 @@ internal static class OutstandingDocumentReader
     /// Every item of <paramref name="contactType"/> with a non-zero balance as of
     /// <paramref name="asOfDate"/>. <paramref name="contactId"/> narrows to one contact;
     /// <paramref name="locationId"/> is the report's own Billing Location filter and
-    /// <paramref name="reportLocations"/> the caller's permission scope.
+    /// <paramref name="reportLocations"/> the caller's permission scope. Phase 91 -- <paramref name="invoiceId"/> narrows
+    /// a customer's to one invoice (see <see cref="LoadInDocumentCurrencyAsync"/>).
     /// </summary>
     public static async Task<List<OutstandingDocument>> LoadAsync(
         IAppDbContext db,
@@ -139,10 +140,12 @@ internal static class OutstandingDocumentReader
         CancellationToken cancellationToken,
         Guid? contactId = null,
         Guid? locationId = null,
-        IReadOnlyList<Guid>? reportLocations = null) =>
+        IReadOnlyList<Guid>? reportLocations = null,
+        Guid? invoiceId = null) =>
         [
             .. (await LoadInDocumentCurrencyAsync(
-                    db, organizationId, contactType, asOfDate, cancellationToken, contactId, locationId, reportLocations))
+                    db, organizationId, contactType, asOfDate, cancellationToken, contactId, locationId, reportLocations,
+                    invoiceId))
                 .Select(x => x.InBaseCurrency()),
         ];
 
@@ -150,6 +153,14 @@ internal static class OutstandingDocumentReader
     /// Phase 88 -- the same rows as <see cref="LoadAsync"/>, before the fold: every money field in the document's own
     /// currency. What a payment may still allocate to a document is this figure, because an allocation is in the
     /// payment's currency and a payment only settles documents in its own (phase 28 Decision F).
+    ///
+    /// <para><b>Phase 91 -- <paramref name="invoiceId"/>: one invoice, read through itself.</b> A till refund asks what
+    /// one sale is still owed, and that sale's customer is the walk-in, who owns every counter sale: narrowing by contact
+    /// read all of them. Measured on the scale tenant with 20,000 walk-in sales and 2,000 refunds, the refund screen's
+    /// read of one sale cost 56,566 logical reads and 1.3 s of CPU (tools/scale/probe-phase91-*.csv). Narrowed to the
+    /// invoice, the same pipeline reads that invoice's lines, tenders, allocations and notes and nothing else, so the
+    /// answer is the row the contact-wide read would have produced for it, by construction rather than by a second
+    /// calculation. Opening balances and journal vouchers are no invoice, so they are not read. Customers only.</para>
     /// </summary>
     public static async Task<List<OutstandingDocument>> LoadInDocumentCurrencyAsync(
         IAppDbContext db,
@@ -159,16 +170,25 @@ internal static class OutstandingDocumentReader
         CancellationToken cancellationToken,
         Guid? contactId = null,
         Guid? locationId = null,
-        IReadOnlyList<Guid>? reportLocations = null)
+        IReadOnlyList<Guid>? reportLocations = null,
+        Guid? invoiceId = null)
     {
+        if (invoiceId is not null && contactType != ContactType.Customer)
+        {
+            throw new ArgumentException("Only a customer's documents can be narrowed to one invoice.", nameof(invoiceId));
+        }
+
         var candidates = contactType == ContactType.Customer
             ? await LoadCustomerCandidatesAsync(
-                db, organizationId, asOfDate, contactId, locationId, reportLocations, cancellationToken)
+                db, organizationId, asOfDate, contactId, locationId, reportLocations, cancellationToken, invoiceId)
             : await LoadSupplierCandidatesAsync(
                 db, organizationId, asOfDate, contactId, locationId, reportLocations, cancellationToken);
 
-        candidates.AddRange(await LoadOpeningBalancesAsync(
-            db, organizationId, contactType, asOfDate, contactId, cancellationToken));
+        if (invoiceId is null)
+        {
+            candidates.AddRange(await LoadOpeningBalancesAsync(
+                db, organizationId, contactType, asOfDate, contactId, cancellationToken));
+        }
 
         // Phase 90 -- one contact's settlements are read through that contact's documents, as a subquery, never as a
         // list of ids. Organization-wide, the settlement queries read every allocation, tender and note the
@@ -184,12 +204,18 @@ internal static class OutstandingDocumentReader
                 : db.PurchaseBills.Where(x => x.OrganizationId == organizationId && x.ContactId == onlyContact).Select(x => x.Id);
         }
 
+        // Phase 91 -- one invoice: its settlements through itself, the same subquery shape as one contact's.
+        if (invoiceId is { } onlyInvoice)
+        {
+            targetIds = db.Invoices.Where(x => x.OrganizationId == organizationId && x.Id == onlyInvoice).Select(x => x.Id);
+        }
+
         var reductions = contactType == ContactType.Customer
             ? await LoadCreditNoteReductionsAsync(db, organizationId, asOfDate, candidates, targetIds, cancellationToken)
             : await LoadDebitNoteReductionsAsync(db, organizationId, asOfDate, candidates, targetIds, cancellationToken);
 
         var allocations = await LoadAllocationsAsync(
-            db, organizationId, contactType, candidates, contactId, targetIds, cancellationToken);
+            db, organizationId, contactType, candidates, contactId, targetIds, cancellationToken, invoiceId);
 
         return
         [
@@ -232,7 +258,7 @@ internal static class OutstandingDocumentReader
 
     private static async Task<List<OutstandingDocument>> LoadCustomerCandidatesAsync(
         IAppDbContext db, Guid organizationId, DateOnly asOfDate, Guid? contactId, Guid? locationId,
-        IReadOnlyList<Guid>? reportLocations, CancellationToken cancellationToken)
+        IReadOnlyList<Guid>? reportLocations, CancellationToken cancellationToken, Guid? invoiceId = null)
     {
         var invoiceQuery = db.Invoices
             .Where(x => x.OrganizationId == organizationId
@@ -245,6 +271,12 @@ internal static class OutstandingDocumentReader
         if (contactId is { } onlyContact)
         {
             invoiceQuery = invoiceQuery.Where(x => x.ContactId == onlyContact);
+        }
+
+        // Phase 91 -- one invoice, the same composed Where.
+        if (invoiceId is { } onlyInvoice)
+        {
+            invoiceQuery = invoiceQuery.Where(x => x.Id == onlyInvoice);
         }
 
         var invoices = await invoiceQuery
@@ -272,8 +304,13 @@ internal static class OutstandingDocumentReader
                 totals.GetValueOrDefault(x.Id) + x.RoundOff, 0m, x.ExchangeRate))
             .ToList();
 
-        candidates.AddRange(await LoadJournalVoucherCandidatesAsync(
-            db, organizationId, ContactType.Customer, asOfDate, contactId, locationId, reportLocations, cancellationToken));
+        // A journal voucher's line is no invoice, so one invoice's read has none.
+        if (invoiceId is null)
+        {
+            candidates.AddRange(await LoadJournalVoucherCandidatesAsync(
+                db, organizationId, ContactType.Customer, asOfDate, contactId, locationId, reportLocations, cancellationToken));
+        }
+
         return candidates;
     }
 
@@ -404,7 +441,7 @@ internal static class OutstandingDocumentReader
 
     private static async Task<Dictionary<Guid, decimal>> LoadAllocationsAsync(
         IAppDbContext db, Guid organizationId, ContactType contactType, List<OutstandingDocument> candidates,
-        Guid? contactId, IQueryable<Guid>? targetIds, CancellationToken cancellationToken)
+        Guid? contactId, IQueryable<Guid>? targetIds, CancellationToken cancellationToken, Guid? invoiceId = null)
     {
         var targetType = contactType == ContactType.Customer ? DocumentType.Invoice : DocumentType.PurchaseBill;
         var paymentDirection = contactType == ContactType.Customer ? PaymentDirection.Received : PaymentDirection.Paid;
@@ -467,9 +504,10 @@ internal static class OutstandingDocumentReader
 
         if (contactType == ContactType.Customer)
         {
-            foreach (var (invoiceId, settled) in await LoadTenderSettlementsAsync(db, organizationId, cancellationToken, contactId))
+            foreach (var (settledId, settled) in await LoadTenderSettlementsAsync(
+                         db, organizationId, cancellationToken, contactId, invoiceId))
             {
-                result[invoiceId] = result.GetValueOrDefault(invoiceId) + settled;
+                result[settledId] = result.GetValueOrDefault(settledId) + settled;
             }
         }
 
@@ -484,15 +522,22 @@ internal static class OutstandingDocumentReader
     /// so ageing, Customer Receivable Summary and the ledger agree by construction rather than by a
     /// second calculation. Scoped like the two queries above: by organization through the invoice,
     /// never by a materialised id list (phase 42), and by <paramref name="contactId"/> through the
-    /// invoice too when one contact is asked about (phase 90).
+    /// invoice too when one contact is asked about (phase 90), and by <paramref name="invoiceId"/> when one invoice is
+    /// (phase 91).
     /// </summary>
     internal static async Task<Dictionary<Guid, decimal>> LoadTenderSettlementsAsync(
-        IAppDbContext db, Guid organizationId, CancellationToken cancellationToken, Guid? contactId = null)
+        IAppDbContext db, Guid organizationId, CancellationToken cancellationToken, Guid? contactId = null,
+        Guid? invoiceId = null)
     {
         var invoices = db.Invoices.Where(x => x.OrganizationId == organizationId && x.Status == InvoiceStatus.Approved);
         if (contactId is { } onlyContact)
         {
             invoices = invoices.Where(x => x.ContactId == onlyContact);
+        }
+
+        if (invoiceId is { } onlyInvoice)
+        {
+            invoices = invoices.Where(x => x.Id == onlyInvoice);
         }
 
         var tendered = await (

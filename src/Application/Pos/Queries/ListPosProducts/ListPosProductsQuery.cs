@@ -20,6 +20,8 @@ public sealed record PosProductUnitDto(Guid UnitId, string ShortName, decimal Co
 /// setting is the other half (phase 59 Decision G).</param>
 /// <param name="PackagingFeeApplicable">Phase 70 -- the product's half of the packaging-fee rule; the location's
 /// fee and whether the sale is a parcel are the rest (<c>PosPackagingFee</c>).</param>
+/// <param name="ScannedSerialNo">Phase 91 -- set when the till's exact code matched no product but this in-stock
+/// serial of it, so the cart adds the product with that unit already named.</param>
 public sealed record PosProductDto(
     Guid Id,
     string Code,
@@ -33,7 +35,8 @@ public sealed record PosProductDto(
     bool BatchTracking,
     bool SerialTracking,
     string? Barcode,
-    IReadOnlyList<PosProductUnitDto> Units);
+    IReadOnlyList<PosProductUnitDto> Units,
+    string? ScannedSerialNo = null);
 
 /// <summary>
 /// Phase 62 -- the till's product grid: what this till may sell, by category, by search, or by an exact

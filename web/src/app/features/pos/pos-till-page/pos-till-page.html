@@ -129,6 +129,11 @@
                     <span class="fw-bold">{{ line.product.name }}</span>
                     <span>{{ lineFigures(i)?.amount | amount }}</span>
                   </div>
+                  @if (line.product.serialTracking) {
+                    <!-- Phase 91 -- the units named, as the vendor's cart line shows them ("SN ..."). -->
+                    <p class="small mb-1">SN {{ (line.serialNumbers ?? []).length > 0 ? line.serialNumbers!.join(', ') : 'none named yet' }}
+                      ({{ (line.serialNumbers ?? []).length }}/{{ line.quantity }})</p>
+                  }
                   <div class="d-flex align-items-center gap-1 flex-wrap">
                     <button type="button" class="btn btn-sm btn-outline-secondary" [attr.aria-label]="'One fewer ' + line.product.name"
                       (click)="step(line, -1)"><i class="bi bi-dash" aria-hidden="true"></i></button>
@@ -144,7 +149,31 @@
                       (click)="removeLine(line)"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
                   </div>
                   <div class="row g-2 mt-1" [id]="'pos-line-edit-' + line.key" [hidden]="editingKey() !== line.key">
-                    @if (line.product.units.length > 1) {
+                    @if (line.product.serialTracking && editingKey() === line.key) {
+                      <!-- Phase 91 -- the line's units: scan or type one, or tick it from what is in stock here. -->
+                      <fieldset class="col-12">
+                        <legend class="form-label small mb-0">Serial numbers ({{ (line.serialNumbers ?? []).length }}/{{ line.quantity }})</legend>
+                        <label class="visually-hidden" for="pos-serial-{{ line.key }}">Scan or type a serial of {{ line.product.name }}</label>
+                        <input class="form-control form-control-sm mb-1" id="pos-serial-{{ line.key }}" type="text" autocomplete="off"
+                          placeholder="Scan or type a serial, then Enter" [attr.aria-describedby]="'pos-serial-error-' + line.key"
+                          (keydown.enter)="onSerialEnter(line, $event)" />
+                        <p class="small fw-bold mb-1" [id]="'pos-serial-error-' + line.key">{{ serialError() }}</p>
+                        @if (serialChoices(line).length === 0) {
+                          <p class="small text-body-secondary mb-0">No unit of {{ line.product.name }} is in stock at this till.</p>
+                        } @else {
+                          <ul class="list-unstyled pos-serials mb-0">
+                            @for (serial of serialChoices(line); track serial; let si = $index) {
+                              <li class="form-check">
+                                <input class="form-check-input" type="checkbox" id="pos-serial-{{ line.key }}-{{ si }}"
+                                  [checked]="isNamed(line, serial)" (change)="onSerialToggle(line, serial, $event)" />
+                                <label class="form-check-label small" for="pos-serial-{{ line.key }}-{{ si }}">{{ serial }}</label>
+                              </li>
+                            }
+                          </ul>
+                        }
+                      </fieldset>
+                    }
+                    @if (line.product.units.length > 1 && !line.product.serialTracking) {
                       <div class="col-4">
                         <label class="form-label small mb-0" for="pos-unit-{{ line.key }}">Unit</label>
                         <!-- [selected] per option, never [value] on the select (phases 5-7). -->
@@ -194,6 +223,9 @@
             </select>
           </div>
           @if (discountRefusal(); as why) {
+            <p class="small fw-bold mb-2">{{ why }}</p>
+          }
+          @if (serialRefusal(); as why) {
             <p class="small fw-bold mb-2">{{ why }}</p>
           }
 
@@ -341,6 +373,9 @@
               </dl>
 
               @if (discountRefusal(); as why) {
+                <p class="small fw-bold">{{ why }}</p>
+              }
+              @if (serialRefusal(); as why) {
                 <p class="small fw-bold">{{ why }}</p>
               }
               @if (remainingPaisa() > 0 && tenders().length > 0) {

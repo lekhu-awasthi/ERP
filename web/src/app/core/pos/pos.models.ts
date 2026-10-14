@@ -210,6 +210,8 @@ export interface PosProduct {
   serialTracking: boolean;
   barcode: string | null;
   units: PosProductUnit[];
+  /** Phase 91 -- set when a scanned code matched no product but this in-stock serial of it. */
+  scannedSerialNo?: string | null;
 }
 
 export type PosSessionStatus = 'Open' | 'Closed';
@@ -335,6 +337,8 @@ export interface PosSaleLineInput {
   /** Phase 74 -- rupees off each unit, never beside `discountPct`. */
   discountPerUnit: number;
   unitId: string | null;
+  /** Phase 91 -- the units handed over, one per unit, for a serial-tracked product; null otherwise. */
+  serialNumbers: string[] | null;
 }
 
 export interface PosTenderInput {
@@ -427,6 +431,10 @@ export interface PosRefundableLine {
   lineTotal: number;
   /** Phase 74 -- the sale line's Amount discount, rupees off each unit. */
   discountPerUnit: number;
+  /** Phase 91 -- the units the line sold, for a serial-tracked product; empty otherwise. */
+  serialNumbers?: string[] | null;
+  /** Phase 91 -- those of them no approved refund has brought back: what the refund offers to tick. */
+  returnableSerialNumbers?: string[] | null;
 }
 
 export interface PosPriorRefund {
@@ -464,6 +472,8 @@ export interface PosRefundableSale {
 export interface PosRefundLineInput {
   invoiceLineId: string;
   quantity: number;
+  /** Phase 91 -- which of a serial-tracked line's units came back, one per unit. */
+  serialNumbers?: string[];
 }
 
 export interface PreviewPosRefundRequest {
@@ -613,6 +623,10 @@ export interface PosReceipt {
   tendered: number;
   changeAmount: number;
   creditAmount: number;
+  /** Phase 91 -- of `discountAmount`, one guest's own discount on a restaurant bill, printed apart from the order's. */
+  partDiscountAmount?: number;
+  /** Phase 91 -- the service charge that guest declined; the bill carries none. */
+  serviceChargeWaived?: number;
 }
 
 /** Phase 63 -- one printing of a till refund's credit note, carrying VAT Rules Rule 20's particulars. */

@@ -1,9 +1,11 @@
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Application.Common.Security;
+using ErpApp.Application.Inventory.Stock;
 using ErpApp.Application.Pos.Refunds;
 using ErpApp.Application.Sales;
 using ErpApp.Domain.Common;
+using ErpApp.Domain.Inventory;
 using ErpApp.Domain.Sales;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -58,6 +60,15 @@ public sealed class GetPosRefundableSaleQueryHandler(IAppDbContext db, ICurrentU
             .Where(x => x.OrganizationId == request.OrganizationId && unitIds.Contains(x.Id))
             .ToDictionaryAsync(x => x.Id, x => x.ShortName, cancellationToken);
 
+        // Phase 91 -- the units each line sold, and which no approved refund has brought back (CreditNoteSerials, the
+        // rule the refund itself is checked by).
+        var soldSerials = await LineStockAllocator.LoadSerialsAsync(
+            db, request.OrganizationId, DocumentLineParentType.InvoiceLine, [.. invoice.Lines.Select(x => x.Id)],
+            cancellationToken);
+        HashSet<(Guid ProductId, string SerialNo)> returnedSerials = soldSerials.Count == 0
+            ? []
+            : await CreditNoteSerials.ReturnedAsync(db, request.OrganizationId, invoice.Id, null, cancellationToken);
+
         // What is left is counted per (product, rate, VAT, discount, unit) key -- phase 6's cap -- so two
         // sale lines sharing a key share what is left of it. It is handed out to them in bill order.
         var left = new Dictionary<SaleLineKey, decimal>(remainingByKey);
@@ -70,6 +81,7 @@ public sealed class GetPosRefundableSaleQueryHandler(IAppDbContext db, ICurrentU
 
             var product = products.GetValueOrDefault(line.ProductId);
             var unitId = line.UnitId ?? product?.PrimaryUnitId;
+            var serials = soldSerials.GetValueOrDefault(line.Id) ?? [];
             lines.Add(new PosRefundableLineDto(
                 line.Id,
                 line.ProductId,
@@ -83,7 +95,9 @@ public sealed class GetPosRefundableSaleQueryHandler(IAppDbContext db, ICurrentU
                 line.PackagingFeeAmount,
                 line.VatRate,
                 line.LineTotal,
-                line.DiscountPerUnit));
+                line.DiscountPerUnit,
+                serials,
+                [.. serials.Where(s => !returnedSerials.Contains((line.ProductId, s)))]));
         }
 
         var priorRefunds = await db.CreditNotes

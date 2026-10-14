@@ -73,7 +73,9 @@ internal static class PosOrderBilling
                     // Phase 83 -- a line's bill discount is the order's share plus its bill's own discount; the
                     // planner needs the two apart, because only the first is the order's to spread.
                     g.Sum(x => x.BillDiscountAmount - x.PartDiscountAmount),
-                    g.Sum(x => x.PartDiscountAmount)));
+                    g.Sum(x => x.PartDiscountAmount),
+                    // Phase 91 -- what their guests declined of the service charge, a sum over bills not voided.
+                    g.Sum(x => x.PartServiceChargeWaived)));
 
         var totals = new PosOrderBilledTotals(
             live.Sum(x => x.Lines.Sum(l => l.LineTotal)),

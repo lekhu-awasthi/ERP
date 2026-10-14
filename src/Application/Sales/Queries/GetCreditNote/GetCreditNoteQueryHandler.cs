@@ -19,6 +19,9 @@ public sealed class GetCreditNoteQueryHandler(IAppDbContext db) : IRequestHandle
             .SingleOrDefaultAsync(x => x.Id == request.Id && x.OrganizationId == request.OrganizationId, cancellationToken)
             ?? throw new NotFoundException("Credit note not found.");
 
+        // Phase 91 -- the serials each line brings back.
+        var serials = await CreditNoteSerials.LoadAsync(db, creditNote, cancellationToken);
+
         IReadOnlyList<PostedGlLineDto>? glLines = null;
 
         if (creditNote.Status == CreditNoteStatus.Approved)
@@ -65,6 +68,7 @@ public sealed class GetCreditNoteQueryHandler(IAppDbContext db) : IRequestHandle
                 PackagingFeeAmount = x.PackagingFeeAmount,
                 DiscountPerUnit = x.DiscountPerUnit,
                 BillDiscountAmount = x.BillDiscountAmount,
+                SerialNumbers = serials.GetValueOrDefault(x.Id) ?? [],
             }).ToList(),
             glLines,
             creditNote.CurrencyCode,

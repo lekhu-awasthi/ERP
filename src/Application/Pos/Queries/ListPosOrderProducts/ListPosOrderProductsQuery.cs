@@ -52,8 +52,9 @@ public sealed class ListPosOrderProductsQueryHandler(IAppDbContext db, ICurrentU
         await PosRestaurant.EnsureMayOrderAtAsync(
             db, request.OrganizationId, currentUser.UserId, till.Location.Id, cancellationToken);
 
+        // Phase 91 -- serial-tracked products sell at a Retail till only (phase-91-status.md Decision C).
         return await PosSellableProducts.ListAsync(
             db, request.OrganizationId, till.Location.Id, request.Search, request.Code, request.CategoryId,
-            request.Page, request.PageSize, cancellationToken);
+            request.Page, request.PageSize, cancellationToken, excludeSerialTracked: true);
     }
 }

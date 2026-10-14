@@ -40,6 +40,14 @@ public sealed class InvoiceLine
     /// </summary>
     public decimal PartDiscountAmount { get; private set; }
 
+    /// <summary>
+    /// Phase 91 -- the service charge a restaurant bill's guest declined on this line (a waiver on one guest's part,
+    /// phase-91-status.md Decision E): what the line would have carried at the order's terms, of which it carries none.
+    /// Kept because the order's bill planner prices what is left of an order line less every waiver its bills recorded,
+    /// as it does every part discount. Zero on every other line.
+    /// </summary>
+    public decimal PartServiceChargeWaived { get; private set; }
+
     public decimal Amount { get; private set; }
     public decimal VatAmount { get; private set; }
 
@@ -259,9 +267,10 @@ public sealed class InvoiceLine
     internal static InvoiceLine CreatePosOrderPart(
         Guid invoiceId, Guid posOrderLineId, Guid productId, decimal quantity, decimal rate, VatRate vatRate,
         decimal discountPerUnit, decimal discountPct, decimal billDiscountShare, decimal partDiscountShare, Guid? unitId,
-        decimal conversionFactor, decimal serviceChargeRate, PackagingFee packagingFee, PosLineArithmetic.Figures figures)
+        decimal conversionFactor, decimal serviceChargeRate, PackagingFee packagingFee, PosLineArithmetic.Figures figures,
+        decimal partServiceChargeWaived = 0m)
     {
-        foreach (var value in figures.Parts.Append(billDiscountShare).Append(partDiscountShare))
+        foreach (var value in figures.Parts.Append(billDiscountShare).Append(partDiscountShare).Append(partServiceChargeWaived))
         {
             if (value < 0m || decimal.Round(value, Invoice.PosMoneyScale) != value)
             {
@@ -272,6 +281,12 @@ public sealed class InvoiceLine
         if (partDiscountShare > billDiscountShare)
         {
             throw new InvalidOperationException("A guest's discount on a line is part of the line's bill discount.");
+        }
+
+        // Phase 91 -- a declined service charge is the whole of the line's: one carrying any has not been waived.
+        if (partServiceChargeWaived > 0m && (figures.ServiceChargeAmount != 0m || serviceChargeRate != 0m))
+        {
+            throw new InvalidOperationException("A line whose service charge was waived carries no service charge.");
         }
 
         return new InvoiceLine
@@ -288,6 +303,7 @@ public sealed class InvoiceLine
             DiscountPerUnit = discountPerUnit,
             BillDiscountAmount = billDiscountShare,
             PartDiscountAmount = partDiscountShare,
+            PartServiceChargeWaived = partServiceChargeWaived,
             Amount = figures.Amount,
             ServiceChargeRate = serviceChargeRate,
             ServiceChargeAmount = figures.ServiceChargeAmount,

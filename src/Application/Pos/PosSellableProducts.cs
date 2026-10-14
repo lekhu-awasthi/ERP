@@ -16,9 +16,17 @@ namespace ErpApp.Application.Pos;
 /// under its own key (<c>Pos.Order.Operate</c> -- a waiter is not a cashier) and two copies of "what is
 /// sellable here" is how one would drift (phase 62 Decision D's reason for lifting
 /// <c>ToExclusiveRate</c>).
+///
+/// <para><b>Phase 91 -- the two tills differ on serial-tracked products.</b> The Retail till sells them, and a scan
+/// that matches no product's code is tried as an in-stock serial at the till's warehouse, so a cashier can scan the
+/// phone's own IMEI (the vendor answers "Barcode not found"; ours is a choice, phase-91-status.md Decision B). The
+/// restaurant's order grid leaves them out: a kitchen ticket has nowhere to name a serial (Decision C).</para>
 /// </summary>
 internal static class PosSellableProducts
 {
+    /// <param name="serialWarehouseId">Phase 91 -- the Retail till's warehouse, where a scanned serial is looked for;
+    /// null when the till has none, which leaves the scan to product codes.</param>
+    /// <param name="excludeSerialTracked">Phase 91 -- the restaurant's grid, which cannot sell them.</param>
     public static async Task<PagedResult<PosProductDto>> ListAsync(
         IAppDbContext db,
         Guid organizationId,
@@ -28,7 +36,9 @@ internal static class PosSellableProducts
         Guid? categoryId,
         int pageNumber,
         int pageSize,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Guid? serialWarehouseId = null,
+        bool excludeSerialTracked = false)
     {
         var basis = await PriceBasisAsync(db, organizationId, cancellationToken);
 
@@ -41,16 +51,48 @@ internal static class PosSellableProducts
             .Where(x => x.AvailableForSale && x.IsActive && !x.HasVariants)
             .Where(x => x.Locations.Count == 0 || x.Locations.Any(l => l.LocationId == locationId));
 
+        if (excludeSerialTracked)
+        {
+            query = query.Where(x => !x.SerialTracking);
+        }
+
         if (categoryId is { } category)
         {
             query = query.Where(x => x.CategoryId == category);
         }
 
+        string? scannedSerial = null;
+
         // Exact, for a scanner: single-argument equality is case-insensitive on SQL Server's
         // collation, as Contains is (phase 34b).
         if (SearchTerm.Normalize(code) is { } exact)
         {
-            query = query.Where(x => x.Barcode == exact || x.Code == exact || x.Sku == exact);
+            var byCode = query.Where(x => x.Barcode == exact || x.Code == exact || x.Sku == exact);
+
+            // Phase 91 -- a code no product carries may be a serial in stock here. Read through the ledger as a
+            // subquery: the phase-51 index is filtered to in-stock serial layers, so this reads that set and no more.
+            if (serialWarehouseId is { } warehouseId && !await byCode.AnyAsync(cancellationToken))
+            {
+                var bySerial = query.Where(x => x.SerialTracking && db.StockLedgerEntries.Any(l =>
+                    l.OrganizationId == organizationId && l.ProductId == x.Id && l.WarehouseId == warehouseId
+                    && l.SerialNo == exact && l.QuantityRemaining > 0));
+
+                // The layer's own serial, not the scan's: a cashier typing imei-2 sells IMEI-2, and the sale should
+                // name the unit as it was received (the match is the collation's, case-insensitive).
+                var serial = await db.StockLedgerEntries
+                    .Where(l => l.OrganizationId == organizationId && l.WarehouseId == warehouseId
+                        && l.SerialNo == exact && l.QuantityRemaining > 0)
+                    .Select(l => l.SerialNo)
+                    .FirstOrDefaultAsync(cancellationToken);
+
+                if (serial is not null && await bySerial.AnyAsync(cancellationToken))
+                {
+                    byCode = bySerial;
+                    scannedSerial = serial;
+                }
+            }
+
+            query = byCode;
         }
 
         if (SearchTerm.Normalize(search) is { } term)
@@ -95,7 +137,7 @@ internal static class PosSellableProducts
 
                 return new PosProductDto(
                     p.Id, p.Code, p.Name, p.CategoryId, p.Type, p.VatRate, rate, p.ServiceChargeApplicable,
-                    p.PackagingFeeApplicable, p.BatchTracking, p.SerialTracking, p.Barcode, units);
+                    p.PackagingFeeApplicable, p.BatchTracking, p.SerialTracking, p.Barcode, units, scannedSerial);
             })
             .ToList();
 

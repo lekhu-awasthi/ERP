@@ -544,6 +544,8 @@ export interface CreditNoteLineInput {
    * the server resolves it from the catalogue once and freezes it on the line.
    */
   unitId?: string | null;
+  /** Phase 91 -- the units of a serial-tracked product the line brings back; the template prefills those still out. */
+  serialNumbers?: string[] | null;
 }
 
 export interface CreditNote {

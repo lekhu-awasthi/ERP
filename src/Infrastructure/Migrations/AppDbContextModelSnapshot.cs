@@ -5696,6 +5696,8 @@ namespace ErpApp.Infrastructure.Migrations
 
                     b.HasIndex("OrganizationId", "Date");
 
+                    b.HasIndex("OrganizationId", "ReferrerId");
+
                     b.ToTable("CreditNotes", "sales");
                 });
 
@@ -6278,6 +6280,11 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasDefaultValue(0m);
 
                     b.Property<decimal>("PartDiscountAmount")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)")
+                        .HasDefaultValue(0m);
+
+                    b.Property<decimal>("PartServiceChargeWaived")
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)")
                         .HasDefaultValue(0m);

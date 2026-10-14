@@ -170,6 +170,8 @@ public sealed class PrintPosReceiptCommandHandler(IAppDbContext db, ICurrentUser
                 .ToList(),
             invoice.TenderedAmount,
             invoice.ChangeAmount,
-            invoice.CreditAmount);
+            invoice.CreditAmount,
+            invoice.Lines.Sum(x => x.PartDiscountAmount),
+            invoice.Lines.Sum(x => x.PartServiceChargeWaived));
     }
 }

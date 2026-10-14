@@ -358,16 +358,19 @@
                         (input)="onBatchNoChange(line.key, $event)"
                       />
                       <!-- One physical unit per serial, so a line of quantity five names five.
-                           Comma- or newline-separated; the server refuses a count that does not
-                           match the quantity, and names the line. -->
+                           Comma-separated, and a scanner's Enter ends each one; the server refuses a count
+                           that does not match the quantity, and names the line. -->
                       <input
                         [attr.aria-label]="'Serial numbers'"
                         type="text"
                         class="form-control form-control-sm mt-1"
-                        placeholder="Serial nos (comma separated)"
+                        placeholder="Serial nos (scan, or comma separated)"
                         [value]="line.serialsText"
                         (input)="onSerialsChange(line.key, $event)"
+                        (keydown.enter)="onSerialsEnter(line.key, $event)"
+                        [attr.aria-describedby]="'serial-hint-' + line.key"
                       />
+                      <div class="small text-body-secondary" [id]="'serial-hint-' + line.key" aria-live="polite">{{ serialHint(line) }}</div>
                     } @else {
                       <span class="small">{{ line.batchNo || '—' }}</span>
                       @if (line.serialsText) {

@@ -488,3 +488,21 @@ beside a 200 from the same user, and create a fresh Organization per phase.
   `Reports.PurchaseRegister.View` + `Purchasing.PurchaseBill.View` is 403 naming `Reports.AnnexThirteen.View` beside a
   200 on the register, and 403 naming `Sales.Invoice.View` on the Received picker for a nonexistent contact beside a
   200 on Paid.
+- Phase 91. A serial-tracked product: `POST /products {..., serialTracking: true}`; receive it with `POST /purchase-bills`
+  lines carrying `serialNumbers` (one per unit) and a bodiless-`{}` approve. The till's location needs a warehouse
+  (`PUT /billing-locations/{id}`), and `PUT /pos/locations/{id}/settings` a non-empty `denominations`. `GET /pos/tills/
+  {loc}/products?code=<serial>` answers the product with `scannedSerialNo` (the stored casing); `GET /pos/tills/{loc}/
+  products/{productId}/serials?search=` lists the units in stock. `POST /pos/sales` lines take `serialNumbers` (none is
+  a 400 naming `Lines[0]`, an unknown unit a 409); refunds and their preview take `lines: [{invoiceLineId, quantity,
+  serialNumbers}]` (a unit already returned is a 400 naming `Lines`); `GET .../refundable` lines carry `serialNumbers`
+  and `returnableSerialNumbers`. An ERP note: `GET /invoices/{id}/credit-note-conversion-template` lines carry the
+  units still out; `POST /credit-notes` with them + `reason`, then approve. In SQL: `inventory.DocumentLineSerials`
+  (`ParentType` `InvoiceLine`/`CreditNoteLine`/`PurchaseBillLine`, `ParentLineId`, `SerialNo`) and
+  `inventory.StockLedgerEntries.SerialNo` (a returned unit is a new `SourceDocumentType = 'CreditNote'` layer of 1).
+  A restaurant bill's guest declining the service charge: `waiveServiceCharge: true` on `POST /pos/orders/{id}/bill/
+  preview` and `/invoices` (required on the client's request; the preview answers `partServiceChargeWaived`); in SQL
+  `sales.InvoiceLines.PartServiceChargeWaived` with `ServiceChargeRate .00`. A table with an open order refuses a second
+  `DineIn` order (409), so seat a probe as `TakeAway`. The 403 pairs: the serial list of a nonexistent product is 404 as
+  Admin and **403 naming `Pos.Session.Operate`** from a role holding every Admin key but that, beside a 200 on
+  `GET /billing-locations`; a real order's waived bill is **403 naming `<CODE>.Sales.Invoice.TillRemoveServiceCharge`**
+  beside the same bill charged (200).

@@ -82,6 +82,10 @@ public sealed class CreateCreditNoteCommandHandler(IAppDbContext db)
             cancellationToken);
         await CreditNoteInvoiceReferences.EnsureConversionMatchesAsync(db, creditNote, cancellationToken);
 
+        // Phase 91 -- the units a serial-tracked line brings back.
+        await CreditNoteSerials.SaveDraftAsync(
+            db, creditNote, [.. request.Lines.Select(x => x.SerialNumbers)], [], cancellationToken);
+
         db.CreditNotes.Add(creditNote);
         await db.SaveChangesAsync(cancellationToken);
 

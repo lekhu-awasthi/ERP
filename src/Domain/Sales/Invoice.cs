@@ -542,7 +542,8 @@ public sealed class Invoice
     public void AddPosOrderLine(
         Guid posOrderLineId, Guid productId, decimal quantity, decimal rate, VatRate vatRate, decimal discountPerUnit,
         decimal discountPct, decimal billDiscountShare, decimal partDiscountShare, Guid? unitId, decimal conversionFactor,
-        decimal serviceChargeRate, PackagingFee packagingFee, PosLineArithmetic.Figures figures)
+        decimal serviceChargeRate, PackagingFee packagingFee, PosLineArithmetic.Figures figures,
+        decimal partServiceChargeWaived = 0m)
     {
         EnsureDraft();
         EnsurePos();
@@ -569,7 +570,7 @@ public sealed class Invoice
 
         _lines.Add(InvoiceLine.CreatePosOrderPart(
             Id, posOrderLineId, productId, quantity, rate, vatRate, discountPerUnit, discountPct, billDiscountShare,
-            partDiscountShare, unitId, conversionFactor, serviceChargeRate, packagingFee, figures));
+            partDiscountShare, unitId, conversionFactor, serviceChargeRate, packagingFee, figures, partServiceChargeWaived));
 
         DiscountAmount += billDiscountShare;
         RoundOff = 0m;

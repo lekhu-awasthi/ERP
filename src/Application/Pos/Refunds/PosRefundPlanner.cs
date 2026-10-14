@@ -17,7 +17,14 @@ namespace ErpApp.Application.Pos.Refunds;
 /// context: the preview discards it, and the command adds it.</param>
 /// <param name="RequiredPayout">What must be handed back; the rest comes off what the customer owes.</param>
 /// <param name="OwedBefore">What the customer still owed on the sale before this refund.</param>
-internal sealed record PosRefundPlan(Invoice Invoice, CreditNote CreditNote, decimal RequiredPayout, decimal OwedBefore);
+/// <param name="SerialsByLine">Phase 91 -- the serials each of the note's lines brings back, keyed by the note's line
+/// id; the command writes them and hands them to the approval.</param>
+internal sealed record PosRefundPlan(
+    Invoice Invoice,
+    CreditNote CreditNote,
+    decimal RequiredPayout,
+    decimal OwedBefore,
+    IReadOnlyDictionary<Guid, List<string>> SerialsByLine);
 
 /// <summary>
 /// Phase 63 -- everything a refund decides before money moves, shared by the till's preview
@@ -116,21 +123,54 @@ internal static class PosRefundPlanner
                 line.UnitId, line.ConversionFactor, line.BatchId, line.ServiceChargeRate, line.PackagingFee, theRest));
         }
 
+        var serialsByLine = await PlanSerialsAsync(db, requestedLines, chosen, creditNote, cancellationToken);
+
         ApplyRoundOff(invoice, till, priorNotes, lastOfKey.Count == remaining.Count(x => x.Value > 0m), creditNote);
 
         var owed = await OwedOnSaleAsync(db, organizationId, invoice, date, cancellationToken);
         var requiredPayout = creditNote.GrandTotal - Math.Min(creditNote.GrandTotal, owed);
 
-        return new PosRefundPlan(invoice, creditNote, requiredPayout, owed);
+        return new PosRefundPlan(invoice, creditNote, requiredPayout, owed, serialsByLine);
+    }
+
+    /// <summary>
+    /// Phase 91 -- the serials each refund line brings back: those the cashier ticked, each one a unit the sale line sold
+    /// and no approved refund of it already returned, exactly as many as the line returns (<see cref="CreditNoteSerials"/>,
+    /// the ERP note's rule). Checked in the plan, so the preview refuses what the refund would.
+    /// </summary>
+    private static async Task<IReadOnlyDictionary<Guid, List<string>>> PlanSerialsAsync(
+        IAppDbContext db,
+        IReadOnlyList<PosRefundLineInput> requestedLines,
+        IReadOnlyList<(InvoiceLine Line, decimal Quantity)> chosen,
+        CreditNote creditNote,
+        CancellationToken cancellationToken)
+    {
+        var requested = requestedLines.ToDictionary(x => x.InvoiceLineId, x => x.SerialNumbers ?? []);
+
+        // The note's lines are in the chosen lines' order (AddPosLine above), so each takes its sale line's serials.
+        var serialsByLine = creditNote.Lines
+            .Select((noteLine, i) => (noteLine.Id, Serials: requested.GetValueOrDefault(chosen[i].Line.Id) ?? []))
+            .Where(x => x.Serials.Count > 0)
+            .ToDictionary(x => x.Id, x => x.Serials.Select(s => s.Trim()).ToList());
+
+        if (await CreditNoteSerials.FindProblemAsync(db, creditNote, serialsByLine, requireCount: true, cancellationToken)
+            is { } problem)
+        {
+            throw new ValidationException([new ValidationFailure(nameof(CreatePosRefundCommand.Lines), problem)]);
+        }
+
+        return serialsByLine;
     }
 
     /// <summary>What the customer still owes on <paramref name="invoice"/>, never below zero. A till sale
-    /// is always base currency, so the reader's base figure is the sale's own.</summary>
+    /// is always base currency, so the reader's base figure is the sale's own. Phase 91 -- read through the sale itself:
+    /// its customer is usually the walk-in, who owns every counter sale, and narrowing by contact read all of them
+    /// (56,566 logical reads per refund screen on the scale tenant; see OutstandingDocumentReader).</summary>
     public static async Task<decimal> OwedOnSaleAsync(
         IAppDbContext db, Guid organizationId, Invoice invoice, DateOnly asOf, CancellationToken cancellationToken)
     {
         var outstanding = await OutstandingDocumentReader.LoadAsync(
-            db, organizationId, ContactType.Customer, asOf, cancellationToken, invoice.ContactId);
+            db, organizationId, ContactType.Customer, asOf, cancellationToken, invoice.ContactId, invoiceId: invoice.Id);
 
         var owed = outstanding
             .Where(x => x.Type == AgeableDocumentType.Invoice && x.Id == invoice.Id)

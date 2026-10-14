@@ -25,6 +25,7 @@ import { TermsEditor } from '../../../shared/terms/terms-editor';
 import { SendEmailDialog } from '../../../shared/send-email/send-email-dialog';
 import { DocumentLocationPicker } from '../../../shared/locations/document-location-picker';
 import { locationAwareProducts } from '../../../shared/catalog/location-aware-products';
+import { acceptSerialEntry, parseSerials, serialProgress } from '../../../shared/catalog/serial-entry';
 import { FieldError, FieldErrorMessage } from '../../../shared/a11y/field-error';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
@@ -48,6 +49,15 @@ interface EditableLine {
    * freezes it on the line, so a client cannot claim a conversion the product does not have.
    */
   unitId: string;
+
+  /**
+   * Phase 91 -- the units of a serial-tracked product the line brings back, as the comma-separated text the invoice
+   * form's own serial control holds. A converted note's template prefills the units still out; the server checks
+   * each was sold on the invoice and asks for the whole quantity at Approve.
+   */
+  serialsText: string;
+  /** The serial the box's last Enter took out as a repeat, named under it until the next keystroke. */
+  serialRepeat?: string | null;
 }
 
 let nextLineKey = 1;
@@ -278,7 +288,10 @@ export class CreditNoteDetailPage {
           this.discountPct.set(template.discountPct);
           this.lines.set(
             template.lines.length > 0
-              ? template.lines.map((l) => ({ key: nextLineKey++, ...l, unitId: l.unitId ?? '', discountPerUnit: 0 }))
+              ? template.lines.map((l) => ({
+                  key: nextLineKey++, ...l, unitId: l.unitId ?? '', discountPerUnit: 0,
+                  serialsText: (l.serialNumbers ?? []).join(', '),
+                }))
               : [this.newLine()],
           );
         } else {
@@ -578,6 +591,8 @@ export class CreditNoteDetailPage {
         vatRate: l.vatRate,
         discountPct: l.discountPct,
         unitId: l.unitId || null,
+        // Phase 91 -- only a line that names units sends them.
+        serialNumbers: parseSerials(l.serialsText),
       }));
 
     if (lines.length === 0) {
@@ -621,8 +636,41 @@ export class CreditNoteDetailPage {
     this.lines.update((lines) => lines.map((l) => (l.key === key ? { ...l, ...patch } : l)));
   }
 
+  /** Phase 91 -- the serial control's text, written by its own event handler (zoneless, phase 17). */
+  protected onSerialsChange(key: number, event: Event): void {
+    this.updateLine(key, { serialsText: (event.target as HTMLInputElement).value, serialRepeat: null });
+  }
+
+  /**
+   * A barcode scanner types the serial and presses Enter, which ends it: repeats out and a separator in, so the next
+   * scan starts a new serial instead of running on into this one (`serial-entry.ts`).
+   */
+  protected onSerialsEnter(key: number, event: Event): void {
+    event.preventDefault();
+    const box = event.target as HTMLInputElement;
+    const entry = acceptSerialEntry(box.value);
+    // Written to the box by hand as well: after a repeat the tidied text can equal what the binding last wrote, and
+    // then Angular leaves the repeat on screen (the binding did not change; phase 64's radio, in a text box).
+    box.value = entry.text;
+    this.updateLine(key, { serialsText: entry.text, serialRepeat: entry.repeated });
+  }
+
+  /** Under the serial box: how many of the line's quantity are named, and a repeat the last Enter took out. */
+  protected serialHint(line: EditableLine): string {
+    const progress = serialProgress(line.serialsText, line.quantity);
+    return line.serialRepeat ? `${line.serialRepeat} is already on this line. ${progress}` : progress;
+  }
+
+  /** Phase 91 -- whether a line's product is serial-tracked, so its row offers the serial control. */
+  protected isSerialTracked(productId: string): boolean {
+    return this.products().find((p) => p.id === productId)?.serialTracking === true;
+  }
+
   private newLine(): EditableLine {
-    return { unitId: '',  key: nextLineKey++, productId: '', quantity: 1, rate: 0, vatRate: 'NoVat', discountPct: 0, discountPerUnit: 0 };
+    return {
+      unitId: '', key: nextLineKey++, productId: '', quantity: 1, rate: 0, vatRate: 'NoVat', discountPct: 0, discountPerUnit: 0,
+      serialsText: '',
+    };
   }
 
   private today(): string {
@@ -676,6 +724,8 @@ export class CreditNoteDetailPage {
                 // Phase 52 -- read back, not only written: phase 35a's rule is write, READ, and
                 // every prefill between, and the read half is the one no compiler checks.
                 unitId: l.unitId ?? '',
+                // Phase 91 -- the same rule for the units a line brings back.
+                serialsText: (l.serialNumbers ?? []).join(', '),
               }))
             : [this.newLine()],
         );

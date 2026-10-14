@@ -13,6 +13,8 @@ export interface CartProduct {
   /** Phase 70. A cart stored before the phase lacks it; absent reads as the product default, on. */
   packagingFeeApplicable: boolean;
   units: PosProductUnit[];
+  /** Phase 91 -- each unit sold names its serial. A cart stored before the phase lacks it: not tracked. */
+  serialTracking?: boolean;
 }
 
 /** Phase 70 -- the packaging fee terms a line is priced with. */
@@ -34,6 +36,15 @@ export interface CartLine {
   discountPct: number;
   /** Phase 74 -- rupees off each unit, never beside `discountPct`. A cart stored before the phase lacks it: none. */
   discountPerUnit: number;
+  /** Phase 91 -- the units of a serial-tracked product, one per unit sold; the server refuses a sale whose count
+   * is not the quantity. A cart stored before the phase lacks it: none. */
+  serialNumbers?: string[];
+}
+
+/** Phase 91 -- a serial-tracked line whose serials do not yet match its quantity. */
+export interface SerialShortfall {
+  line: CartLine;
+  named: number;
 }
 
 /** The customer a bill is for. Null on the cart means the walk-in. */
@@ -113,6 +124,15 @@ export class PosCart {
 
   readonly itemCount = computed(() => this.lines().reduce((sum, line) => sum + line.quantity, 0));
 
+  /**
+   * Phase 91 -- the first serial-tracked line still short of (or past) its serials: the sale cannot be taken until each
+   * unit handed over is named, which is what the server checks (and the vendor's cart blocks checkout on too).
+   */
+  readonly serialShortfall = computed<SerialShortfall | null>(() => {
+    const line = this.lines().find((x) => x.product.serialTracking && (x.serialNumbers ?? []).length !== x.quantity);
+    return line ? { line, named: (line.serialNumbers ?? []).length } : null;
+  });
+
   private readonly storageKey: string;
 
   constructor(
@@ -154,37 +174,78 @@ export class PosCart {
       : NO_PACKAGING_FEE;
   }
 
-  /** Adds one of a product in its primary unit, or one more onto a line already holding exactly that. */
-  add(product: PosProduct | CartProduct): void {
+  /**
+   * Adds one of a product in its primary unit, or one more onto a line already holding exactly that. Phase 91 -- a
+   * serial-tracked product has one line, whatever its price or discount, which its serials are named on; the line
+   * returned is the one that grew, so the till can open its serial picker.
+   */
+  add(product: PosProduct | CartProduct): CartLine | null {
     const kept = toCartProduct(product);
     const primary = kept.units[0];
     const existing = this.lines().find(
       (x) =>
         x.product.id === kept.id &&
-        x.unitId === primary.unitId &&
-        x.rate === primary.rate &&
-        x.discountPct === 0 &&
-        !x.discountPerUnit,
+        (kept.serialTracking ||
+          (x.unitId === primary.unitId && x.rate === primary.rate && x.discountPct === 0 && !x.discountPerUnit)),
     );
 
     if (existing) {
       this.update(existing.key, { quantity: existing.quantity + 1 });
-      return;
+      return this.lines().find((x) => x.key === existing.key) ?? null;
     }
 
-    this.lines.set([
-      ...this.lines(),
-      {
-        key: this.nextKey++,
-        product: kept,
-        unitId: primary.unitId,
-        quantity: 1,
-        rate: primary.rate,
-        discountPct: 0,
-        discountPerUnit: 0,
-      },
-    ]);
+    const line: CartLine = {
+      key: this.nextKey++,
+      product: kept,
+      unitId: primary.unitId,
+      quantity: 1,
+      rate: primary.rate,
+      discountPct: 0,
+      discountPerUnit: 0,
+      serialNumbers: [],
+    };
+    this.lines.set([...this.lines(), line]);
     this.persist();
+    return line;
+  }
+
+  /**
+   * Phase 91 -- names one unit of a serial-tracked product, on its line (made if there is none). The quantity grows to
+   * the serials named when they outnumber it, so ticking three phones sells three. False when the serial is already in
+   * the cart: one unit cannot be sold twice.
+   */
+  addSerial(product: PosProduct | CartProduct, serialNo: string): boolean {
+    const serial = serialNo.trim();
+    if (!serial || this.hasSerial(serial)) {
+      return false;
+    }
+
+    const kept = toCartProduct(product);
+    const existing = this.lines().find((x) => x.product.id === kept.id);
+    const named = existing?.serialNumbers ?? [];
+    const serials = [...named, serial];
+
+    if (!existing) {
+      const line = this.add(kept)!;
+      this.update(line.key, { serialNumbers: serials, quantity: 1 });
+      return true;
+    }
+
+    this.update(existing.key, { serialNumbers: serials, quantity: Math.max(existing.quantity, serials.length) });
+    return true;
+  }
+
+  /** Phase 91 -- takes one unit's serial off its line; the quantity stays, so the cashier names another or lowers it. */
+  removeSerial(key: number, serialNo: string): void {
+    const line = this.lines().find((x) => x.key === key);
+    if (!line) return;
+    this.update(key, { serialNumbers: (line.serialNumbers ?? []).filter((x) => x !== serialNo) });
+  }
+
+  /** Phase 91 -- whether a unit is already on any line of this cart (serials compare as the server's do, ignoring case). */
+  hasSerial(serialNo: string): boolean {
+    const wanted = serialNo.trim().toLowerCase();
+    return this.lines().some((x) => (x.serialNumbers ?? []).some((s) => s.toLowerCase() === wanted));
   }
 
   setQuantity(key: number, quantity: number): void {
@@ -192,14 +253,24 @@ export class PosCart {
       return;
     }
 
+    // Phase 91 -- a serial is one whole unit: a serial-tracked line counts in whole units, and fewer units name fewer
+    // serials (the last named are the ones put back).
+    const line = this.lines().find((x) => x.key === key);
+    if (line?.product.serialTracking) {
+      if (quantity !== Math.trunc(quantity)) return;
+      this.update(key, { quantity, serialNumbers: (line.serialNumbers ?? []).slice(0, quantity) });
+      return;
+    }
+
     this.update(key, { quantity });
   }
 
-  /** Changing the unit re-prices the line at that unit's catalogue rate, as the ERP's line grid does. */
+  /** Changing the unit re-prices the line at that unit's catalogue rate, as the ERP's line grid does. Phase 91 -- a
+   * serial names one primary unit, so a serial-tracked line stays in it. */
   setUnit(key: number, unitId: string): void {
     const line = this.lines().find((x) => x.key === key);
     const unit = line?.product.units.find((u) => u.unitId === unitId);
-    if (!line || !unit) {
+    if (!line || !unit || line.product.serialTracking) {
       return;
     }
 
@@ -337,6 +408,7 @@ export class PosCart {
     discountPct: number;
     discountPerUnit: number;
     unitId: string | null;
+    serialNumbers: string[] | null;
   }[] {
     return this.lines().map((line) => ({
       productId: line.product.id,
@@ -348,6 +420,8 @@ export class PosCart {
       discountPerUnit: line.discountPerUnit,
       // The primary unit is sent as null, which is what every ERP form sends for it.
       unitId: line.unitId === line.product.units[0]?.unitId ? null : line.unitId,
+      // Phase 91 -- the units handed over, for a serial-tracked product.
+      serialNumbers: line.product.serialTracking ? (line.serialNumbers ?? []) : null,
     }));
   }
 
@@ -489,6 +563,7 @@ function toCartProduct(product: PosProduct | CartProduct): CartProduct {
     serviceChargeApplicable: product.serviceChargeApplicable,
     packagingFeeApplicable: product.packagingFeeApplicable !== false,
     units: product.units,
+    serialTracking: product.serialTracking === true,
   };
 }
 

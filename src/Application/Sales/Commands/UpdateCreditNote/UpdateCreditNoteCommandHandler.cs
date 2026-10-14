@@ -80,6 +80,11 @@ public sealed class UpdateCreditNoteCommandHandler(IAppDbContext db)
             cancellationToken);
         await CreditNoteInvoiceReferences.EnsureConversionMatchesAsync(db, creditNote, cancellationToken);
 
+        // Phase 91 -- the units a serial-tracked line brings back, replacing the old lines' rows.
+        await CreditNoteSerials.SaveDraftAsync(
+            db, creditNote, [.. request.Lines.Select(x => x.SerialNumbers)], [.. oldLines.Select(x => x.Id)],
+            cancellationToken);
+
         db.CreditNoteLines.RemoveRange(oldLines);
         db.CreditNoteLines.AddRange(creditNote.Lines);
 

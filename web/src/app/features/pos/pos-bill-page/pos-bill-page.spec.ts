@@ -62,6 +62,7 @@ describe('PosBillPage', () => {
     voidReason: null, voidedAt: null, voidedByName: null, amount: 520, serviceCharge: 40, packagingFee: 0, vat: 72.8, total: 632.8,
     outstanding: 4, settledAt: null, billed: 0, toBill: 4, invoices: [], tickets: [],
     discountPct: 0, serviceChargeWaived: false, gross: 520, discount: 0, discountAmount: 0, partDiscount: 0,
+    partServiceChargeWaived: 0,
     lines: [line('momo', 'Chicken Momo', 2), line('coke', 'Coke 250ml', 2)],
     ...overrides,
   });
@@ -76,20 +77,20 @@ describe('PosBillPage', () => {
       roundOff: Math.round((total - unrounded) * 100) / 100, total, billsTheRest: part !== 'first', orderTotal: 633,
       billedBefore: part === 'rest' ? 316 : 0, leftAfter: part === 'first' ? 317 : 0,
       gross: unrounded === 632.8 ? 520 : 260, discount: 0, discountPct: 0, serviceChargeWaived: false, discountAmount: 0,
-      partDiscount: 0,
+      partDiscount: 0, partServiceChargeWaived: 0,
     };
   };
 
   const acme: Contact = { id: 'acme', code: 'C-0001', name: 'Acme Retail' } as Contact;
 
-  function page(options: { restaurant?: PosRestaurant; till?: PosTill; preview?: PosOrderBillPreview } = {}) {
+  function page(options: { restaurant?: PosRestaurant; till?: PosTill; preview?: PosOrderBillPreview; order?: PosOrder } = {}) {
     vi.useFakeTimers();
     const previews: PosOrderBillRequest[] = [];
     const bills: CreatePosOrderInvoiceRequest[] = [];
     let paid = false;
 
     const restaurantService = {
-      getOrder: (): Observable<PosOrder> => of(paid ? order({ billed: 316, toBill: 2 }) : order()),
+      getOrder: (): Observable<PosOrder> => of(paid ? order({ billed: 316, toBill: 2 }) : (options.order ?? order())),
       getRestaurant: (): Observable<PosRestaurant> => of(options.restaurant ?? restaurant()),
       previewBill: (_o: string, _id: string, request: PosOrderBillRequest): Observable<PosOrderBillPreview> => {
         previews.push(request);
@@ -163,7 +164,7 @@ describe('PosBillPage', () => {
   it('prices the whole order on the server before anything is chosen', () => {
     const p = page();
 
-    expect(p.previews[0]).toEqual({ split: 'Whole', items: [], parts: null, discountPct: null, discountAmount: null });
+    expect(p.previews[0]).toEqual({ split: 'Whole', items: [], parts: null, discountPct: null, discountAmount: null, waiveServiceCharge: false });
     expect(p.text()).toContain('Round off0.20This bill633.00');
     expect(p.text()).toContain('Service charge40.00');
     expect(p.text()).toContain('This bill settles the order.');
@@ -175,7 +176,7 @@ describe('PosBillPage', () => {
 
     p.click('#pos-bill-split-equal');
 
-    expect(p.previews.at(-1)).toEqual({ split: 'Equal', items: [], parts: 2, discountPct: null, discountAmount: null });
+    expect(p.previews.at(-1)).toEqual({ split: 'Equal', items: [], parts: 2, discountPct: null, discountAmount: null, waiveServiceCharge: false });
     expect(p.text()).toContain('317.00 will be left for later bills.');
   });
 
@@ -189,7 +190,7 @@ describe('PosBillPage', () => {
 
     expect(p.previews.at(-1)).toEqual({
       split: 'Items', items: [{ lineId: 'momo', quantity: 2 }, { lineId: 'coke', quantity: 1 }], parts: null,
-      discountPct: null, discountAmount: null,
+      discountPct: null, discountAmount: null, waiveServiceCharge: false,
     });
 
     // The amount field is prefilled with what is due; Add takes it, then Take Payment.
@@ -316,7 +317,7 @@ describe('PosBillPage', () => {
 
     p.change('#pos-bill-discount-kind', 'Amount');
     p.change('#pos-bill-discount', '26');
-    expect(p.previews.at(-1)).toEqual({ split: 'Whole', items: [], parts: null, discountPct: null, discountAmount: 26 });
+    expect(p.previews.at(-1)).toEqual({ split: 'Whole', items: [], parts: null, discountPct: null, discountAmount: 26, waiveServiceCharge: false });
     expect(p.text()).toContain('Discount on this bill26.00');
     expect(p.text()).not.toContain('on the order)');
 
@@ -351,5 +352,48 @@ describe('PosBillPage', () => {
 
     expect(p.text()).toContain('Taking payment needs your own open session at this till');
     expect(p.element.querySelector('#pos-bill-split-whole')).toBeNull();
+  });
+  // ---- Phase 91: one guest declining the service charge -------------------------------------------------
+
+  it('prices one guest declining the service charge on the server, sends it, and charges the next guest again', () => {
+    const p = page({
+      preview: { ...preview('first'), serviceCharge: 0, vat: 33.8, unrounded: 293.8, roundOff: 0.2, total: 294, partServiceChargeWaived: 20 },
+    });
+
+    const box = p.element.querySelector<HTMLInputElement>('#pos-bill-waive-service-charge')!;
+    expect(box.labels?.[0]?.textContent?.trim()).toBe('Waive service charge on this bill');
+    expect(box.checked).toBe(false);
+
+    box.click();
+    p.render();
+    expect(p.previews.at(-1)).toMatchObject({ waiveServiceCharge: true });
+    expect(p.text()).toContain('Service chargeWaived on this bill (20.00)');
+
+    p.click('#pos-bill-mode-cash');
+    p.change('#pos-bill-amount', '300');
+    p.press('Add');
+    p.takePayment().click();
+    p.render();
+
+    expect(p.bills[0]).toMatchObject({ waiveServiceCharge: true });
+    // The next part is another guest's: they pay the service charge unless they decline it too.
+    expect(p.element.querySelector<HTMLInputElement>('#pos-bill-waive-service-charge')!.checked).toBe(false);
+    expect(p.previews.at(-1)).toMatchObject({ waiveServiceCharge: false });
+  });
+
+  it('disables the waiver for a cashier without Sales.Invoice.TillRemoveServiceCharge and names the key', () => {
+    const p = page({ restaurant: restaurant({ canRemoveServiceCharge: false }) });
+
+    expect(p.element.querySelector<HTMLInputElement>('#pos-bill-waive-service-charge')!.disabled).toBe(true);
+    expect(p.text()).toContain('Waiving the service charge needs the Sales.Invoice.TillRemoveServiceCharge permission at this location.');
+  });
+
+  it('offers no waiver where the order charges none to decline: a take-away, or an order that waived it', () => {
+    const takeAway = page({ order: order({ orderType: 'TakeAway' }) });
+    expect(takeAway.element.querySelector('#pos-bill-waive-service-charge')).toBeNull();
+    TestBed.resetTestingModule();
+
+    const waived = page({ order: order({ serviceChargeWaived: true }) });
+    expect(waived.element.querySelector('#pos-bill-waive-service-charge')).toBeNull();
   });
 });

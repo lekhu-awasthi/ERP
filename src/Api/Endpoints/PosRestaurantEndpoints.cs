@@ -185,7 +185,7 @@ public static class PosRestaurantEndpoints
             Results.Ok(await sender.Send(
                 new PreviewPosOrderBillQuery(
                     organizationId, orderId, request.Split, request.Items ?? [], request.Parts, request.DiscountPct,
-                    request.DiscountAmount),
+                    request.DiscountAmount, request.WaiveServiceCharge ?? false),
                 ct)));
 
         group.MapPost("/orders/{orderId:guid}/invoices", async (
@@ -196,7 +196,7 @@ public static class PosRestaurantEndpoints
                     organizationId, request.SessionId, request.LocationId, orderId, request.Split, request.Items ?? [],
                     request.Parts, request.Tenders ?? [], request.ChangeAmount, request.ContactId,
                     request.OverrideStockWarning, request.OverrideCreditLimitWarning, request.DiscountPct,
-                    request.DiscountAmount),
+                    request.DiscountAmount, request.WaiveServiceCharge ?? false),
                 ct)));
 
         // ---- Phase 65: the kitchen board (Pos.Kitchen.Operate) -------------------------------------------
@@ -288,10 +288,11 @@ public static class PosRestaurantEndpoints
 
     private sealed record CreatePosOrderTransferRequest(Guid? TableId, IReadOnlyList<PosOrderLineQuantityInput>? Items);
 
-    // Phase 83 -- the part's own discount, a percentage or rupees, at most one of them.
+    // Phase 83 -- the part's own discount, a percentage or rupees, at most one of them. Phase 91 -- and whether its guest
+    // declines the service charge.
     private sealed record PosOrderBillRequest(
         PosOrderSplit Split, IReadOnlyList<PosOrderLineQuantityInput>? Items, int? Parts, decimal? DiscountPct,
-        decimal? DiscountAmount);
+        decimal? DiscountAmount, bool? WaiveServiceCharge);
 
     private sealed record CreatePosOrderInvoiceRequest(
         Guid SessionId,
@@ -305,7 +306,8 @@ public static class PosRestaurantEndpoints
         bool OverrideStockWarning,
         bool OverrideCreditLimitWarning,
         decimal? DiscountPct,
-        decimal? DiscountAmount);
+        decimal? DiscountAmount,
+        bool? WaiveServiceCharge);
 
     private sealed record ServeKitchenTicketRequest(IReadOnlyList<PosOrderLineQuantityInput>? Items);
 }

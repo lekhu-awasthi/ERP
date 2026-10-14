@@ -16,6 +16,7 @@ using ErpApp.Application.Pos.Queries.GetPosSession;
 using ErpApp.Application.Pos.Queries.GetPosRefundableSale;
 using ErpApp.Application.Pos.Queries.GetPosTill;
 using ErpApp.Application.Pos.Queries.ListPosProducts;
+using ErpApp.Application.Pos.Queries.ListPosProductSerials;
 using ErpApp.Application.Pos.Queries.ListPosSessionRefunds;
 using ErpApp.Application.Pos.Queries.ListPosSessionSales;
 using ErpApp.Application.Pos.Queries.PreviewPosRefund;
@@ -166,6 +167,12 @@ public static class PosEndpoints
                     organizationId, locationId, search, code, categoryId, page ?? 1,
                     pageSize ?? ListPosProductsQuery.DefaultPageSize),
                 ct)));
+
+        // Phase 91 -- a serial-tracked product's units in stock at the till's warehouse, for the cart's picker.
+        group.MapGet("/tills/{locationId:guid}/products/{productId:guid}/serials", async (
+            Guid organizationId, Guid locationId, Guid productId, string? search, ISender sender, CancellationToken ct) =>
+            Results.Ok(await sender.Send(
+                new ListPosProductSerialsQuery(organizationId, locationId, productId, search), ct)));
 
         group.MapGet("/sessions/{sessionId:guid}/sales", async (
             Guid organizationId, Guid sessionId, ISender sender, CancellationToken ct) =>

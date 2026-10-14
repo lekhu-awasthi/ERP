@@ -105,6 +105,8 @@ export class PosBillPage {
   /** Phase 83 -- this bill's own discount as typed, and its kind, kept apart: "0" as % and as Rs look alike. */
   protected readonly billDiscountText = signal('');
   protected readonly billDiscountKind = signal<PosDiscountKind>('Percent');
+  /** Phase 91 -- whether this bill's guest declines the service charge; cleared after each payment, as the discount is. */
+  protected readonly waiveServiceCharge = signal(false);
   private previewTimer: ReturnType<typeof setTimeout> | null = null;
   private previewSeq = 0;
 
@@ -283,7 +285,7 @@ export class PosBillPage {
   }
 
   protected request(): PosOrderBillRequest {
-    const discount = this.billDiscount();
+    const discount = { ...this.billDiscount(), waiveServiceCharge: this.waiveServiceCharge() };
     switch (this.split()) {
       case 'Items':
         return {
@@ -323,6 +325,20 @@ export class PosBillPage {
 
   protected onBillDiscountKind(event: Event): void {
     this.billDiscountKind.set((event.target as HTMLSelectElement).value as PosDiscountKind);
+    this.schedulePreview();
+  }
+
+  /**
+   * Phase 91 -- whether the order charges a service charge this bill could decline: a dine-in order that has not
+   * waived it as a whole. Otherwise the control is not offered (and takes its label with it).
+   */
+  protected readonly canDeclineServiceCharge = computed(() => {
+    const order = this.order();
+    return !!order && order.orderType === 'DineIn' && !order.serviceChargeWaived;
+  });
+
+  protected onWaiveServiceCharge(event: Event): void {
+    this.waiveServiceCharge.set((event.target as HTMLInputElement).checked);
     this.schedulePreview();
   }
 
@@ -472,6 +488,8 @@ export class PosBillPage {
           // carries no discount of its own unless one is given for it: it is another guest's.
           this.chosenCustomer.set(null);
           this.billDiscountText.set('');
+          // Phase 91 -- and pays the service charge unless that guest declines it too.
+          this.waiveServiceCharge.set(false);
           this.creditAccepted.set(false);
           this.announcement.set(
             `Bill ${result.code} paid, ${result.grandTotal.toFixed(2)}.`

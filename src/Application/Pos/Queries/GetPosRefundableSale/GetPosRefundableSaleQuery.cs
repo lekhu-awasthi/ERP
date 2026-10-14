@@ -8,6 +8,9 @@ namespace ErpApp.Application.Pos.Queries.GetPosRefundableSale;
 
 /// <param name="Sold">The quantity on the sale line, in its own unit.</param>
 /// <param name="Remaining">What can still be refunded: sold, less what earlier credit notes returned.</param>
+/// <param name="SerialNumbers">Phase 91 -- the units this line sold, for a serial-tracked product; empty otherwise.</param>
+/// <param name="ReturnableSerialNumbers">Phase 91 -- those of them no approved refund has brought back yet: what the
+/// refund screen offers to tick.</param>
 public sealed record PosRefundableLineDto(
     Guid InvoiceLineId,
     Guid ProductId,
@@ -21,7 +24,9 @@ public sealed record PosRefundableLineDto(
     decimal PackagingFeeAmount,
     VatRate VatRate,
     decimal LineTotal,
-    decimal DiscountPerUnit);
+    decimal DiscountPerUnit,
+    IReadOnlyList<string>? SerialNumbers = null,
+    IReadOnlyList<string>? ReturnableSerialNumbers = null);
 
 public sealed record PosPriorRefundDto(Guid CreditNoteId, string Code, DateOnly Date, decimal GrandTotal);
 

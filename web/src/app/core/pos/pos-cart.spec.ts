@@ -136,7 +136,7 @@ describe('PosCart', () => {
 
     expect(cart.lines()[0].rate).toBe(1200);
     expect(cart.toSaleLines()[0]).toEqual({
-      productId: 'coke', quantity: 1, rate: 1200, vatRate: null, discountPct: 0, discountPerUnit: 0, unitId: 'crate',
+      productId: 'coke', quantity: 1, rate: 1200, vatRate: null, discountPct: 0, discountPerUnit: 0, unitId: 'crate', serialNumbers: null,
     });
 
     // The primary unit travels as null, as every ERP form sends it.
@@ -289,5 +289,94 @@ describe('PosCart packaging fee (phase 70)', () => {
     cart.add(stored as PosProduct);
 
     expect(cart.bill().packagingFee).toBe(20);
+  });
+});
+
+// Phase 91 -- a serial-tracked product sells unit by unit.
+const phone: PosProduct = {
+  id: 'phone', code: 'P0091', name: 'P91 Phone', categoryId: 'phones', type: 'Goods', vatRate: 'ThirteenPercentVat',
+  rate: 10000, serviceChargeApplicable: false, packagingFeeApplicable: true, batchTracking: false, serialTracking: true,
+  barcode: 'PHONE-BOX',
+  units: [
+    { unitId: 'pc', shortName: 'pc', conversionRate: 1, rate: 10000 },
+    { unitId: 'box', shortName: 'box', conversionRate: 10, rate: 100000 },
+  ],
+};
+
+describe('PosCart serials (phase 91)', () => {
+  it('keeps one line per serial product, grows it to the units named, and sends them', () => {
+    const cart = new PosCart(till(), ORG, 'ses-1', new MemoryStorage());
+
+    expect(cart.addSerial(phone, 'IMEI-1')).toBe(true);
+    expect(cart.addSerial(phone, ' IMEI-2 ')).toBe(true);
+
+    expect(cart.lines().length).toBe(1);
+    expect(cart.lines()[0].quantity).toBe(2);
+    expect(cart.lines()[0].serialNumbers).toEqual(['IMEI-1', 'IMEI-2']);
+    expect(cart.serialShortfall()).toBeNull();
+    expect(cart.toSaleLines()[0].serialNumbers).toEqual(['IMEI-1', 'IMEI-2']);
+  });
+
+  it('refuses a unit already in the cart, whatever its case', () => {
+    const cart = new PosCart(till(), ORG, 'ses-1', new MemoryStorage());
+
+    cart.addSerial(phone, 'IMEI-1');
+
+    expect(cart.addSerial(phone, 'imei-1')).toBe(false);
+    expect(cart.lines()[0].quantity).toBe(1);
+  });
+
+  it('names a shortfall until every unit is named, and a tap adds a unit to the same line, not a second line', () => {
+    const cart = new PosCart(till(), ORG, 'ses-1', new MemoryStorage());
+
+    const line = cart.add(phone)!;
+    cart.setLineDiscount(line.key, 5);
+    cart.add(phone);
+
+    expect(cart.lines().length).toBe(1);
+    expect(cart.serialShortfall()).toEqual({ line: cart.lines()[0], named: 0 });
+
+    cart.addSerial(phone, 'IMEI-1');
+    expect(cart.serialShortfall()!.named).toBe(1);
+    cart.addSerial(phone, 'IMEI-2');
+    expect(cart.serialShortfall()).toBeNull();
+  });
+
+  it('counts a serial line in whole primary units, and fewer units name fewer serials', () => {
+    const cart = new PosCart(till(), ORG, 'ses-1', new MemoryStorage());
+    cart.addSerial(phone, 'IMEI-1');
+    cart.addSerial(phone, 'IMEI-2');
+    const key = cart.lines()[0].key;
+
+    cart.setQuantity(key, 1.5);
+    expect(cart.lines()[0].quantity).toBe(2);
+
+    cart.setUnit(key, 'box');
+    expect(cart.lines()[0].unitId).toBe('pc');
+
+    cart.setQuantity(key, 1);
+    expect(cart.lines()[0].serialNumbers).toEqual(['IMEI-1']);
+
+    cart.removeSerial(key, 'IMEI-1');
+    expect(cart.serialShortfall()).toEqual({ line: cart.lines()[0], named: 0 });
+  });
+
+  it('keeps the serials through a hold and a recall, and a stored cart from before the phase reads as untracked', () => {
+    const storage = new MemoryStorage();
+    const cart = new PosCart(till(), ORG, 'ses-1', storage);
+    cart.addSerial(phone, 'IMEI-1');
+    cart.hold();
+    cart.recall(cart.holds()[0].id);
+
+    expect(cart.lines()[0].serialNumbers).toEqual(['IMEI-1']);
+
+    // Phase 62's shape, which knew nothing of serials.
+    storage.setItem(cartStorageKey(ORG, 'loc-1', 'ses-2'), JSON.stringify({
+      version: 1, discountPct: 0, customer: null, orderType: 'Retail', holds: [],
+      lines: [{ key: 1, product: { ...coke, serialTracking: undefined }, unitId: 'pc', quantity: 2, rate: 60, discountPct: 0 }],
+    }));
+    const old = new PosCart(till(), ORG, 'ses-2', storage);
+    expect(old.serialShortfall()).toBeNull();
+    expect(old.toSaleLines()[0].serialNumbers).toBeNull();
   });
 });

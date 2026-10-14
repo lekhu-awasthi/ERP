@@ -435,7 +435,9 @@ export class PosOrderPage {
     const order = this.order();
     if (!order) return;
 
-    const whole = { split: 'Whole' as const, items: [], parts: null, discountPct: null, discountAmount: null };
+    const whole = {
+      split: 'Whole' as const, items: [], parts: null, discountPct: null, discountAmount: null, waiveServiceCharge: false,
+    };
     this.restaurantService.previewBill(this.organizationId, order.id, whole).subscribe({
       next: (preview) => {
         this.printed.set([]);

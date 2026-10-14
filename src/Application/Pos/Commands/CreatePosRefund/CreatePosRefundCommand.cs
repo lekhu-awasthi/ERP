@@ -8,8 +8,9 @@ using MediatR;
 namespace ErpApp.Application.Pos.Commands.CreatePosRefund;
 
 /// <summary>One returned line: which line of the sale, and how much of it came back, in the unit the
-/// line was sold in.</summary>
-public sealed record PosRefundLineInput(Guid InvoiceLineId, decimal Quantity);
+/// line was sold in. Phase 91 -- <paramref name="SerialNumbers"/>: for a serial-tracked product, which of the units the
+/// sale line sold came back, one per unit (the vendor's refund ticks them the same way).</summary>
+public sealed record PosRefundLineInput(Guid InvoiceLineId, decimal Quantity, IReadOnlyList<string>? SerialNumbers = null);
 
 /// <summary>
 /// Phase 63 -- a refund at the till: a Credit Note against a till sale, created <b>and approved</b> in

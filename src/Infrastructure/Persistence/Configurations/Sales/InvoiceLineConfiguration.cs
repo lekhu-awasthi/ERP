@@ -26,6 +26,8 @@ public sealed class InvoiceLineConfiguration : IEntityTypeConfiguration<InvoiceL
         builder.Property(x => x.BillDiscountAmount).HasPrecision(18, 4).IsRequired().HasDefaultValue(0m).ValueGeneratedNever();
         // Phase 83 -- 0 is true of every existing line: no bill gave a discount of its own before this phase.
         builder.Property(x => x.PartDiscountAmount).HasPrecision(18, 4).IsRequired().HasDefaultValue(0m).ValueGeneratedNever();
+        // Phase 91 -- the service charge a guest declined on their own part of an order; zero on every existing line.
+        builder.Property(x => x.PartServiceChargeWaived).HasPrecision(18, 4).IsRequired().HasDefaultValue(0m).ValueGeneratedNever();
         builder.Property(x => x.Amount).HasPrecision(18, 4).IsRequired();
         builder.Property(x => x.VatAmount).HasPrecision(18, 4).IsRequired();
 

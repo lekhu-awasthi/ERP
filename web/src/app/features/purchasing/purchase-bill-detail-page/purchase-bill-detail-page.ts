@@ -41,6 +41,7 @@ import { commitCustomFieldsThen } from '../../../shared/custom-fields/commit-cus
 import { DocumentLocationPicker } from '../../../shared/locations/document-location-picker';
 import { defaultWarehouseSeed } from '../../../shared/locations/default-warehouse-seed';
 import { locationAwareProducts } from '../../../shared/catalog/location-aware-products';
+import { acceptSerialEntry, parseSerials, serialProgress } from '../../../shared/catalog/serial-entry';
 import { FieldError, FieldErrorMessage } from '../../../shared/a11y/field-error';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
@@ -65,6 +66,8 @@ interface EditableLine {
   manufactureDate: string;
   expiryDate: string;
   serialsText: string;
+  /** The serial the box's last Enter took out as a repeat, named under it until the next keystroke. */
+  serialRepeat?: string | null;
 
   /**
    * Phase 52 -- the unit this line is entered in. Empty means the product's own primary unit.
@@ -774,7 +777,7 @@ export class PurchaseBillDetailPage {
         unitId: l.unitId || null,
         manufactureDate: l.manufactureDate || null,
         expiryDate: l.expiryDate || null,
-        serialNumbers: this.parseSerials(l.serialsText),
+        serialNumbers: parseSerials(l.serialsText),
       }));
 
     if (lines.length === 0) {
@@ -796,14 +799,27 @@ export class PurchaseBillDetailPage {
 
   /** Phase 51 -- the serial list, kept as raw text and parsed at submit time by `parseSerials`. */
   protected onSerialsChange(key: number, event: Event): void {
-    this.updateLine(key, { serialsText: (event.target as HTMLInputElement).value });
+    this.updateLine(key, { serialsText: (event.target as HTMLInputElement).value, serialRepeat: null });
   }
 
-  protected parseSerials(text: string): string[] {
-    return text
-      .split(/[,\n]/)
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0);
+  /**
+   * A barcode scanner types the serial and presses Enter, which ends it: repeats out and a separator in, so the next
+   * scan starts a new serial instead of running on into this one (`serial-entry.ts`).
+   */
+  protected onSerialsEnter(key: number, event: Event): void {
+    event.preventDefault();
+    const box = event.target as HTMLInputElement;
+    const entry = acceptSerialEntry(box.value);
+    // Written to the box by hand as well: after a repeat the tidied text can equal what the binding last wrote, and
+    // then Angular leaves the repeat on screen (the binding did not change; phase 64's radio, in a text box).
+    box.value = entry.text;
+    this.updateLine(key, { serialsText: entry.text, serialRepeat: entry.repeated });
+  }
+
+  /** Under the serial box: how many of the line's quantity are named, and a repeat the last Enter took out. */
+  protected serialHint(line: EditableLine): string {
+    const progress = serialProgress(line.serialsText, line.quantity);
+    return line.serialRepeat ? `${line.serialRepeat} is already on this line. ${progress}` : progress;
   }
 
   /**

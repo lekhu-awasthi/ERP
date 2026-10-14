@@ -288,6 +288,8 @@ export interface PosOrder {
    * of `total`, which is what the bills add up to.
    */
   partDiscount: number;
+  /** Phase 91 -- the service charge the order's bills' guests declined on their own parts; likewise out of `total`. */
+  partServiceChargeWaived?: number;
 }
 
 /** Phase 65 -- one bill an order has had; voided ones stay listed. */
@@ -359,6 +361,8 @@ export interface PosOrderBillRequest {
    */
   discountPct: number | null;
   discountAmount: number | null;
+  /** Phase 91 -- this bill's guest declines the service charge, on this bill only. Required, so every request says. */
+  waiveServiceCharge: boolean;
 }
 
 export interface PosOrderBillLine {
@@ -385,6 +389,8 @@ export interface PosOrderBillLine {
   billDiscountShare: number;
   /** Phase 83 -- what this bill's own discount took off the line. */
   partDiscountShare: number;
+  /** Phase 91 -- the service charge the line would have carried and this bill's guest declined. */
+  serviceChargeWaived?: number;
 }
 
 /** A part priced by the server: what the screen shows before payment and what the estimate prints. */
@@ -416,6 +422,8 @@ export interface PosOrderBillPreview {
   discountAmount: number;
   /** Phase 83 -- what this bill's own discount took off it, inside `discount`. */
   partDiscount: number;
+  /** Phase 91 -- the service charge this bill's guest declined, which `serviceCharge` does not include. */
+  partServiceChargeWaived?: number;
 }
 
 export interface CreatePosOrderInvoiceRequest extends PosOrderBillRequest {

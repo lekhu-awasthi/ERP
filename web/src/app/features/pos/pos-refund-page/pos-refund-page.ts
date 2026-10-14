@@ -71,6 +71,8 @@ export class PosRefundPage {
   protected readonly sale = signal<PosRefundableSale | null>(null);
   /** Quantity to refund per sale line id; a line absent or at zero is not refunded. */
   protected readonly quantities = signal<Record<string, number>>({});
+  /** Phase 91 -- for a serial-tracked line, the units ticked as come back; its quantity is how many. */
+  protected readonly serials = signal<Record<string, string[]>>({});
   protected readonly reason = signal('');
   protected readonly preview = signal<PosRefundPreview | null>(null);
   protected readonly previewing = signal(false);
@@ -85,10 +87,13 @@ export class PosRefundPage {
   protected readonly printing = signal<PosRefundReceipt | null>(null);
   private previewRequest = 0;
 
-  protected readonly chosenLines = computed(() =>
-    Object.entries(this.quantities())
+  protected readonly chosenLines = computed(() => {
+    const serials = this.serials();
+    return Object.entries(this.quantities())
       .filter(([, quantity]) => quantity > 0)
-      .map(([invoiceLineId, quantity]) => ({ invoiceLineId, quantity })));
+      .map(([invoiceLineId, quantity]) =>
+        serials[invoiceLineId] ? { invoiceLineId, quantity, serialNumbers: serials[invoiceLineId] } : { invoiceLineId, quantity });
+  });
 
   protected readonly payoutModes = computed(() => this.till()?.paymentModes ?? []);
 
@@ -161,6 +166,7 @@ export class PosRefundPage {
       next: (sale) => {
         this.sale.set(sale);
         this.quantities.set({});
+        this.serials.set({});
         this.reason.set('');
         this.setPreview(null);
         afterNextRender(() => document.getElementById('pos-refund-sale-heading')?.focus(), { injector: this.injector });
@@ -190,10 +196,34 @@ export class PosRefundPage {
     this.refreshPreview();
   }
 
+  /** Phase 91 -- a line that sold serial-tracked units: it is refunded by ticking which units came back. */
+  protected isSerialLine(line: PosRefundableLine): boolean {
+    return (line.serialNumbers ?? []).length > 0;
+  }
+
+  protected isTicked(line: PosRefundableLine, serial: string): boolean {
+    return (this.serials()[line.invoiceLineId] ?? []).includes(serial);
+  }
+
+  /** Phase 91 -- ticking a unit refunds it, so the line's quantity is the units ticked (the vendor's refund the same). */
+  protected onSerialTick(line: PosRefundableLine, serial: string, event: Event): void {
+    const current = this.serials()[line.invoiceLineId] ?? [];
+    const ticked = (event.target as HTMLInputElement).checked
+      ? [...current, serial]
+      : current.filter((x) => x !== serial);
+    this.serials.set({ ...this.serials(), [line.invoiceLineId]: ticked });
+    this.quantities.set({ ...this.quantities(), [line.invoiceLineId]: ticked.length });
+    this.refreshPreview();
+  }
+
   protected refundAll(): void {
     const sale = this.sale();
     if (!sale) return;
     this.quantities.set(Object.fromEntries(sale.lines.filter((x) => x.remaining > 0).map((x) => [x.invoiceLineId, x.remaining])));
+    // Phase 91 -- every unit still out, on a serial-tracked line.
+    this.serials.set(Object.fromEntries(sale.lines
+      .filter((x) => x.remaining > 0 && this.isSerialLine(x))
+      .map((x) => [x.invoiceLineId, [...(x.returnableSerialNumbers ?? [])]])));
     this.refreshPreview();
   }
 
@@ -344,6 +374,7 @@ export class PosRefundPage {
             next: (fresh) => {
               this.sale.set(fresh);
               this.quantities.set({});
+              this.serials.set({});
               this.setPreview(null);
               this.reason.set('');
             },

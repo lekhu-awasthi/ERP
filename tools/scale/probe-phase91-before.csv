@@ -1,0 +1,3 @@
+path,status,statements,avg_logical_reads,avg_cpu_ms,avg_elapsed_ms,median_wall_ms
+refundable.fresh,200,15,56566,1279.3,1349.2,1480
+refundable.refunded,200,15,56574,1351.0,1395.2,1628

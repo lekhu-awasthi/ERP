@@ -86,7 +86,8 @@ public sealed record KitchenTicketDto(
 /// <paramref name="Discount"/> is <paramref name="Amount"/>. Phase 74: <paramref name="DiscountAmount"/> is the order's
 /// Amount discount, the other kind of its own term. Phase 83: <paramref name="PartDiscount"/> is what its bills not
 /// voided gave off of their own (one guest's discount each), already out of <paramref name="Total"/>, which is so what
-/// the bills add up to once the last is paid.
+/// the bills add up to once the last is paid. Phase 91: <paramref name="PartServiceChargeWaived"/> is the service
+/// charge its bills' guests declined on their own parts, likewise already out of <paramref name="Total"/>.
 /// </summary>
 public sealed record PosOrderDto(
     Guid Id,
@@ -126,7 +127,8 @@ public sealed record PosOrderDto(
     decimal Gross = 0m,
     decimal Discount = 0m,
     decimal DiscountAmount = 0m,
-    decimal PartDiscount = 0m);
+    decimal PartDiscount = 0m,
+    decimal PartServiceChargeWaived = 0m);
 
 /// <summary>
 /// Phase 64 -- builds <see cref="PosOrderDto"/>s: one order for the till, or a page of them for the ERP
@@ -224,7 +226,9 @@ internal static class PosOrderView
                 {
                     var q = order.QuantitiesOf(line);
                     var partDiscount = billed.Lines.GetValueOrDefault(line.Id)?.PartDiscountAmount ?? 0m;
-                    var figures = order.FiguresOf(line, q.Net, partDiscount);
+                    // Phase 91 -- and less the service charge its bills' guests declined.
+                    var waived = billed.Lines.GetValueOrDefault(line.Id)?.PartServiceChargeWaived ?? 0m;
+                    var figures = order.FiguresOf(line, q.Net, partDiscount, waived);
                     var product = products.GetValueOrDefault(line.ProductId);
 
                     return new PosOrderLineDto(
@@ -314,7 +318,8 @@ internal static class PosOrderView
                 lines.Sum(x => x.Gross),
                 lines.Sum(x => x.Gross) - estimate.Amount,
                 order.DiscountAmount,
-                lines.Sum(x => x.PartDiscount));
+                lines.Sum(x => x.PartDiscount),
+                billed.Lines.Values.Sum(x => x.PartServiceChargeWaived));
         }).ToList();
     }
 }

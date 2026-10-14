@@ -97,6 +97,9 @@ export class PosTillPage {
 
   // ---- The cart panel ----
   protected readonly editingKey = signal<number | null>(null);
+  /** Phase 91 -- the open serial line's units in stock here (the picker), and what went wrong naming one. */
+  protected readonly serialOptions = signal<string[]>([]);
+  protected readonly serialError = signal<string | null>(null);
   protected readonly holdsOpen = signal(false);
   protected readonly customerOpen = signal(false);
 
@@ -221,12 +224,21 @@ export class PosTillPage {
     }
   }
 
+  /** Phase 91 -- why the sale cannot be taken yet: a serial-tracked line names fewer (or more) units than it sells. */
+  protected readonly serialRefusal = computed(() => {
+    const shortfall = this.cart()?.serialShortfall();
+    if (!shortfall) return null;
+    const { line, named } = shortfall;
+    return `${line.product.name} is serial-tracked: ${named} of ${line.quantity} serial number(s) named. Name each unit handed over.`;
+  });
+
   protected readonly canComplete = computed(
     () =>
       (this.cart()?.lines().length ?? 0) > 0 &&
       !this.submitting() &&
       this.changeError() === null &&
       this.discountRefusal() === null &&
+      this.serialRefusal() === null &&
       (this.remainingPaisa() === 0 || (this.creditRefusal() === null && this.creditAccepted())),
   );
 
@@ -370,8 +382,102 @@ export class PosTillPage {
     const cart = this.cart();
     if (!cart) return;
 
+    // Phase 91 -- a serial-tracked product sells unit by unit: a scanned serial names the unit, and a tap opens the
+    // line's picker so the cashier names it (the vendor's till asks the same, by scan or typing only).
+    if (product.serialTracking) {
+      const scanned = product.scannedSerialNo;
+      if (scanned) {
+        if (cart.addSerial(product, scanned)) {
+          this.announce(`Added ${product.name}, serial ${scanned}. Total ${cart.bill().grandTotal.toFixed(2)}.`);
+        } else {
+          this.noticeMessage.set(`Serial ${scanned} is already in the cart.`);
+        }
+        return;
+      }
+
+      const line = cart.add(product);
+      if (line) this.openSerials(line);
+      this.announce(`Added ${product.name}. Name its serial number.`);
+      return;
+    }
+
     cart.add(product);
     this.announce(`Added ${product.name}. ${cart.lines().length} line(s), total ${cart.bill().grandTotal.toFixed(2)}.`);
+  }
+
+  // ---- Serials (phase 91) ----
+
+  /** Opens a serial line's edit panel on its picker, reading what is in stock here, and puts the cursor in its box. */
+  private openSerials(line: CartLine): void {
+    this.editingKey.set(line.key);
+    this.serialError.set(null);
+    this.loadSerials(line);
+    this.focusById(`pos-serial-${line.key}`);
+  }
+
+  private loadSerials(line: CartLine): void {
+    const till = this.till();
+    if (!till) return;
+    this.serialOptions.set([]);
+    this.posService.listProductSerials(this.organizationId, till.locationId, line.product.id).subscribe({
+      next: (serials) => this.serialOptions.set(serials),
+      error: (err: unknown) => this.serialError.set(extractErrorMessage(err) ?? 'Could not read the serials in stock.'),
+    });
+  }
+
+  /** The picker's rows: the units named on the line first, then those in stock here not yet named. */
+  protected serialChoices(line: CartLine): string[] {
+    const named = line.serialNumbers ?? [];
+    return [...named, ...this.serialOptions().filter((x) => !named.some((n) => n.toLowerCase() === x.toLowerCase()))];
+  }
+
+  protected isNamed(line: CartLine, serial: string): boolean {
+    return (line.serialNumbers ?? []).includes(serial);
+  }
+
+  protected onSerialToggle(line: CartLine, serial: string, event: Event): void {
+    const cart = this.cart();
+    if (!cart) return;
+    if ((event.target as HTMLInputElement).checked) {
+      cart.addSerial(line.product, serial);
+      this.announce(`Serial ${serial} added to ${line.product.name}.`);
+    } else {
+      cart.removeSerial(line.key, serial);
+      this.announce(`Serial ${serial} taken off ${line.product.name}.`);
+    }
+  }
+
+  /**
+   * Enter in the line's serial box: a scanner or a typed serial. It is checked against what is in stock here before it
+   * is named, so a typo is said at the counter and not as the server's refusal at payment.
+   */
+  protected onSerialEnter(line: CartLine, event: Event): void {
+    event.preventDefault();
+    const input = event.target as HTMLInputElement;
+    const typed = input.value.trim();
+    const cart = this.cart();
+    const till = this.till();
+    if (!typed || !cart || !till) return;
+
+    if (cart.hasSerial(typed)) {
+      this.serialError.set(`Serial ${typed} is already in the cart.`);
+      return;
+    }
+
+    this.posService.listProductSerials(this.organizationId, till.locationId, line.product.id, typed).subscribe({
+      next: (serials) => {
+        const match = serials.find((x) => x.toLowerCase() === typed.toLowerCase());
+        if (!match) {
+          this.serialError.set(`${typed} is not a serial of ${line.product.name} in stock at this till.`);
+          return;
+        }
+        cart.addSerial(line.product, match);
+        this.serialError.set(null);
+        input.value = '';
+        this.announce(`Serial ${match} added to ${line.product.name}.`);
+      },
+      error: (err: unknown) => this.serialError.set(extractErrorMessage(err) ?? 'Could not check that serial.'),
+    });
   }
 
   // ---- Cart ----
@@ -385,7 +491,14 @@ export class PosTillPage {
   }
 
   protected toggleEdit(key: number): void {
-    this.editingKey.set(this.editingKey() === key ? null : key);
+    const opening = this.editingKey() !== key;
+    this.editingKey.set(opening ? key : null);
+    // Phase 91 -- a serial line's panel is its picker, read fresh each time it opens.
+    const line = this.cart()?.lines().find((x) => x.key === key);
+    if (opening && line?.product.serialTracking) {
+      this.serialError.set(null);
+      this.loadSerials(line);
+    }
   }
 
   protected step(line: CartLine, delta: number): void {
@@ -656,6 +769,10 @@ export class PosTillPage {
 
   protected fromPaisa(paisa: number): number {
     return fromPaisa(paisa);
+  }
+
+  private focusById(id: string): void {
+    afterNextRender(() => document.getElementById(id)?.focus(), { injector: this.injector });
   }
 
   private focusSearch(): void {

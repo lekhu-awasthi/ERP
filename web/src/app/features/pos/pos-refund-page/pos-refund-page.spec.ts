@@ -353,4 +353,39 @@ describe('PosRefundPage', () => {
     expect(p.text()).toContain('Open a session at this till before refunding');
     expect(p.searched).toEqual([]);
   });
+  // ---- Phase 91: a serial-tracked line is refunded by ticking its units ----
+
+  it('ticks which units of a phone came back, sends them, and refunds everything left as every unit still out', () => {
+    const phoneSale = sale({
+      lines: [
+        { invoiceLineId: 'l-phone', productId: 'phone', productName: 'P91 Phone', unitShortName: 'pc', sold: 3, remaining: 2,
+          rate: 10000, discountPct: 0, serviceChargeRate: 0, packagingFeeAmount: 0, vatRate: 'ThirteenPercentVat', lineTotal: 33900,
+          discountPerUnit: 0, serialNumbers: ['IMEI-1', 'IMEI-2', 'IMEI-3'], returnableSerialNumbers: ['IMEI-1', 'IMEI-3'] },
+      ],
+    });
+    const p = page({ sale: phoneSale });
+    p.press('Refund');
+
+    // The units sold are named on the line, and only those still out are offered; there is no quantity box to type in.
+    expect(p.text()).toContain('SN IMEI-1, IMEI-2, IMEI-3');
+    expect(p.element.querySelector('#pos-refund-qty-l-phone')).toBeNull();
+    const boxes = [...p.element.querySelectorAll<HTMLInputElement>('input[type="checkbox"][id^="pos-refund-serial-l-phone-"]')];
+    expect(boxes.map((x) => x.labels?.[0]?.textContent?.trim())).toEqual(['IMEI-1', 'IMEI-3']);
+
+    boxes[1].click();
+    p.render();
+    expect(p.text()).toContain('Serials of P91 Phone (1 ticked)');
+    expect(p.previews.at(-1)!.lines).toEqual([{ invoiceLineId: 'l-phone', quantity: 1, serialNumbers: ['IMEI-3'] }]);
+
+    // Unticking the only unit refunds nothing of the line, so no preview is asked for it.
+    const asked = p.previews.length;
+    boxes[1].click();
+    p.render();
+    expect(p.previews.length).toBe(asked);
+    expect(p.text()).toContain('Serials of P91 Phone (0 ticked)');
+
+    p.press('Refund everything left');
+    expect(p.previews.at(-1)!.lines).toEqual([{ invoiceLineId: 'l-phone', quantity: 2, serialNumbers: ['IMEI-1', 'IMEI-3'] }]);
+    expect(boxes.every((x) => x.checked)).toBe(true);
+  });
 });

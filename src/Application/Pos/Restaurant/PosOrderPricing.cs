@@ -70,6 +70,21 @@ internal static class PosOrderPricing
                 + "available for sale, active, not a variant parent, and available at this location.");
         }
 
+        // Phase 91 Decision C -- a kitchen ticket, a split and a transfer have nowhere to name a unit's serial, so a
+        // serial-tracked product sells at a Retail till, where the cart names each one.
+        var serialised = products.Values
+            .Where(p => p.SerialTracking)
+            .Select(p => p.Name)
+            .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (serialised.Count > 0)
+        {
+            throw new ConflictException(
+                $"{string.Join(", ", serialised)} {(serialised.Count == 1 ? "is" : "are")} serial-tracked, and an order "
+                + "cannot name which unit a guest was given. Sell it at a Retail till, which names each serial.");
+        }
+
         var basis = await PosSellableProducts.PriceBasisAsync(db, organizationId, cancellationToken);
         var lines = new List<PosOrderNewLine>();
 

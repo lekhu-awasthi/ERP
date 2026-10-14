@@ -46,6 +46,31 @@ public static class PosLineArithmetic
 
         /// <summary>Every part, for a check that applies to each alike (whole paisa, never negative).</summary>
         public IEnumerable<decimal> Parts => [Amount, ServiceChargeAmount, PackagingFeeAmount, VatAmount];
+
+        /// <summary>
+        /// Phase 91 -- the same figures with <paramref name="serviceChargeOff"/> rupees of their service charge declined
+        /// (a guest waiving it on their own part of an order), and VAT taken again, at <paramref name="vatPercent"/>, on
+        /// what is left: service charge is inside the VAT base (phase 61), so declining it lowers the VAT too. Zero off
+        /// is the figures unchanged.
+        /// </summary>
+        public Figures LessServiceCharge(decimal serviceChargeOff, decimal vatPercent)
+        {
+            if (serviceChargeOff == 0m)
+            {
+                return this;
+            }
+
+            if (serviceChargeOff < 0m || RoundMoney(serviceChargeOff) != serviceChargeOff || serviceChargeOff > ServiceChargeAmount)
+            {
+                throw new InvalidOperationException(
+                    "A waived service charge is whole paisa, never negative, and never more than the service charge.");
+            }
+
+            var serviceCharge = ServiceChargeAmount - serviceChargeOff;
+            return new Figures(
+                Amount, serviceCharge, PackagingFeeAmount,
+                RoundMoney((Amount + serviceCharge + PackagingFeeAmount) * vatPercent));
+        }
     }
 
     /// <summary>

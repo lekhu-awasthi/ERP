@@ -312,6 +312,22 @@
                     } @else {
                       {{ productLabel(line.productId) }}
                     }
+                    @if (isDraft() && isLinkedToSource() && isSerialTracked(line.productId)) {
+                      <!-- Phase 91 -- one unit per serial: the units of the invoice that came back. -->
+                      <input
+                        [attr.aria-label]="'Serial numbers returned of ' + productLabel(line.productId)"
+                        type="text"
+                        class="form-control form-control-sm mt-1"
+                        placeholder="Serial nos (scan, or comma separated)"
+                        [value]="line.serialsText"
+                        (input)="onSerialsChange(line.key, $event)"
+                        (keydown.enter)="onSerialsEnter(line.key, $event)"
+                        [attr.aria-describedby]="'serial-hint-' + line.key"
+                      />
+                      <div class="small text-body-secondary" [id]="'serial-hint-' + line.key" aria-live="polite">{{ serialHint(line) }}</div>
+                    } @else if (line.serialsText) {
+                      <div class="small text-body-secondary">SN {{ line.serialsText }}</div>
+                    }
                   </td>
                   <td class="text-end">
                     @if (isDraft()) {

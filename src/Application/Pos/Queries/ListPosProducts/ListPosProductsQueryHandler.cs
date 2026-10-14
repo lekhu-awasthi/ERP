@@ -14,9 +14,10 @@ public sealed class ListPosProductsQueryHandler(IAppDbContext db)
         // painted for a location that cannot sell.
         var till = await PosTill.LoadAsync(db, request.OrganizationId, request.LocationId, cancellationToken);
 
-        // Phase 64 -- the reading itself is shared with the restaurant's order screen.
+        // Phase 64 -- the reading itself is shared with the restaurant's order screen. Phase 91 -- a scan may name a
+        // serial in stock at the warehouse the sale would leave from.
         return await PosSellableProducts.ListAsync(
             db, request.OrganizationId, till.Location.Id, request.Search, request.Code, request.CategoryId,
-            request.Page, request.PageSize, cancellationToken);
+            request.Page, request.PageSize, cancellationToken, serialWarehouseId: till.Location.WarehouseId);
     }
 }

@@ -10,6 +10,7 @@ using ErpApp.Application.Sales.Posting;
 using ErpApp.Domain.Accounting;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Configuration;
+using ErpApp.Domain.Inventory;
 using ErpApp.Domain.Pos;
 using ErpApp.Domain.Sales;
 using FluentValidation;
@@ -81,8 +82,20 @@ public sealed class CreatePosRefundCommandHandler(
 
         db.CreditNotes.Add(creditNote);
 
+        // Phase 91 -- the serials the refund brings back, stored on the note's lines as the ERP note stores them, and
+        // handed to the approval, which restocks one layer per serial.
+        foreach (var (lineId, serials) in plan.SerialsByLine)
+        {
+            foreach (var serial in serials)
+            {
+                db.DocumentLineSerials.Add(DocumentLineSerial.Create(
+                    request.OrganizationId, DocumentLineParentType.CreditNoteLine, lineId, serial));
+            }
+        }
+
         var posted = await CreditNoteApprovalPosting.ApproveAndPostAsync(
-            db, numberGenerator, postingRule, stockLedgerService, currentUser.UserId, creditNote, cancellationToken);
+            db, numberGenerator, postingRule, stockLedgerService, currentUser.UserId, creditNote, cancellationToken,
+            plan.SerialsByLine);
 
         PostPayouts(creditNote, posted.ReceivableAccountId);
 

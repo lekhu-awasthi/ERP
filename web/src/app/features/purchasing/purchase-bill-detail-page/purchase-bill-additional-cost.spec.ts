@@ -373,4 +373,61 @@ describe('PurchaseBillDetailPage — Additional Cost', () => {
     // 60, not 660 -- the whole reason replace was kept.
     expect(component.additionalCostTotal()).toBe(60);
   });
+
+  /**
+   * A barcode scanner types the serial and presses Enter. Before this, that Enter did nothing in the one-line box,
+   * so a second scan ran on into the first and the line named one serial for two units.
+   */
+  describe('serial numbers from a scanner', () => {
+    function scan(box: HTMLInputElement, typed: string): KeyboardEvent {
+      box.value = typed;
+      box.dispatchEvent(new Event('input'));
+      const enter = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+      box.dispatchEvent(enter);
+      return enter;
+    }
+
+    it('ends each scan with a separator, counts it against the quantity, and keeps focus in the box', () => {
+      const { fixture } = page(detail({ status: 'Draft', approvedAt: null, additionalCosts: [] }));
+      const el = fixture.nativeElement as HTMLElement;
+      const box = el.querySelector<HTMLInputElement>('input[aria-label="Serial numbers"]')!;
+      box.focus();
+      expect(document.activeElement).toBe(box);
+
+      const enter = scan(box, 'IMEI91A');
+      fixture.detectChanges();
+      expect(enter.defaultPrevented).toBe(true);
+      expect(box.value).toBe('IMEI91A, ');
+
+      scan(box, box.value + 'IMEI91B');
+      fixture.detectChanges();
+      expect(box.value).toBe('IMEI91A, IMEI91B, ');
+      expect(document.activeElement).toBe(box);
+
+      const hint = el.querySelector<HTMLElement>('#' + box.getAttribute('aria-describedby'))!;
+      expect(hint.getAttribute('aria-live')).toBe('polite');
+      expect(hint.textContent?.trim()).toBe('2 of 10 serial numbers');
+    });
+
+    it('takes a repeated scan out at once and says so', () => {
+      const { fixture } = page(detail({ status: 'Draft', approvedAt: null, additionalCosts: [] }));
+      const el = fixture.nativeElement as HTMLElement;
+      const box = el.querySelector<HTMLInputElement>('input[aria-label="Serial numbers"]')!;
+
+      scan(box, 'IMEI91A');
+      fixture.detectChanges();
+      scan(box, box.value + 'imei91a');
+      fixture.detectChanges();
+
+      expect(box.value).toBe('IMEI91A, ');
+      const hint = el.querySelector<HTMLElement>('#' + box.getAttribute('aria-describedby'))!;
+      expect(hint.textContent?.trim()).toBe('imei91a is already on this line. 1 of 10 serial numbers');
+
+      // The next keystroke clears the note.
+      box.value = 'IMEI91A, I';
+      box.dispatchEvent(new Event('input'));
+      fixture.detectChanges();
+      expect(hint.textContent?.trim()).toBe('2 of 10 serial numbers');
+    });
+  });
 });

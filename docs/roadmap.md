@@ -6,7 +6,7 @@ Guiding rule for phase sizing: each phase ends with something *runnable and demo
 
 ---
 
-## Completed phases (0–90)
+## Completed phases (0–91)
 
 One line each; phase *N*'s full story is `docs/phase-N-status.md`. The verbose index as it stood on
 2026-09-28 is archived verbatim in `roadmap-history.md` ("Completed-phases index, verbose form").
@@ -76,6 +76,7 @@ One line each; phase *N*'s full story is `docs/phase-N-status.md`. The verbose i
 | 88 | The payment screens: the FIFO Suggest gains the membership and permission check it never had (`OrganizationScopeSweepGuardTests` fails any request naming an organization unscoped); the payment GL preview is built by Approve's own builder (`PaymentGlLines`); the four allocation pickers list one contact's open documents in the payment's currency, oldest due first (`ListOpenAllocationTargetsQuery`) |
 | 89 | The VAT Summary is the IRD VAT return (a BS fiscal year, twelve month columns, the return's lines in English with the form's Nepali, a month's credit brought forward across the year's end), read through the registers' own readers (`SalesBookReader`, `PurchaseBookReader`) so a month equals the registers; expenses are purchases in the register and the return; Annex 5/13 and the return export in BS with AD beside it; Annex 5 gains Fiscal Year, Discount, prints and Entered By; both annexes open on this fiscal year to date; an ERP return's page names its warehouse; the client's calendar day is the Nepal day in 67 sources (reports opened, and due dates were suggested, a day early) |
 | 90 | An expense's VAT read live on the vendor (filed as ours, nothing changed); Annex 13 is before VAT, as the vendor's is (it was gross since phase 8e); the Purchase Register's *Invoice No* is the supplier's own number (a debit note's own), beside *Document No*; one contact's picker, Suggest and till refund read that contact's settlements through a subquery (38,015 → 238 reads per picker), and the voucher read is one join for every caller; the VAT return's history read measured and left; the registers' returns no longer export `-0` |
+| 91 | Serial-tracked products sell at the Retail till (a picker of the units in stock, a scan by serial, payment refused until each unit is named; kept off restaurant orders); returns carry their serials (`CreditNoteSerials`: till refunds tick the sale's units, ERP notes are prefilled; each unit restocks as its own layer, fixing phase 51's un-serialled restock); the till refund's owed read narrowed by the sale (56,566 → 59 logical reads with a measured `CreditNotes (OrganizationId, ReferrerId)` index); one guest may decline the service charge on their own bill (`InvoiceLine.PartServiceChargeWaived`), and the receipt, PDF and roll print a guest's discount apart from the order's |
 
 ---
 
@@ -246,9 +247,8 @@ with no location were done in phase 83. A price change between saves keeps the s
 
 **Carried from phase 82** (§ 5 there): the discard panel's maximum was capped at what is unbilled in phase 83.
 
-**Carried from phase 83** (§ 5 there): a per-part service charge waiver (one guest declining it on their own part, the
-same shape as the part discount, not asked for); the till receipt and the roll print a guest's discount inside the
-bill's *Discount*, not apart from the order's.
+**Carried from phase 83** (§ 5 there): the per-part service charge waiver and the receipt and roll printing a guest's
+discount apart were done in phase 91.
 
 **Carried from phase 78** (§ 5 there): done in phase 80 (four new sheets, an additional cost's Allocation Method, and
 the ledger sheets naming each document). Cash Transfers and the drawer's over/short stay on Ledger Transactions by
@@ -290,13 +290,18 @@ a domestic zero-rated supply; Annex 5's Payment Method, VAT Refund and IRD-sync 
 was read live in phase 90 (as ours) and the return's history read was measured there and left (inside budget, reads
 independent of history).
 
-**Carried from phase 90** (§ 5 there): a till refund's owed-on-sale read names the walk-in, who owns every counter sale,
-so narrowing by contact barely helps it (measure on a till-heavy tenant before narrowing by the sale); Annex 13's
-opening and closing balance stay phase 8e's approximation; a tax advisor's word on the annex's before-VAT basis.
+**Carried from phase 90** (§ 5 there): the till refund's owed read was measured and narrowed by the sale in phase 91;
+Annex 13's opening and closing balance stay phase 8e's approximation; a tax advisor's word on the annex's before-VAT
+basis.
+
+**Carried from phase 91** (§ 5 there): the tenant-level switch for batch and serial tracking (the vendor's
+Configurations > General); a serial printed on the receipt and the PDF (the vendor's printed receipt unread); serials
+on a debit note (`DebitNoteLine` serials are read and never written, the credit note's bug in mirror); batch-tracked
+products at the till still sell un-narrowed.
 
 **Carried from phase 62** (§ 5 there):
 
-- **Serial-tracked products** cannot be sold at the till yet: the cart sends no serials.
+- Serial-tracked products at the till were done in phase 91.
 - **The barcode lookup is unindexed**; measure it on `tools/scale` before indexing.
 
 **Outside this sequence, each with a start condition:**

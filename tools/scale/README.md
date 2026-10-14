@@ -67,6 +67,21 @@ bash tools/scale/probe-phase54-io.sh <label>
 
 ## The committed results
 
+### Phase 91 (2026-10-13) — a till-heavy tenant and the refund's owed read
+
+On the phase 90 tenant, after `seed-phase91.sql` (the 20,000 tendered invoices made walk-in till sales of a Retail head
+office, 2,000 of them refunded with a cash payout). Without it the walk-in owns no sales and the refund's read looks cheap
+for the wrong reason, which `probe-phase91-io.sh` refuses to measure.
+
+| file | what it is |
+|---|---|
+| `seed-phase91.sql` | The till sales and refunds. Refuses to run twice on one tenant. |
+| `probe-phase91-io.sh` | Logical reads of the refund screen's read of one sale (`GET .../sales/{id}/refundable`). |
+| `probe-phase91-before.csv` | The owed read narrowed by contact (the walk-in): 56,566 reads. |
+| `probe-phase91-after.csv` | Narrowed by the sale: 819. |
+| `probe-phase91-shipped.csv` | Plus `IX_CreditNotes_OrganizationId_ReferrerId`: 59. |
+| `probe-phase90-p91-with-referrer-index.csv`, `-without-referrer-index.csv` | Phase 90's paths both ways: the customer picker and Suggest 588 → 138, nothing read more. |
+
 ### Phase 90 (2026-10-13) — the settlement seed and two "narrow it" debts
 
 On the phase 42/50 tenant, after `seed-phase90.sql` (30,000 approved receipts each allocated to an invoice, 20,000

@@ -35,7 +35,8 @@ internal static class CreditNoteApprovalPosting
         IStockLedgerService stockLedgerService,
         Guid approvedByUserId,
         CreditNote creditNote,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        IReadOnlyDictionary<Guid, List<string>>? serialsByLine = null)
     {
         var organizationId = creditNote.OrganizationId;
 
@@ -106,6 +107,16 @@ internal static class CreditNoteApprovalPosting
             };
         }
 
+        // Phase 91 -- the serials the note brings back, checked before a number is drawn: each one the sale sold and no
+        // approved note already returned, and a serial-tracked line naming its whole quantity of them. A till refund hands
+        // its own (created in this request, so not yet readable back), as the till's sale does to its approval.
+        serialsByLine ??= await CreditNoteSerials.LoadAsync(db, creditNote, cancellationToken);
+        if (await CreditNoteSerials.FindProblemAsync(db, creditNote, serialsByLine, requireCount: true, cancellationToken)
+            is { } serialProblem)
+        {
+            throw new Common.Exceptions.ConflictException(serialProblem);
+        }
+
         var code = await numberGenerator.GetNextNumberAsync(
             organizationId, DocumentType.CreditNote, cancellationToken, creditNote.LocationId);
 
@@ -132,11 +143,13 @@ internal static class CreditNoteApprovalPosting
                 // none, which is the path it always took.
                 // Phase 84 -- into the note's own warehouse when it names one (a till refund, which may be at another
                 // branch than the sale), else the sale's, the path every ERP note takes.
-                costCatchUp += await stockLedgerService.IncrementAsync(
-                    organizationId, line.ProductId, creditNote.WarehouseId ?? sourceInvoice.WarehouseId,
-                    line.PrimaryQuantity, unitCost,
-                    DocumentType.CreditNote, creditNote.Id, creditNote.Date, cancellationToken, creditNote.LocationId,
-                    line.BatchId);
+                // Phase 91 -- a serial-tracked line comes back one layer per serial it names (phase 51's "a returned
+                // serial re-enters stock as a new layer carrying the same SerialNo", which nothing had carried).
+                costCatchUp += await LineStockAllocator.IncrementLineAsync(
+                    stockLedgerService, organizationId, line.ProductId, creditNote.WarehouseId ?? sourceInvoice.WarehouseId,
+                    line.PrimaryQuantity, unitCost, line.BatchId,
+                    serialsByLine.TryGetValue(line.Id, out var serials) ? serials : [],
+                    DocumentType.CreditNote, creditNote.Id, creditNote.Date, cancellationToken, creditNote.LocationId);
                 // Phase 52 -- priced per PRIMARY unit, because unitCost came off a FIFO layer.
                 totalCogsReversal += line.PrimaryQuantity.Value * unitCost;
             }

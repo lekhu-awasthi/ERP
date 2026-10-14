@@ -968,6 +968,16 @@ public sealed class PosOrder
             quantity, line.Rate, line.VatRate.ToPercent(), line.DiscountPerUnit, line.DiscountPct, DiscountPct,
             DiscountShareOf(line, quantity) + partDiscount, ServiceChargeRateOf(line), line.PackagingFee);
 
+    /// <summary>
+    /// Phase 91 -- the same, less <paramref name="serviceChargeWaived"/> rupees of service charge guests declined on
+    /// their own bills (<see cref="PosOrderBill"/>). The whole line is priced less every waiver its bills not voided
+    /// recorded, as it is less their discounts, so the last part never charges a guest the service charge an earlier
+    /// guest declined.
+    /// </summary>
+    public PosLineArithmetic.Figures FiguresOf(
+        PosOrderLine line, decimal quantity, decimal partDiscount, decimal serviceChargeWaived) =>
+        FiguresOf(line, quantity, partDiscount).LessServiceCharge(serviceChargeWaived, line.VatRate.ToPercent());
+
     /// <summary>Counts one more print of a ticket and returns its number: 1 is the original, and the
     /// paper marks anything after it a reprint, so a kitchen does not cook one ticket twice.</summary>
     public int RecordTicketPrint(Guid ticketId)
@@ -1179,7 +1189,9 @@ public sealed class PosOrder
     /// to once the last is paid, before rounding.</summary>
     public PosLineArithmetic.Figures Estimate(IReadOnlyDictionary<Guid, PosOrderLineBilled> billed) =>
         _lines.Aggregate(PosLineArithmetic.Figures.Zero, (sum, line) => sum + FiguresOf(
-            line, QuantitiesOf(line).Net, billed.GetValueOrDefault(line.Id)?.PartDiscountAmount ?? 0m));
+            line, QuantitiesOf(line).Net, billed.GetValueOrDefault(line.Id)?.PartDiscountAmount ?? 0m,
+            // Phase 91 -- and less the service charge guests declined on their bills.
+            billed.GetValueOrDefault(line.Id)?.PartServiceChargeWaived ?? 0m));
 
     public static string Describe(PosTab orderType) => orderType switch
     {

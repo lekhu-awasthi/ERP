@@ -122,6 +122,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 88: the FIFO Suggest had no membership check since phase 5 (now gated, and `OrganizationScopeSweepGuardTests` fails any request naming an organization unscoped); the payment preview and Approve share `PaymentGlLines`; the four allocation pickers list one contact's open documents (`ListOpenAllocationTargetsQuery`, the shared reader). Before a request that names an organization, a preview of an action, or a picker — `docs/phase-88-status.md`
 - Phase 89: the VAT Summary is the IRD return (a BS fiscal year, twelve month columns, English + the form's Nepali, credit carried across years) read through the registers' readers (`SalesBookReader`, `PurchaseBookReader`); expenses join the purchase book; Annex 5/13 export in BS; the client's day is the Nepal day in 67 sources. Before a statutory report, a client date default, or a new caller of a shared reader — `docs/phase-89-status.md`
 - Phase 90: an expense's VAT read live (as ours); Annex 13 before VAT (gross since 8e); the purchase book's *Invoice No* is the supplier's; one contact's settlements read through a subquery (38,015 → 238 reads); the return's history read measured and left. Before narrowing a slow query, filtering a shared reader by contact, or a statutory figure's basis — `docs/phase-90-status.md`
+- Phase 91: serials at the till (a picker, a scan by serial; off restaurant orders) and on returns (`CreditNoteSerials`: each unit restocks as its own layer, phase 51's gap); the refund's owed read narrowed by the sale (56,566 → 59); one guest declining the service charge. Before a reader asked about one document, or pricing a part apart — `docs/phase-91-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -207,7 +208,9 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - Same door, third time: a store-side `Sum` over an already-projected record is untranslatable, InMemory evaluates it, and only an E2E sees the 500. Project after `Skip`/`Take` (phase-42).
 - …and a fourth: `OrderBy` over a projected record is untranslatable too. Stop a shared reader handing back `IQueryable` at all — order on the entities' columns, project after `ToListAsync` (phase-56).
 - Narrow a shared reader to one contact through an `IQueryable<Guid>` subquery, never a list: one customer's picker read 38,015 pages of the organization's settlements, 238 narrowed (phase-90).
+- …and ask whose documents the key owns: a till sale's contact is the walk-in, who owns every counter sale; the refund read 56,566 by contact, 59 through the sale itself (phase-91).
 - Single-argument `Contains` is case-**insensitive** on SQL Server (collation) and case-**sensitive** on InMemory; a handler test must search with the stored casing or it pins a behaviour production lacks (phase-34b).
+- …and a lookup matching by collation must return the row's value, not the caller's: a scan of `imei-2` sold the unit stored as `IMEI-2` under the typed casing (phase-91).
 - Every tenant-scoped table needs an index leading on `OrganizationId`; `TenantIndexConvention` derives them and throws at model build for an entity it cannot classify (phase-34c).
 - …but it recognises a business date by **name** (`Date`, `PostedAt`), so `Cheque.ChequeDate` is invisible to it and the Cheque Register has always ordered by an unindexed column (phase-47).
 - Asking the mirror question found **three** such dates, and the two stock tables were right only by luck of a hand-written composite; not classifying now fails the model build (phase-50).
@@ -264,6 +267,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A dimension that is a `GROUP BY` over the one quantity cannot drift from it; a dimension with its own quantity column is phase 37's two-of-three-views failure waiting to happen. `ProductBatch` stores no quantity (phase-51).
 - A serial is a FIFO layer of **quantity one**, so specific identification and FIFO are the same walk with a different selector — and the report's *Status* filter is `QuantityRemaining`, not a modelled lifecycle (phase-51).
 - A serialised issue is refused whatever the Negative Item Balance setting says: naming a unit that was never received is a typo, not an oversell (phase-51).
+- A status doc saying a return "re-enters stock as a layer carrying the SerialNo" is not code: nothing wrote a credit note's serials for 40 phases. Grep for the call (phase-91).
 - A shortfall carries **whatever key the request named** — the batch when one was named and came up short, none when the walk was unnarrowed; and a receipt fills same-batch debts first, then un-batched ones, or an un-batched debt on a tracked product is unrepayable forever (phase-51).
 - A "reverse of X" posting rule can balance its own entry while leaving a paired control account (AP net of TDS) permanently off; trace the net effect on every account across original + reversal (phase-6 bug #3).
 - Reversals mirror the original entry's own posted lines via `GlJournalEntry.PostReversalOf` (a second entry, never a mutation); never re-derive a reversal from the posting rule (phase-16a).
@@ -314,6 +318,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A till refund names its sale by `ReferrerType`/`ReferrerId`, not `AgainstInvoiceId`; "the note's invoice" joins on the coalesce of both (phase-77).
 - A refusal with a legal way round has its spec written: a discard with a share equals bill-and-refund, and a test holds them to the same bill (phase-82).
 - A part priced apart from the whole keeps the order's share and the bill's own apart: price the whole less what bills not voided gave, never a counter on the order (phase-83).
+- …and a part's declined service charge is the same: store it on the line (`PartServiceChargeWaived`, rate 0) and price the whole less it, or the last guest pays it back (phase-91).
 - No vendor control means the workaround is the spec: a refund at another branch must leave what the same refund at home leaves, every figure, only where differs (phase-84).
 - A list deciding two things answers one question with both: the money receipt joins the BS-dated list, not `TaxDocumentTypes`, which also locks elements and prints two dates (phase-84).
 - A reversal resolves a per-location account where the original posted, and stamps the entry where it happens: a refund's fees go back to the selling branch's accounts (phase-85).
@@ -466,6 +471,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A drag that listens for the release on its own container never ends when the pointer lets go elsewhere, and keeps moving things; listen on the document, bind the drag to what was grabbed, and add a threshold (phase-64).
 - A Bootstrap `.btn-check` radio is a hidden input; in the Browser pane click its `<label>`, or nothing changes (phase-65).
 - A radio whose `(change)` is cancelled stays checked: the `[checked]` binding did not change, so Angular never puts it back. Restore it by hand (phase-64).
+- …and a text box tidied back to what `[value]` last wrote keeps what was typed: the serial box's repeat stayed on screen. Write the DOM too (phase-91).
 - A checkbox list whose empty state means "all" cannot be unticked: unticking from `[]` stays `[]`, the box shows unticked anyway, and all is sent. Hold the ticked list; send "all" only on the wire (phase-78).
 - A visually-hidden caption inside `.table-responsive` overhangs by 1px and grows a scrollbar; `styles.scss` pins it. Measure scrollHeight against clientHeight (phase-66).
 - A component with a `@defer` block has async metadata: its TestBed spec must `await compileComponents()`, or every test fails "unresolved metadata" (phase-66).
@@ -584,27 +590,27 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 
 ## Current status
 
-**Phases 0-90 are complete. Next: not yet scheduled** (the user picks; candidates in `docs/roadmap.md`).
+**Phases 0-91 are complete. Next: not yet scheduled** (the user picks; candidates in `docs/roadmap.md`).
 Each phase's story is in its `docs/phase-N-status.md`, and finished planning entries are archived in
 `docs/roadmap-history.md`.
 
-**Phase 90 read an expense's VAT live, made Annex 13 before VAT, and narrowed one contact's settlements.**
+**Phase 91 sold serial-tracked products at the till, made returns carry their serials, narrowed the refund's owed read,
+and let one guest decline the service charge.**
 
-- An expense on the vendor files as ours does (taxable at 13%, its No-VAT and 0-VAT lines exempt); nothing changed.
-- Annex 13 counts every figure before VAT, as the vendor's does; it had added VAT since phase 8e. The Purchase
-  Register's new *Invoice No* is the supplier's own number (a debit note's own), beside *Document No*, on screen and in
-  the export; both registers' returns no longer export `-0`.
-- `OutstandingDocumentReader` narrows every settlement through one contact's documents when one is named (picker,
-  Suggest, till refund): 38,015 → 238 reads per picker. Its voucher read is one join for every caller. The VAT return's
-  history read was measured (39,992 reads with or without history, 1.37 s) and left. No migration, no new keys.
+- The till offers a picker of the units in stock and finds a phone by its scanned serial; payment waits for every unit
+  to be named. Restaurant orders refuse serial products.
+- Credit notes carry serials (`CreditNoteSerials`): till refunds tick the sale's units, ERP notes are prefilled, and each
+  unit restocks as its own layer. Phase 51 had restocked them with no serial.
+- `OutstandingDocumentReader` takes `invoiceId`: the refund screen's read fell 56,566 → 59 logical reads, with a measured
+  `CreditNotes (OrganizationId, ReferrerId)` index. One guest's declined service charge is `InvoiceLine.PartServiceChargeWaived`.
+  Two migrations, no new keys.
 
-**Next:** not yet scheduled. Candidates: phase 90 § 5 (a till refund's walk-in read, measured on a till-heavy tenant),
-phase 83 § 5 (a per-part service charge waiver), phase 79 § 5 (positioning, renames, the vendor's DN/GRN/WT templates,
-lakh grouping, the money receipt on the roll), phase 88 § 5 (the vendor's per-row allocation table), phase 87 § 5 /
-Decision G.
+**Next:** not yet scheduled. Candidates: phase 91 § 5 (serials on a debit note, a serial on the printed bill, the tenant
+switch), phase 79 § 5 (positioning, renames, the vendor's DN/GRN/WT templates, lakh grouping, the money receipt on the
+roll), phase 88 § 5 (the vendor's per-row allocation table), phase 87 § 5 / Decision G, phase 62 § 5's barcode index.
 
-Tests: Domain 1032, Application.UnitTests **1817**, Infrastructure.UnitTests 14,
-Api.IntegrationTests 76, Angular 881. Everything was green at phase 90's close with Docker up.
+Tests: Domain 1040, Application.UnitTests **1832**, Infrastructure.UnitTests 14,
+Api.IntegrationTests 76, Angular 900. Everything was green at phase 91's close with Docker up.
 The bundle sits at **653.05 kB** against `build-budget.spec.ts`'s 680 kB; every POS screen is lazy.
 
 - `Api.IntegrationTests` needs Docker Desktop running. Without it the Testcontainers-backed tests

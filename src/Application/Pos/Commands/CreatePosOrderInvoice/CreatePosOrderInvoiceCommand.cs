@@ -45,7 +45,8 @@ public sealed record CreatePosOrderInvoiceCommand(
     bool OverrideStockWarning = false,
     bool OverrideCreditLimitWarning = false,
     decimal? DiscountPct = null,
-    decimal? DiscountAmount = null)
+    decimal? DiscountAmount = null,
+    bool WaiveServiceCharge = false)
     : IRequest<CreatePosOrderInvoiceResult>, IRequirePermission, IOrganizationScoped, IRequireFeature,
         ILockDateSensitive, IAuditableRequest, IMeteredTransaction, ILocationBearingCommand
 {

@@ -175,6 +175,8 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
                 ServiceChargeAmount = l.ServiceChargeAmount,
                 PackagingFeeAmount = l.PackagingFeeAmount,
                 DiscountPerUnit = l.DiscountPerUnit,
+                PartDiscountAmount = l.PartDiscountAmount,
+                PartServiceChargeWaived = l.PartServiceChargeWaived,
             })
             .ToList();
 
@@ -899,6 +901,12 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
         /// <summary>Phase 74 -- a till line's Amount discount, rupees off each unit.</summary>
         public decimal DiscountPerUnit { get; init; }
 
+        /// <summary>Phase 91 -- of a restaurant bill's Amount discount, one guest's own (phase 83), and the service
+        /// charge that guest declined; zero on every other line.</summary>
+        public decimal PartDiscountAmount { get; init; }
+
+        public decimal PartServiceChargeWaived { get; init; }
+
         public decimal LineTotal => Amount + ServiceChargeAmount + PackagingFeeAmount + VatAmount;
     }
 
@@ -1007,8 +1015,14 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
         // twice, so the guest's is named for what it is, the bill's own; and the percentage prints first, because the
         // figure the bill's discount comes off is already after it. Printed under the Sub Total, as it is alone, it
         // read as a second 10% off a total it is already inside (phase 74's lesson, seen on the rendered page).
+        //
+        // Phase 91 -- and a bill can carry two Amount discounts with no percentage: the order's rupees and a guest's own.
+        // Phase 83 printed them as one "Discount Applied" (its § 5); they print apart, the order's first, the guest's
+        // named as phase 83 names it, so the two rows still read down to the Sub Total.
         var summary = new List<PrintableFieldDto>();
         var both = discountAmount > 0 && discountPct > 0;
+        var guestsDiscount = lines.Sum(l => l.PartDiscountAmount);
+        var twoAmounts = !both && guestsDiscount > 0 && discountAmount > guestsDiscount;
         if (both)
         {
             summary.Add(new PrintableFieldDto("Discount Applied", $"{Percent(discountPct)}%"));
@@ -1017,7 +1031,15 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
         if (discountAmount > 0)
         {
             summary.Add(new PrintableFieldDto(both ? "Before Bill Discount" : "Before Discount", Money(subTotal + discountAmount)));
-            summary.Add(new PrintableFieldDto(both ? "Bill Discount" : "Discount Applied", $"({Money(discountAmount)})"));
+            if (twoAmounts)
+            {
+                summary.Add(new PrintableFieldDto("Discount Applied", $"({Money(discountAmount - guestsDiscount)})"));
+                summary.Add(new PrintableFieldDto("Bill Discount", $"({Money(guestsDiscount)})"));
+            }
+            else
+            {
+                summary.Add(new PrintableFieldDto(both ? "Bill Discount" : "Discount Applied", $"({Money(discountAmount)})"));
+            }
         }
 
         summary.Add(new PrintableFieldDto("Sub Total", Money(subTotal)));
@@ -1034,6 +1056,12 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
         if (serviceCharge != 0)
         {
             summary.Add(new PrintableFieldDto("Service Charge", Money(serviceCharge)));
+        }
+        else if (lines.Sum(l => l.PartServiceChargeWaived) > 0)
+        {
+            // Phase 91 -- a guest declined it on this bill. Said, not priced: a figure here would read as charged, and
+            // one under the total as a second subtraction (phase 74's lesson).
+            summary.Add(new PrintableFieldDto("Service Charge", "Waived"));
         }
 
         if (packagingFee != 0)

@@ -29,7 +29,8 @@ public sealed record PreviewPosOrderBillQuery(
     IReadOnlyList<PosOrderLineQuantityInput> Items,
     int? Parts,
     decimal? DiscountPct,
-    decimal? DiscountAmount)
+    decimal? DiscountAmount,
+    bool WaiveServiceCharge = false)
     : IRequest<PosOrderBillPreviewDto>, IRequirePermission, IOrganizationScoped, IRequireFeature
 {
     public string PermissionKey => PermissionKeys.PosOrderOperate;
@@ -74,7 +75,9 @@ public sealed class PreviewPosOrderBillQueryHandler(IAppDbContext db, ICurrentUs
             db, request.OrganizationId, order, till,
             new PosOrderBillPart(
                 request.Split, request.Items, request.Parts,
-                PosOrderBillPart.DiscountOf(request.DiscountPct, request.DiscountAmount)),
+                PosOrderBillPart.DiscountOf(request.DiscountPct, request.DiscountAmount),
+                // Phase 91 -- the waiver the bill would apply; the preview, like the discount, needs no key.
+                request.WaiveServiceCharge),
             cancellationToken);
 
         return await PosOrderBillPlanner.ToPreviewAsync(db, order, plan, cancellationToken);

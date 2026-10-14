@@ -25,7 +25,9 @@ namespace ErpApp.Application.Inventory.Stock;
 /// Note line from the Purchase Bill line it returns (phase 19's <c>ExpenditureClassification</c>
 /// precedent, which resolves a Debit Note line's attributes from the source bill's matching line);
 /// a Warehouse Transfer preserves whatever it consumed, relief by relief, and so needs no field at
-/// all.</item>
+/// all. Phase 91 -- a Credit Note line that returns goods also names the serials it brings back, from those
+/// its invoice sold (prefilled on an ERP note, ticked at the till; <c>CreditNoteSerials</c>), and each
+/// comes back as its own layer: phase 51 had said so and written nothing that carried it.</item>
 /// <item><b>Refused</b> -- see <see cref="RefusedPaths"/>, each with its reason.</item>
 /// </list></para>
 /// </summary>

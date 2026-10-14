@@ -120,11 +120,20 @@ export const POS_RECEIPT_STYLES = `
       <div class="r-rule"></div>
       @if (r.discountAmount > 0) {
         <div class="r-row"><span>Gross</span><span>{{ r.grossAmount | amount }}</span></div>
-        <div class="r-row"><span>Discount</span><span>{{ r.discountAmount | amount }}</span></div>
+        <!-- Phase 91 -- a guest's own discount (phase 83) apart from the order's and the lines', both above Sub Total. -->
+        @if (r.discountAmount - (r.partDiscountAmount ?? 0) > 0) {
+          <div class="r-row"><span>Discount</span><span>{{ r.discountAmount - (r.partDiscountAmount ?? 0) | amount }}</span></div>
+        }
+        @if ((r.partDiscountAmount ?? 0) > 0) {
+          <div class="r-row"><span>Bill Discount</span><span>{{ r.partDiscountAmount | amount }}</span></div>
+        }
       }
       <div class="r-row"><span>Sub Total</span><span>{{ r.subTotal | amount }}</span></div>
       @if (r.serviceCharge !== 0) {
         <div class="r-row"><span>Service Charge</span><span>{{ r.serviceCharge | amount }}</span></div>
+      } @else if ((r.serviceChargeWaived ?? 0) > 0) {
+        <!-- Phase 91 -- declined on this bill: said, not priced, so it cannot read as charged. -->
+        <div class="r-row"><span>Service Charge</span><span>Waived</span></div>
       }
       @if (r.packagingFee !== 0) {
         <div class="r-row"><span>Packaging</span><span>{{ r.packagingFee | amount }}</span></div>

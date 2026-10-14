@@ -144,6 +144,9 @@
                     <tr>
                       <td>
                         {{ line.productName }}
+                        @if (isSerialLine(line)) {
+                          <span class="d-block small text-body-secondary">SN {{ line.serialNumbers!.join(', ') }}</span>
+                        }
                         @if (line.serviceChargeRate > 0) {
                           <span class="d-block small text-body-secondary">service charge {{ line.serviceChargeRate }}%</span>
                         }
@@ -155,13 +158,30 @@
                       <td class="text-end">{{ line.remaining }} {{ line.unitShortName }}</td>
                       <td class="text-end">{{ line.rate | amount }}</td>
                       <td>
-                        <label class="visually-hidden" [for]="'pos-refund-qty-' + line.invoiceLineId">
-                          Quantity of {{ line.productName }} to refund, at most {{ line.remaining }}
-                        </label>
-                        <input class="form-control form-control-sm" type="number" min="0" step="any" inputmode="decimal"
-                          [id]="'pos-refund-qty-' + line.invoiceLineId" [max]="line.remaining"
-                          [disabled]="line.remaining === 0 || submitting()"
-                          [value]="quantityOf(line)" (change)="onQuantity(line, $event)" />
+                        @if (isSerialLine(line)) {
+                          <!-- Phase 91 -- tick the units that came back; the quantity is how many are ticked. -->
+                          <fieldset>
+                            <legend class="small mb-0">Serials of {{ line.productName }} ({{ quantityOf(line) }} ticked)</legend>
+                            @for (serial of line.returnableSerialNumbers ?? []; track serial; let si = $index) {
+                              <div class="form-check">
+                                <input class="form-check-input" type="checkbox"
+                                  [id]="'pos-refund-serial-' + line.invoiceLineId + '-' + si"
+                                  [disabled]="submitting()" [checked]="isTicked(line, serial)" (change)="onSerialTick(line, serial, $event)" />
+                                <label class="form-check-label small" [for]="'pos-refund-serial-' + line.invoiceLineId + '-' + si">{{ serial }}</label>
+                              </div>
+                            } @empty {
+                              <p class="small text-body-secondary mb-0">Every unit has been refunded.</p>
+                            }
+                          </fieldset>
+                        } @else {
+                          <label class="visually-hidden" [for]="'pos-refund-qty-' + line.invoiceLineId">
+                            Quantity of {{ line.productName }} to refund, at most {{ line.remaining }}
+                          </label>
+                          <input class="form-control form-control-sm" type="number" min="0" step="any" inputmode="decimal"
+                            [id]="'pos-refund-qty-' + line.invoiceLineId" [max]="line.remaining"
+                            [disabled]="line.remaining === 0 || submitting()"
+                            [value]="quantityOf(line)" (change)="onQuantity(line, $event)" />
+                        }
                       </td>
                     </tr>
                   }

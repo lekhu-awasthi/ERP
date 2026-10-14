@@ -71,9 +71,19 @@ public sealed class CreatePosOrderInvoiceCommandHandler(
                 order.BillingLocationId, cancellationToken);
         }
 
+        // Phase 91 -- a guest declining the service charge on their own part is the order's waiver on one bill, so it needs
+        // the order waiver's key (phase 76's Can Remove Service Charge) at the order's location, from whoever takes the
+        // payment.
+        if (request.WaiveServiceCharge)
+        {
+            await GrantedPermissionReader.EnsureGrantedAtLocationAsync(
+                db, request.OrganizationId, currentUser.UserId, PermissionKeys.InvoiceTillRemoveServiceCharge,
+                order.BillingLocationId, cancellationToken);
+        }
+
         var (plan, billed) = await PosOrderBillPlanner.PlanAsync(
             db, request.OrganizationId, order, till,
-            new PosOrderBillPart(request.Split, request.Items, request.Parts, discount),
+            new PosOrderBillPart(request.Split, request.Items, request.Parts, discount, request.WaiveServiceCharge),
             cancellationToken);
 
         // The order's customer unless the cashier names one -- which is how a guest asks for a full tax
@@ -97,14 +107,16 @@ public sealed class CreatePosOrderInvoiceCommandHandler(
         invoice.BillPosOrder(order.Id);
 
         // Phase 74 -- and each part's share of the order's amount discount, which the bill's own DiscountAmount
-        // adds up. Phase 83 -- with this bill's own discount inside it, kept apart on the line.
+        // adds up. Phase 83 -- with this bill's own discount inside it, kept apart on the line. Phase 91 -- a part whose
+        // guest declined the service charge is billed at none and records what it declined.
         foreach (var line in plan.Lines)
         {
             invoice.AddPosOrderLine(
                 line.Line.Id, line.Line.ProductId, line.Quantity, line.Line.Rate, line.Line.VatRate,
                 line.Line.DiscountPerUnit, line.Line.DiscountPct, line.BillDiscountShare + line.PartDiscountShare,
-                line.PartDiscountShare, line.Line.UnitId, line.Line.ConversionFactor, order.ServiceChargeRateOf(line.Line),
-                line.Line.PackagingFee, line.Figures);
+                line.PartDiscountShare, line.Line.UnitId, line.Line.ConversionFactor,
+                line.ServiceChargeWaived > 0m ? 0m : order.ServiceChargeRateOf(line.Line),
+                line.Line.PackagingFee, line.Figures, partServiceChargeWaived: line.ServiceChargeWaived);
         }
 
         // Phase 74 -- the first bill freezes how the order's amount discount is spread (Decision B); the plan above

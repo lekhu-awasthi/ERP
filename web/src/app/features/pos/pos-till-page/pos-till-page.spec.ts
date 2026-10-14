@@ -39,6 +39,13 @@ describe('PosTillPage', () => {
     units: [{ unitId: 'pc', shortName: 'pc', conversionRate: 1, rate: 60 }],
   };
 
+  // Phase 91 -- a serial-tracked phone, 10000 + 13% VAT = 11300, which needs no rounding.
+  const phone: PosProduct = {
+    id: 'phone', code: 'P0091', name: 'P91 Phone', categoryId: 'food', type: 'Goods', vatRate: 'ThirteenPercentVat',
+    rate: 10000, serviceChargeApplicable: false, packagingFeeApplicable: true, batchTracking: false, serialTracking: true,
+    barcode: null, units: [{ unitId: 'pc', shortName: 'pc', conversionRate: 1, rate: 10000 }],
+  };
+
   const till = (overrides: Partial<PosTill> = {}): PosTill => ({
     locationId, locationCode: 'HO', locationName: 'Thamel', posMode: 'Retail', availableTabs: ['Retail', 'Delivery'],
     defaultTab: 'Retail', serviceChargeEnabled: true, serviceChargeRate: 10, packagingFeeBasis: 'None', packagingFeeValue: 0, roundOffEnabled: true,
@@ -76,6 +83,10 @@ describe('PosTillPage', () => {
     printed: string[] = [];
     codeLookup: PosProduct[] = [];
     failNext: unknown = null;
+    /** Phase 91 -- extra tiles, and the phone's units in stock here. */
+    gridExtra: PosProduct[] = [];
+    inStock = ['IMEI-1', 'IMEI-2', 'IMEI-3'];
+    serialSearches: (string | undefined)[] = [];
 
     constructor(
       private readonly current: PosTill,
@@ -91,8 +102,13 @@ describe('PosTillPage', () => {
     }
 
     listProducts(_o: string, _l: string, query: { code?: string; search?: string }): Observable<PagedResult<PosProduct>> {
-      const items = query.code ? this.codeLookup : query.search ? [] : [momo, coke];
+      const items = query.code ? this.codeLookup : query.search ? [] : [momo, coke, ...this.gridExtra];
       return of({ items, page: 1, pageSize: 48, totalCount: items.length });
+    }
+
+    listProductSerials(_o: string, _l: string, _p: string, search?: string): Observable<string[]> {
+      this.serialSearches.push(search);
+      return of(search ? this.inStock.filter((x) => x.toLowerCase().includes(search.toLowerCase())) : this.inStock);
     }
 
     createSale(_o: string, request: CreatePosSaleRequest): Observable<CreatePosSaleResult> {
@@ -570,5 +586,87 @@ describe('PosTillPage', () => {
     p.render();
     expect(p.element.querySelector('[role="dialog"]')).toBeNull();
     expect(document.activeElement?.textContent?.trim()).toBe('Pay (F9)');
+  });
+  // ---- Phase 91: serial-tracked products ----
+
+  it('opens a serial product on its picker, refuses payment until each unit is named, and sends the units ticked', () => {
+    const p = page();
+    p.service.gridExtra = [phone];
+    p.press('All');
+
+    p.tile('P91 Phone');
+
+    // The tap opened the line's picker with the cursor in its box, and the units in stock here to tick.
+    expect(document.activeElement?.id).toMatch(/^pos-serial-\d+$/);
+    expect(p.text()).toContain('SN none named yet (0/1)');
+    const boxes = [...p.element.querySelectorAll<HTMLInputElement>('input[type="checkbox"][id^="pos-serial-"]')];
+    expect(boxes.map((x) => x.labels?.[0]?.textContent?.trim())).toEqual(['IMEI-1', 'IMEI-2', 'IMEI-3']);
+
+    p.press('Pay (F9)');
+    expect(p.text()).toContain('P91 Phone is serial-tracked: 0 of 1 serial number(s) named');
+    expect(p.complete().disabled).toBe(true);
+    p.element.querySelector<HTMLElement>('[role="dialog"]')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    p.render();
+
+    boxes[1].click();
+    p.render();
+    expect(p.text()).toContain('SN IMEI-2 (1/1)');
+
+    p.press('Pay (F9)');
+    p.tender('cash', '11300');
+    p.complete().click();
+    p.render();
+
+    expect(p.service.sent[0].lines).toEqual([
+      expect.objectContaining({ productId: 'phone', quantity: 1, serialNumbers: ['IMEI-2'] }),
+    ]);
+  });
+
+  it('adds the phone with its unit named when the scan matched a serial in stock', () => {
+    const p = page();
+    p.service.codeLookup = [{ ...phone, scannedSerialNo: 'IMEI-3' }];
+
+    p.type('pos-search', 'IMEI-3');
+    p.element.querySelector<HTMLFormElement>('form[role="search"]')!.dispatchEvent(new Event('submit'));
+    p.render();
+
+    expect(p.text()).toContain('SN IMEI-3 (1/1)');
+    expect(p.text()).toContain('Total 11,300.00');
+
+    // The same unit scanned again is not sold twice.
+    p.type('pos-search', 'IMEI-3');
+    p.element.querySelector<HTMLFormElement>('form[role="search"]')!.dispatchEvent(new Event('submit'));
+    p.render();
+    expect(p.text()).toContain('Serial IMEI-3 is already in the cart.');
+    expect(p.text()).toContain('SN IMEI-3 (1/1)');
+  });
+
+  it('checks a typed serial against the stock here, by keyboard, before it is named, and sends the one it took', () => {
+    const p = page();
+    p.service.gridExtra = [phone];
+    p.press('All');
+    p.tile('P91 Phone');
+
+    const box = document.activeElement as HTMLInputElement;
+    expect(box.id).toMatch(/^pos-serial-\d+$/);
+
+    box.value = 'NOPE-9';
+    box.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    p.render();
+    expect(p.text()).toContain('NOPE-9 is not a serial of P91 Phone in stock at this till.');
+    expect(p.text()).toContain('SN none named yet (0/1)');
+
+    box.value = 'imei-1';
+    box.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    p.render();
+    expect(p.service.serialSearches).toEqual([undefined, 'NOPE-9', 'imei-1']);
+    expect(p.text()).toContain('SN IMEI-1 (1/1)');
+    expect(box.value).toBe('');
+
+    p.press('Pay (F9)');
+    p.tender('cash', '11300');
+    p.complete().click();
+    p.render();
+    expect(p.service.sent[0].lines[0].serialNumbers).toEqual(['IMEI-1']);
   });
 });

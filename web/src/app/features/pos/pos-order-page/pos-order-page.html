@@ -447,6 +447,10 @@
               } @else if (o.serviceChargeWaived) {
                 <dt>Service charge</dt><dd>Waived</dd>
               }
+              <!-- Phase 91 -- the service charge guests declined on their own bills, out of the order's figures. -->
+              @if ((o.partServiceChargeWaived ?? 0) > 0) {
+                <dt>Service charge waived on bills</dt><dd>{{ o.partServiceChargeWaived | amount }}</dd>
+              }
               @if (o.packagingFee > 0) {
                 <dt>Packaging</dt><dd>{{ o.packagingFee | amount }}</dd>
               }

@@ -9,8 +9,13 @@ namespace ErpApp.Application.Pos.Restaurant;
 /// <param name="Parts">For <see cref="PosOrderSplit.Equal"/>: how many equal parts what is left is split
 /// into, this one included. The till counts it down as the parts are paid; the server keeps no split state.</param>
 /// <param name="Discount">Phase 83 -- this part's own discount, if any: one guest's, on this bill only.</param>
+/// <param name="WaiveServiceCharge">Phase 91 -- this part's guest declines the service charge, on this bill only.</param>
 public sealed record PosOrderBillPart(
-    PosOrderSplit Split, IReadOnlyList<PosOrderLineQuantityInput>? Items, int? Parts, PosPartDiscount? Discount)
+    PosOrderSplit Split,
+    IReadOnlyList<PosOrderLineQuantityInput>? Items,
+    int? Parts,
+    PosPartDiscount? Discount,
+    bool WaiveServiceCharge = false)
 {
     /// <summary>Phase 83 -- a request's <c>discountPct</c> or <c>discountAmount</c> (the validators allow one at
     /// most) as the part's discount; neither, or zero, is none.</summary>
@@ -43,7 +48,8 @@ public sealed record PosOrderBillLineDto(
     decimal Gross = 0m,
     decimal DiscountPerUnit = 0m,
     decimal BillDiscountShare = 0m,
-    decimal PartDiscountShare = 0m);
+    decimal PartDiscountShare = 0m,
+    decimal ServiceChargeWaived = 0m);
 
 /// <summary>
 /// A part of an order priced by the server, which is what the till shows before money changes hands and
@@ -53,7 +59,8 @@ public sealed record PosOrderBillLineDto(
 /// <paramref name="Amount"/>, as on the receipt; <paramref name="DiscountPct"/> and
 /// <paramref name="ServiceChargeWaived"/> are the order's terms the part was priced with. Phase 83:
 /// <paramref name="PartDiscount"/> is what this bill's own discount took off, inside <paramref name="Discount"/>;
-/// <paramref name="DiscountAmount"/> stays the part's share of the order's Amount.
+/// <paramref name="DiscountAmount"/> stays the part's share of the order's Amount. Phase 91: <paramref name="PartServiceChargeWaived"/>
+/// is the service charge this bill's guest declined, which <paramref name="ServiceCharge"/> does not include.
 /// </summary>
 public sealed record PosOrderBillPreviewDto(
     Guid OrderId,
@@ -75,7 +82,8 @@ public sealed record PosOrderBillPreviewDto(
     decimal DiscountPct = 0m,
     bool ServiceChargeWaived = false,
     decimal DiscountAmount = 0m,
-    decimal PartDiscount = 0m);
+    decimal PartDiscount = 0m,
+    decimal PartServiceChargeWaived = 0m);
 
 /// <summary>
 /// Phase 65 -- the one planner the preview, the estimate bill and the bill itself call (phase 63's rule:
@@ -99,7 +107,8 @@ internal static class PosOrderBillPlanner
             [.. (part.Items ?? []).Select(x => new PosOrderLineQuantity(x.LineId, x.Quantity))],
             part.Parts ?? 0,
             till.Settings.RoundOffEnabled,
-            part.Discount));
+            part.Discount,
+            part.WaiveServiceCharge));
 
         return (plan, billed);
     }
@@ -114,12 +123,13 @@ internal static class PosOrderBillPlanner
             .Select(x =>
             {
                 var name = names[x.Line.Id];
+                // Phase 91 -- a part whose guest declined the service charge is billed at none.
                 return new PosOrderBillLineDto(
                     x.Line.Id, x.Line.LineNo, name.ProductName, name.UnitName, x.Line.Note, x.Quantity, x.Line.Rate,
-                    order.ServiceChargeRateOf(x.Line), x.Figures.Amount, x.Figures.ServiceChargeAmount,
-                    x.Figures.PackagingFeeAmount, x.Figures.VatAmount, x.Total, x.RemainingAfter,
+                    x.ServiceChargeWaived > 0m ? 0m : order.ServiceChargeRateOf(x.Line), x.Figures.Amount,
+                    x.Figures.ServiceChargeAmount, x.Figures.PackagingFeeAmount, x.Figures.VatAmount, x.Total, x.RemainingAfter,
                     x.Line.DiscountPct, PosLineArithmetic.RoundMoney(x.Quantity * x.Line.Rate), x.Line.DiscountPerUnit,
-                    x.BillDiscountShare, x.PartDiscountShare);
+                    x.BillDiscountShare, x.PartDiscountShare, x.ServiceChargeWaived);
             })
             .ToList();
 
@@ -147,6 +157,7 @@ internal static class PosOrderBillPlanner
             order.DiscountPct,
             order.ServiceChargeWaived,
             lines.Sum(x => x.BillDiscountShare),
-            plan.PartDiscount);
+            plan.PartDiscount,
+            plan.ServiceChargeWaived);
     }
 }

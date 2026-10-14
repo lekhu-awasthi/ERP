@@ -1,3 +1,4 @@
+using ErpApp.Domain.Catalog;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Sales;
 
@@ -21,9 +22,15 @@ public enum PosOrderSplit
 /// <paramref name="BillDiscountAmount"/> is what those parts carried of the order's Amount discount. Phase 83 --
 /// <paramref name="PartDiscountAmount"/> is what their bills' own discounts took off them (a discount on one guest's
 /// part), which <paramref name="Figures"/> are already net of and <paramref name="BillDiscountAmount"/> never
-/// includes: the order's share and a guest's discount are two figures, because only the first is the order's.</summary>
+/// includes: the order's share and a guest's discount are two figures, because only the first is the order's. Phase 91 --
+/// <paramref name="PartServiceChargeWaived"/> is the service charge their guests declined on their own bills, which
+/// <paramref name="Figures"/> never charged.</summary>
 public sealed record PosOrderLineBilled(
-    decimal Quantity, PosLineArithmetic.Figures Figures, decimal BillDiscountAmount = 0m, decimal PartDiscountAmount = 0m);
+    decimal Quantity,
+    PosLineArithmetic.Figures Figures,
+    decimal BillDiscountAmount = 0m,
+    decimal PartDiscountAmount = 0m,
+    decimal PartServiceChargeWaived = 0m);
 
 /// <summary>
 /// Phase 83 -- a discount on the part being billed now, and on nothing else (phase-83-status.md Decision A): a
@@ -47,9 +54,11 @@ public sealed record PosOrderBilledTotals(decimal Unrounded, decimal GrandTotal)
 /// off <paramref name="Figures"/>.</param>
 /// <param name="PartDiscountShare">Phase 83 -- what this bill's own discount took off the line, already taken off
 /// <paramref name="Figures"/> too.</param>
+/// <param name="ServiceChargeWaived">Phase 91 -- the service charge this part would have carried and its guest declined;
+/// <paramref name="Figures"/> carry none.</param>
 public sealed record PosOrderBillLine(
     PosOrderLine Line, decimal Quantity, PosLineArithmetic.Figures Figures, decimal RemainingAfter, decimal BillDiscountShare,
-    decimal PartDiscountShare = 0m)
+    decimal PartDiscountShare = 0m, decimal ServiceChargeWaived = 0m)
 {
     public decimal Total => Figures.Total;
 }
@@ -75,6 +84,9 @@ public sealed record PosOrderBillPlan(
 
     /// <summary>Phase 83 -- what this bill's own discount took off it.</summary>
     public decimal PartDiscount => Lines.Sum(x => x.PartDiscountShare);
+
+    /// <summary>Phase 91 -- the service charge this bill's guest declined.</summary>
+    public decimal ServiceChargeWaived => Lines.Sum(x => x.ServiceChargeWaived);
 
     /// <summary>What is left for later parts after this one: the order's total less everything billed.</summary>
     public decimal LeftAfter => OrderTotal - BilledBefore - Total;
@@ -108,6 +120,13 @@ public sealed record PosOrderBillPlan(
 /// left" is the remaining food at the order's terms: no later guest takes an earlier guest's discount back, and a void
 /// of the discounted bill gives it up with nothing written back (phase 65's rule for anything a void must undo). The
 /// bills then add up to the order less the discounts they gave.</para>
+///
+/// <para><b>Phase 91 -- a part may decline the service charge</b> (one guest waiving it on their own part, the order's
+/// terms unchanged): the part's lines carry none, and each stores what it would have carried
+/// (<see cref="PosOrderLineBilled.PartServiceChargeWaived"/>). The whole of a line is priced less every such waiver its
+/// bills not voided recorded, exactly as it is less their discounts, so the last part's "what is left" never charges a
+/// later guest the service charge an earlier one declined; and a void gives the waiver up with nothing written back.
+/// VAT follows, since service charge is inside its base.</para>
 /// </summary>
 public static class PosOrderBill
 {
@@ -119,7 +138,8 @@ public static class PosOrderBill
         IReadOnlyList<PosOrderLineQuantity> items,
         int parts,
         bool roundOff,
-        PosPartDiscount? partDiscount = null)
+        PosPartDiscount? partDiscount = null,
+        bool waiveServiceCharge = false)
     {
         if (order.Status != PosOrderStatus.Open)
         {
@@ -165,17 +185,28 @@ public static class PosOrderBill
         var partShares = PartShares(partDiscount, [.. priced.Select(x => Math.Max(0m, x.Figures.Amount))]);
 
         var lines = priced
-            .Select((x, i) => new PosOrderBillLine(
-                x.Line,
-                x.Quantity,
-                partShares[i] == 0m
+            .Select((x, i) =>
+            {
+                var figures = partShares[i] == 0m
                     ? x.Figures
                     : x.Last
                         ? WhatIsLeft(order, x.Line, x.Already, partShares[i])
-                        : order.FiguresOf(x.Line, x.Quantity, partShares[i]),
-                x.Last ? 0m : x.Left - x.Quantity,
-                x.Share,
-                partShares[i]))
+                        : order.FiguresOf(x.Line, x.Quantity, partShares[i]);
+
+                // Phase 91 -- a guest declining the service charge: the part carries none, and records what it declined.
+                // The last of a line declines what is left of the line's, priced from the whole as everything else is.
+                var waived = 0m;
+                if (waiveServiceCharge && figures.ServiceChargeAmount > 0m)
+                {
+                    waived = figures.ServiceChargeAmount;
+                    figures = x.Last
+                        ? WhatIsLeft(order, x.Line, x.Already, partShares[i], waived)
+                        : figures.LessServiceCharge(waived, x.Line.VatRate.ToPercent());
+                }
+
+                return new PosOrderBillLine(
+                    x.Line, x.Quantity, figures, x.Last ? 0m : x.Left - x.Quantity, x.Share, partShares[i], waived);
+            })
             .ToList();
 
         var unrounded = lines.Sum(x => x.Total);
@@ -198,7 +229,8 @@ public static class PosOrderBill
             var before = billed.GetValueOrDefault(line.Id);
             var already = thisPart.Aggregate(before?.Figures ?? PosLineArithmetic.Figures.Zero, (sum, l) => sum + l.Figures);
             var given = (before?.PartDiscountAmount ?? 0m) + thisPart.Sum(l => l.PartDiscountShare);
-            var whole = order.FiguresOf(line, order.QuantitiesOf(line).Net, given);
+            var waivedSoFar = (before?.PartServiceChargeWaived ?? 0m) + thisPart.Sum(l => l.ServiceChargeWaived);
+            var whole = order.FiguresOf(line, order.QuantitiesOf(line).Net, given, waivedSoFar);
             return (whole - already).Total;
         });
 
@@ -294,11 +326,14 @@ public static class PosOrderBill
     /// its own, so the line's service charge, packaging fee and VAT add up across its parts as exactly as
     /// its amount. Phase 83 -- the whole is priced less every part discount its bills gave and the one this part
     /// gives (<paramref name="partDiscount"/>), so what is left is the remaining food at the order's terms less this
-    /// guest's own discount.</summary>
+    /// guest's own discount. Phase 91 -- and less the service charge its bills' guests declined and this part declines
+    /// (<paramref name="serviceChargeWaived"/>), so a waiver is never charged back.</summary>
     private static PosLineArithmetic.Figures WhatIsLeft(
-        PosOrder order, PosOrderLine line, PosOrderLineBilled? billed, decimal partDiscount)
+        PosOrder order, PosOrderLine line, PosOrderLineBilled? billed, decimal partDiscount, decimal serviceChargeWaived = 0m)
     {
-        var whole = order.FiguresOf(line, order.QuantitiesOf(line).Net, (billed?.PartDiscountAmount ?? 0m) + partDiscount);
+        var whole = order.FiguresOf(
+            line, order.QuantitiesOf(line).Net, (billed?.PartDiscountAmount ?? 0m) + partDiscount,
+            (billed?.PartServiceChargeWaived ?? 0m) + serviceChargeWaived);
         return billed is null ? whole : whole - billed.Figures;
     }
 

@@ -4087,6 +4087,14 @@ user cancels, the area does not change, so `[checked]="areaId() === a.id"` evalu
 and Angular writes nothing — the radio the user pressed stays checked over the layout of the other area.
 The handler puts the radios back itself.
 
+## A tidied text box keeps what was typed when the tidy equals the last binding (phase 91)
+
+The ERP serial box tidies its text on Enter (a repeat out, `, ` in). Typing `IMEI91A` ⏎ binds `IMEI91A, `; scanning
+`imei91a` and pressing Enter tidies back to `IMEI91A, ` — the value `[value]` last wrote — so Angular writes nothing
+and `IMEI91A, imei91a` stays on screen while the signal says otherwise. Same cause as the cancelled radio: a binding
+re-applies on change of the bound value, never of the DOM. The handler writes `box.value` itself; the page test that
+fires input then Enter on the box failed until it did.
+
 ## The auto-mode classifier can refuse vendor writes the user authorised (phase 64)
 
 Phase 64's confirm-live pass had the user's explicit go-ahead to write on the vendor's trial tenant.
@@ -4710,3 +4718,19 @@ The vendor's Purchase Register prints the supplier's own invoice number under �
 ## Negating a zero is phase 26c's signed zero again (phase 90)
 
 Both registers render a return negative by negating each bucket (`-b.TaxExempt`), so a return with no exempt value carried `-0m`, which the export wrote as `-0` on every such row, since phase 19. `-0m == 0m`, so no equality assertion sees it; assert `decimal.IsNegative(x)` is false, and negate through `value == 0 ? 0 : -value`.
+
+## A status doc saying a document "re-enters stock" is not code that does (phase 91)
+
+Phase 51's status doc said a serial returned by a credit note "re-enters stock as a new layer carrying the same SerialNo". `DocumentLineParentType.CreditNoteLine` was declared, `StockTrackingRules` listed the credit note as *derived*, and nothing wrote a credit note's serials or passed one to `IncrementAsync`. Every return of a serialised product made one layer of the whole quantity with no serial, so phase 51's own invariant (a serialised layer is of size one) broke on the first return and the unit could not be sold by its serial again. The till refund found it, because a till refund is exactly a return a cashier must name a unit for. When a phase's prose describes a path, grep for the call that performs it before building on it.
+
+## A reader asked about one document reads through that document, not its owner (phase 91)
+
+Phase 90 narrowed `OutstandingDocumentReader` to one contact, which fixed every caller whose contact owns a handful of documents. The till refund asks what one sale is still owed, and a till sale's contact is the walk-in, who owns every counter sale: 56,566 logical reads per refund screen on a tenant with 20,000 of them. The fix is the same subquery shape one level down (`db.Invoices.Where(Id == invoiceId).Select(Id)`), with the reader's own answer kept by construction and held equal to the organization-wide read by a test. Ask whose documents the narrowing key owns before trusting it to be small.
+
+## A lookup that matches by collation hands back the caller's string, not the row's (phase 91)
+
+The till's scan-by-serial matched `SerialNo == code`, which SQL Server compares case-insensitively, and returned `code` as the scanned serial: `imei-2` for a unit received as `IMEI-2`. The sale would have named the unit in a casing its stock layer does not carry. Return the stored value. No InMemory test can see it (InMemory is case-sensitive, so a test written with the stored casing passes either way); only the E2E did.
+
+## Pricing a part apart from the whole: record what the part was not charged (phase 91)
+
+A guest declining the service charge on their own bill is phase 83's part discount in another figure: "the last of a line takes what is left of the whole" charges the next guest the service charge the first declined, unless each bill records what it declined (`InvoiceLine.PartServiceChargeWaived`) and the whole is priced less every such record over bills not voided. Store the waived line at service charge rate 0 too: refunds and the sales readers rebuild every figure from the line's own rate. A twin tab (the same order billed without the waiver) is the test that the next guest's bill is unchanged to the paisa.

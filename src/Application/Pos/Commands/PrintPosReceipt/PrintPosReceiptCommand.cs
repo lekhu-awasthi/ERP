@@ -37,6 +37,9 @@ public sealed record PosReceiptTenderDto(string PaymentModeName, PaymentModeKind
 /// <param name="PackagingFee">Phase 70 -- what the parcels on this bill were charged for packing.</param>
 /// <param name="TaxableAmount">The amounts, with their service charge and packaging fee, of the lines charged VAT.</param>
 /// <param name="NonTaxableAmount">The same of the lines charged none (exempt or zero-rated).</param>
+/// <param name="PartDiscountAmount">Phase 91 -- of <paramref name="DiscountAmount"/>, one guest's own discount on a
+/// restaurant bill (phase 83), which the receipt prints apart from the order's.</param>
+/// <param name="ServiceChargeWaived">Phase 91 -- the service charge that guest declined; the bill carries none.</param>
 public sealed record PosReceiptDto(
     Guid InvoiceId,
     string Code,
@@ -73,7 +76,9 @@ public sealed record PosReceiptDto(
     IReadOnlyList<PosReceiptTenderDto> Tenders,
     decimal Tendered,
     decimal ChangeAmount,
-    decimal CreditAmount);
+    decimal CreditAmount,
+    decimal PartDiscountAmount = 0m,
+    decimal ServiceChargeWaived = 0m);
 
 /// <summary>
 /// Phase 62 -- prints a till sale's receipt: records the printing, then returns the receipt carrying

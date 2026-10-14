@@ -339,7 +339,7 @@ describe('PosOrderPage', () => {
 
     p.press('Print Estimate');
 
-    expect(p.previews).toEqual([{ split: 'Whole', items: [], parts: null, discountPct: null, discountAmount: null }]);
+    expect(p.previews).toEqual([{ split: 'Whole', items: [], parts: null, discountPct: null, discountAmount: null, waiveServiceCharge: false }]);
     const paper = p.element.querySelector('.pos-print-root')!.textContent!.replace(/\s+/g, ' ');
     expect(paper).toContain('Estimate Bill');
     expect(paper).toContain('NOT A TAX INVOICE');

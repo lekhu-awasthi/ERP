@@ -103,6 +103,16 @@ export class PosService {
     });
   }
 
+  /** Phase 91 -- a serial-tracked product's units in stock at the till's warehouse, oldest first. */
+  listProductSerials(organizationId: string, locationId: string, productId: string, search?: string): Observable<string[]> {
+    const params: Record<string, string> = {};
+    if (search) params['search'] = search;
+    return this.http.get<string[]>(
+      `${this.baseUrl(organizationId)}/tills/${locationId}/products/${productId}/serials`,
+      { withCredentials: true, params },
+    );
+  }
+
   /** The caller's open session at one till, or null (the endpoint answers 204). */
   getMySession(organizationId: string, locationId: string): Observable<PosSession | null> {
     return this.http.get<PosSession | null>(`${this.locationUrl(organizationId, locationId)}/sessions/mine`, {

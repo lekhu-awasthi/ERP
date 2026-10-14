@@ -154,6 +154,23 @@
               }
             </p>
 
+            @if (canDeclineServiceCharge()) {
+              <!-- Phase 91 -- one guest declining the service charge, on this bill only. -->
+              <div class="form-check mt-3 mb-1">
+                <input class="form-check-input" type="checkbox" id="pos-bill-waive-service-charge"
+                  [checked]="waiveServiceCharge()" [disabled]="!restaurant()?.canRemoveServiceCharge"
+                  aria-describedby="pos-bill-waive-note" (change)="onWaiveServiceCharge($event)" />
+                <label class="form-check-label small fw-bold" for="pos-bill-waive-service-charge">Waive service charge on this bill</label>
+              </div>
+              <p class="small text-body-secondary mb-0" id="pos-bill-waive-note">
+                @if (restaurant()?.canRemoveServiceCharge) {
+                  For this guest's bill only; the rest of the order is charged as before.
+                } @else {
+                  Waiving the service charge needs the Sales.Invoice.TillRemoveServiceCharge permission at this location.
+                }
+              </p>
+            }
+
             <app-status-banner [message]="previewError()" tone="warning" spacing="mt-2 mb-0" [small]="true" />
 
             @if (preview(); as p) {
@@ -200,6 +217,8 @@
                   <dt>Service charge</dt><dd>{{ p.serviceCharge | amount }}</dd>
                 } @else if (p.serviceChargeWaived) {
                   <dt>Service charge</dt><dd>Waived</dd>
+                } @else if ((p.partServiceChargeWaived ?? 0) > 0) {
+                  <dt>Service charge</dt><dd>Waived on this bill ({{ p.partServiceChargeWaived | amount }})</dd>
                 }
                 @if (p.packagingFee > 0) {
                   <dt>Packaging</dt><dd>{{ p.packagingFee | amount }}</dd>

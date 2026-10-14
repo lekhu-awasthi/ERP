@@ -1,0 +1,9 @@
+path,status,statements,avg_logical_reads,avg_cpu_ms,avg_elapsed_ms,median_wall_ms
+vat.fy2083,200,9,40844,1533.5,1571.1,2879
+vat.fy2082,200,9,40844,1143.3,1194.3,2512
+vat.fy2080,200,9,40844,861.9,911.7,2073
+picker.customer,200,10,138,6.7,9.5,106
+picker.supplier,200,11,286,5.7,8.0,112
+suggest.customer,200,10,138,3.6,3.6,63
+ageing.customers,200,13,90561,1106.6,1238.4,1121
+ageing.suppliers,200,12,42985,649.0,767.1,1002

@@ -35,6 +35,13 @@ public sealed class CreditNoteConfiguration : IEntityTypeConfiguration<CreditNot
         builder.Property(x => x.Terms);
         builder.Property(x => x.ReferrerType).HasConversion<string>().HasMaxLength(30);
         builder.Property(x => x.ReferrerId);
+
+        // Phase 91 -- a sale's returns are found by the sale they name: the till refund's owed-on-sale read, the
+        // conversion cap, earlier refunds, the serials already back. With no index here each scanned the tenant's notes,
+        // five times in one refund screen (157-161 reads each at 2,000 notes, linear in refunds). Measured on the scale
+        // tenant: the refund screen 819 -> 59 logical reads, the customer picker and Suggest 588 -> 138, and no other
+        // phase-90 path read more (tools/scale/probe-phase91-*.csv, probe-phase90-p91-*.csv).
+        builder.HasIndex(x => new { x.OrganizationId, x.ReferrerId });
         builder.Property(x => x.DiscountPct).HasPrecision(18, 4).IsRequired();
 
         // Phase 74 -- a till bill's Amount discount, the sum of its lines' shares; zero on every existing row.
