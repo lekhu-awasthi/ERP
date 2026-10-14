@@ -91,6 +91,16 @@ public sealed class ApproveDebitNoteCommandHandler(
             // the note's own: it books this return's difference from cost, which nothing on the bill posted.
             recorded: RecordedBillAccounts.Of(sourcePurchaseBill));
 
+        // Phase 92 -- the units the note sends back, checked before a number is drawn: a serial-tracked line names its
+        // whole quantity of them, each in stock here and (on a converted note) one its bill received that no approved
+        // note already returned. Without them FIFO chose which phones went back to the supplier.
+        var serialsByLine = await DebitNoteSerials.LoadAsync(db, debitNote, cancellationToken);
+        if (await DebitNoteSerials.FindProblemAsync(db, debitNote, serialsByLine, requireCount: true, cancellationToken)
+            is { } serialProblem)
+        {
+            throw new ConflictException(serialProblem);
+        }
+
         var code = await numberGenerator.GetNextNumberAsync(
             request.OrganizationId, DocumentType.DebitNote, cancellationToken, debitNote.LocationId);
 
@@ -154,11 +164,8 @@ public sealed class ApproveDebitNoteCommandHandler(
             // ExpenditureClassification precedent: a return line's attributes are resolved from the
             // source bill's matching line rather than re-derived. Here the batch only narrows which
             // layers FIFO may choose -- phase 37's answer to what a return relieves *at* is
-            // untouched, because it is still whatever those layers give up.
-            var serialsByLine = await LineStockAllocator.LoadSerialsAsync(
-                db, request.OrganizationId, DocumentLineParentType.DebitNoteLine,
-                goodsLines.Select(x => x.Id).ToList(), cancellationToken);
-
+            // untouched, because it is still whatever those layers give up. Phase 92 -- the serials were loaded and
+            // checked above, before the number.
             foreach (var line in goodsLines)
             {
                 var consumption = await LineStockAllocator.ConsumeLineAsync(

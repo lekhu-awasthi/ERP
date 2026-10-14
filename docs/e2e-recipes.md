@@ -506,3 +506,13 @@ beside a 200 from the same user, and create a fresh Organization per phase.
   Admin and **403 naming `Pos.Session.Operate`** from a role holding every Admin key but that, beside a 200 on
   `GET /billing-locations`; a real order's waived bill is **403 naming `<CODE>.Sales.Invoice.TillRemoveServiceCharge`**
   beside the same bill charged (200).
+- Phase 92. A debit note's units: `GET /purchase-bills/{id}/debit-note-conversion-template` lines carry the bill's units
+  still on the shelf; `POST /debit-notes {contactId, date, tdsTypeId, warehouseId, discountPct, referrerType:
+  "PurchaseBill", referrerId, lines: [{productId, quantity, rate, vatRate, serialNumbers}]}` (201), a bodiless-`{}`
+  approve, and `POST /debit-notes/{id}/void` with no body. A standalone note drops the referrer and must name
+  `warehouseId` for a goods line. A unit already in stock on `POST /purchase-bills` is a 400 naming `Lines[i]`; two
+  drafts of one new unit make the second approve a **409** ("already in stock"). `GET /accounting-defaults` keys end in
+  `AccountId` except `defaultAccountsReceivableId` and `defaultAccountsPayableId`. In SQL, a phone's
+  `inventory.StockLedgerEntries` should hold no row with `SerialNo IS NULL`. The 403 pair: a role copied from Admin
+  without `Purchasing.DebitNote.Approve` (switch `tenancy.OrganizationMemberships.RoleId` and restore it) is 403 naming
+  it on approving a nonexistent note, beside a 200 on `GET /debit-notes`; Admin gets 404.

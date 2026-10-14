@@ -38,6 +38,15 @@ public sealed class StockLedgerService(IAppDbContext db) : IStockLedgerService
             return 0m;
         }
 
+        // Phase 92 -- a unit is on one shelf at a time. Phase 51's filtered unique index said so and said it as a 500;
+        // every path that puts a serial in stock (a bill, a return, a void, a transfer) comes through here, so this is
+        // where it becomes a 409 naming the unit.
+        if (serialNo is not null && await SerialStock.IsInStockAsync(db, organizationId, productId, serialNo, cancellationToken))
+        {
+            throw new ConflictException(
+                $"Serial number '{serialNo}' is already in stock, so it cannot be received again.");
+        }
+
         var entry = StockLedgerEntry.Create(
             organizationId, productId, warehouseId, quantity, unitCost, sourceDocumentType, sourceDocumentId,
             transactionDate, locationId, batchId, serialNo);

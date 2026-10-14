@@ -100,6 +100,11 @@ public static class DocumentLineAllocationWriter
             }
         }
 
+        if (failures.Count == 0)
+        {
+            failures.AddRange(await FindSerialConflictsAsync(db, organizationId, lines, products, isReceipt, cancellationToken));
+        }
+
         if (failures.Count > 0)
         {
             throw new ValidationException(failures);
@@ -151,6 +156,68 @@ public static class DocumentLineAllocationWriter
         }
 
         return resolved;
+    }
+
+    /// <summary>
+    /// Phase 92 -- the serial rules one line cannot see: a unit named on two lines of the document, and, on a receipt,
+    /// a unit the product already holds in stock. Both reached phase 51's unique index at Approve as a 500; the vendor
+    /// validates each serial as it is typed, so a draft hears it here as a 400 naming the line, and the ledger's 409
+    /// stays the backstop for whatever changes between the save and the approval.
+    /// </summary>
+    private static async Task<List<ValidationFailure>> FindSerialConflictsAsync(
+        IAppDbContext db,
+        Guid organizationId,
+        IReadOnlyList<LineAllocationInput> lines,
+        IReadOnlyDictionary<Guid, Product> products,
+        bool isReceipt,
+        CancellationToken cancellationToken)
+    {
+        var failures = new List<ValidationFailure>();
+        var named = new HashSet<(Guid ProductId, string SerialNo)>();
+
+        for (var i = 0; i < lines.Count; i++)
+        {
+            // Compared as the database compares them (case-insensitively); a repeat within one line is that line's own
+            // message, from ValidateLineAllocation.
+            foreach (var serial in (lines[i].SerialNumbers ?? []).Select(x => x.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                if (!named.Add((lines[i].ProductId, serial.ToUpperInvariant())))
+                {
+                    failures.Add(new ValidationFailure(
+                        $"Lines[{i}]", $"Serial number '{serial}' is named on two lines of this document."));
+                }
+            }
+        }
+
+        if (failures.Count > 0 || !isReceipt)
+        {
+            return failures;
+        }
+
+        foreach (var productLines in lines.Select((line, i) => (Line: line, Index: i))
+            .Where(x => x.Line.SerialNumbers is { Count: > 0 } && products.ContainsKey(x.Line.ProductId))
+            .GroupBy(x => x.Line.ProductId))
+        {
+            var inStock = await SerialStock.InStockAsync(
+                db, organizationId, productLines.Key,
+                [.. productLines.SelectMany(x => x.Line.SerialNumbers!)], cancellationToken);
+
+            foreach (var (line, index) in productLines)
+            {
+                var held = inStock.FirstOrDefault(s =>
+                    line.SerialNumbers!.Any(n => string.Equals(n.Trim(), s, StringComparison.OrdinalIgnoreCase)));
+                if (held is not null)
+                {
+                    failures.Add(new ValidationFailure(
+                        $"Lines[{index}]",
+                        $"Serial number '{held}' of '{products[productLines.Key].Name}' is already in stock, so it "
+                            + "cannot be received again."));
+                }
+            }
+        }
+
+        return failures;
     }
 
     /// <summary>

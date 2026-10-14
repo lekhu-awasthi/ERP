@@ -32,6 +32,10 @@ import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 import { LineUnitControl, LineUnitOption } from '../../../shared/catalog/line-unit-control';
 import { UnitOfMeasurementStore } from '../../../shared/catalog/unit-of-measurement-store';
 import { nepalToday } from '../../../shared/formatting/nepal-time';
+import { OrganizationsService } from '../../../core/organizations/organizations.service';
+import { Warehouse } from '../../../core/organizations/organizations.models';
+import { defaultWarehouseSeed } from '../../../shared/locations/default-warehouse-seed';
+import { acceptSerialEntry, parseSerials, serialProgress } from '../../../shared/catalog/serial-entry';
 
 interface EditableLine {
   key: number;
@@ -47,6 +51,15 @@ interface EditableLine {
    * freezes it on the line, so a client cannot claim a conversion the product does not have.
    */
   unitId: string;
+
+  /**
+   * Phase 92 -- the units of a serial-tracked product the line sends back, as the comma-separated text the credit
+   * note's serial control holds (phase 91). A converted note's template prefills the units still on the shelf; the
+   * server checks each one and asks for the whole quantity at Approve.
+   */
+  serialsText: string;
+  /** The serial the box's last Enter took out as a repeat, named under it until the next keystroke. */
+  serialRepeat?: string | null;
 }
 
 let nextLineKey = 1;
@@ -77,6 +90,7 @@ export class DebitNoteDetailPage {
   private readonly accountingService = inject(AccountingService);
   private readonly configurationService = inject(ConfigurationService);
   private readonly pendingTemplateStore = inject(PendingTemplateStore);
+  private readonly organizationsService = inject(OrganizationsService);
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
 
@@ -116,6 +130,16 @@ export class DebitNoteDetailPage {
    * this document type is outside the tenant's `LocationScopeMode`.
    */
   protected readonly locationId = signal('');
+
+  /**
+   * Phase 92 -- where a Goods line's stock leaves from. Phase 43 made the server require it for a goods return and no
+   * screen ever sent it: a converted note fell back to its bill's warehouse, and a standalone one was a 400 from Save.
+   * The vendor's form has the same required field (read live 2026-10-14). Seeded from the location's default, as the
+   * purchase bill's is (phase 35a), and prefilled from the bill on a conversion.
+   */
+  protected readonly warehouseId = signal('');
+  protected readonly warehouses = signal<Warehouse[]>([]);
+  protected readonly warehouseSeed = defaultWarehouseSeed(this.warehouseId, this.warehouses);
   protected readonly tdsTypeId = signal('');
   protected readonly lines = signal<EditableLine[]>([]);
   protected readonly discountPct = signal(0);
@@ -169,6 +193,13 @@ export class DebitNoteDetailPage {
     locationAwareProducts(this.organizationId, this.locationId, this.products);
     this.accountingService.listAllAccounts(this.organizationId).subscribe({ next: (a) => this.accounts.set(a) });
     this.configurationService.listTdsTypes(this.organizationId).subscribe({ next: (t) => this.tdsTypes.set(t) });
+    this.organizationsService.listWarehouses(this.organizationId).subscribe({
+      next: (w) => {
+        this.warehouses.set(w);
+        // Whichever of the warehouses and the location's default lands second completes the prefill (phase 35a).
+        this.warehouseSeed.retry();
+      },
+    });
 
     this.route.paramMap.subscribe((params) => {
       this.routeDebitNoteId = params.get('debitNoteId')!;
@@ -195,13 +226,16 @@ export class DebitNoteDetailPage {
           this.currencyCode.set(template.currencyCode);
           this.exchangeRate.set(template.exchangeRate);
           this.tdsTypeId.set(template.tdsTypeId ?? '');
+          this.warehouseId.set(template.warehouseId ?? '');
           this.referrerType = template.referrerType;
           this.referrerId = template.referrerId;
           this.isLinkedToSource.set(true);
           this.discountPct.set(template.discountPct);
           this.lines.set(
             template.lines.length > 0
-              ? template.lines.map((l) => ({ key: nextLineKey++, ...l, unitId: l.unitId ?? '' }))
+              ? template.lines.map((l) => ({
+                  key: nextLineKey++, ...l, unitId: l.unitId ?? '', serialsText: (l.serialNumbers ?? []).join(', '),
+                }))
               : [this.newLine()],
           );
         } else {
@@ -212,6 +246,7 @@ export class DebitNoteDetailPage {
           this.currencyCode.set(BASE_CURRENCY_CODE);
           this.exchangeRate.set(1);
           this.tdsTypeId.set('');
+          this.warehouseId.set('');
           this.discountPct.set(0);
           this.lines.set([this.newLine()]);
         }
@@ -285,6 +320,10 @@ export class DebitNoteDetailPage {
     if (!lines) {
       return;
     }
+    if (!this.warehouseId() && lines.some((l) => this.products().find((p) => p.id === l.productId)?.type === 'Goods')) {
+      this.fieldError.fail('debit-note-detail-page-warehouse', 'Select the Warehouse the goods are returned from.');
+      return;
+    }
 
     this.saving.set(true);
     this.errorMessage.set(null);
@@ -296,6 +335,7 @@ export class DebitNoteDetailPage {
       exchangeRate: this.exchangeRate(),
       contactId: this.contactId(),
       date: this.date(), locationId: this.locationId() || null,
+      warehouseId: this.warehouseId() || null,
       reference: this.reference() || null,
       tdsTypeId: this.tdsTypeId() || null,
       referrerType: this.referrerType,
@@ -395,6 +435,8 @@ export class DebitNoteDetailPage {
         vatRate: l.vatRate,
         discountPct: l.discountPct,
         unitId: l.unitId || null,
+        // Phase 92 -- only a line that names units sends them.
+        serialNumbers: parseSerials(l.serialsText),
       }));
 
     if (lines.length === 0) {
@@ -422,12 +464,44 @@ export class DebitNoteDetailPage {
     return this.units().find((u) => u.id === unitId)?.shortName ?? '';
   }
 
+  /** Phase 92 -- the serial control's text, written by its own event handler (zoneless, phase 17). */
+  protected onSerialsChange(key: number, event: Event): void {
+    this.updateLine(key, { serialsText: (event.target as HTMLInputElement).value, serialRepeat: null });
+  }
+
+  /**
+   * A barcode scanner types the serial and presses Enter, which ends it: repeats out and a separator in, so the next
+   * scan starts a new serial instead of running on into this one (`serial-entry.ts`). The box is written by hand as
+   * well, because the tidied text can equal what the binding last wrote (phase 91's gotcha).
+   */
+  protected onSerialsEnter(key: number, event: Event): void {
+    event.preventDefault();
+    const box = event.target as HTMLInputElement;
+    const entry = acceptSerialEntry(box.value);
+    box.value = entry.text;
+    this.updateLine(key, { serialsText: entry.text, serialRepeat: entry.repeated });
+  }
+
+  /** Under the serial box: how many of the line's quantity are named, and a repeat the last Enter took out. */
+  protected serialHint(line: EditableLine): string {
+    const progress = serialProgress(line.serialsText, line.quantity);
+    return line.serialRepeat ? `${line.serialRepeat} is already on this line. ${progress}` : progress;
+  }
+
+  /** Phase 92 -- whether a line's product is serial-tracked, so its row offers the serial control. */
+  protected isSerialTracked(productId: string): boolean {
+    return this.products().find((p) => p.id === productId)?.serialTracking === true;
+  }
+
   private updateLine(key: number, patch: Partial<Omit<EditableLine, 'key'>>): void {
     this.lines.update((lines) => lines.map((l) => (l.key === key ? { ...l, ...patch } : l)));
   }
 
   private newLine(): EditableLine {
-    return { unitId: '',  key: nextLineKey++, productId: '', quantity: 1, rate: 0, vatRate: 'NoVat', discountPct: 0};
+    return {
+      unitId: '', key: nextLineKey++, productId: '', quantity: 1, rate: 0, vatRate: 'NoVat', discountPct: 0,
+      serialsText: '',
+    };
   }
 
   private today(): string {
@@ -450,6 +524,7 @@ export class DebitNoteDetailPage {
         this.currencyCode.set(debitNote.currencyCode);
         this.exchangeRate.set(debitNote.exchangeRate);
         this.tdsTypeId.set(debitNote.tdsTypeId ?? '');
+        this.warehouseId.set(debitNote.warehouseId ?? '');
         this.referrerType = debitNote.referrerType;
         this.referrerId = debitNote.referrerId;
         this.isLinkedToSource.set(debitNote.referrerId !== null);
@@ -466,6 +541,8 @@ export class DebitNoteDetailPage {
                 // Phase 52 -- read back, not only written: phase 35a's rule is write, READ, and
                 // every prefill between, and the read half is the one no compiler checks.
                 unitId: l.unitId ?? '',
+                // Phase 92 -- the same rule for the units a line sends back.
+                serialsText: (l.serialNumbers ?? []).join(', '),
               }))
             : [this.newLine()],
         );

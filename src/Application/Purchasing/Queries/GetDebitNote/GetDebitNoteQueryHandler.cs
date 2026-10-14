@@ -18,6 +18,8 @@ public sealed class GetDebitNoteQueryHandler(IAppDbContext db) : IRequestHandler
             .SingleOrDefaultAsync(x => x.Id == request.Id && x.OrganizationId == request.OrganizationId, cancellationToken)
             ?? throw new NotFoundException("Debit note not found.");
 
+        var serials = await DebitNoteSerials.LoadAsync(db, debitNote, cancellationToken);
+
         IReadOnlyList<PostedGlLineDto>? glLines = null;
 
         if (debitNote.Status == DebitNoteStatus.Approved)
@@ -59,7 +61,10 @@ public sealed class GetDebitNoteQueryHandler(IAppDbContext db) : IRequestHandler
             debitNote.DiscountPct,
             debitNote.Lines.Select(x => new DebitNoteLineDto(
                 x.Id, x.ProductId, x.Quantity, x.Rate, x.VatRate, x.DiscountPct, x.Amount, x.VatAmount,
-                x.UnitId, x.UnitId is null ? null : unitNames.GetValueOrDefault(x.UnitId.Value), x.ConversionFactor)).ToList(),
+                x.UnitId, x.UnitId is null ? null : unitNames.GetValueOrDefault(x.UnitId.Value), x.ConversionFactor)
+            {
+                SerialNumbers = serials.GetValueOrDefault(x.Id) ?? [],
+            }).ToList(),
             glLines,
             debitNote.CurrencyCode,
             debitNote.ExchangeRate,

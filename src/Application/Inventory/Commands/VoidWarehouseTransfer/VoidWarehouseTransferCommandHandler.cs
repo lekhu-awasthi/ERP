@@ -36,7 +36,7 @@ public sealed class VoidWarehouseTransferCommandHandler(
         var destinationLayers = await db.StockLedgerEntries
             .Where(x => x.OrganizationId == request.OrganizationId
                 && x.SourceDocumentType == DocumentType.WarehouseTransfer && x.SourceDocumentId == warehouseTransfer.Id)
-            .Select(x => new { x.ProductId, x.QuantityIn, x.UnitCost })
+            .Select(x => new { x.ProductId, x.QuantityIn, x.UnitCost, x.BatchId, x.SerialNo })
             .ToListAsync(cancellationToken);
 
         // Fail fast (409) before mutating anything if any destination layer is already consumed.
@@ -59,7 +59,10 @@ public sealed class VoidWarehouseTransferCommandHandler(
                 request.OrganizationId, layer.ProductId, warehouseTransfer.FromWarehouseId,
                 PrimaryQuantity.AlreadyPrimary(layer.QuantityIn), layer.UnitCost,
                 DocumentType.WarehouseTransfer, warehouseTransfer.Id, warehouseTransfer.Date, cancellationToken,
-                warehouseTransfer.LocationId);
+                warehouseTransfer.LocationId,
+                // Phase 92 -- back under the keys it travelled with: Approve preserved each relief's batch and serial
+                // on the destination layer, and this void had put them home as neither.
+                layer.BatchId, layer.SerialNo);
         }
 
         await StockCostCatchUp.PostAsync(

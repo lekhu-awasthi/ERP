@@ -61,7 +61,9 @@ internal static class PosSellableProducts
             query = query.Where(x => x.CategoryId == category);
         }
 
-        string? scannedSerial = null;
+        // Phase 92 -- by product: one serial may be in stock on two products (serials are unique per product, since two
+        // makers' numbers can collide), and each row names its own product's unit as received.
+        var scannedSerials = new Dictionary<Guid, string>();
 
         // Exact, for a scanner: single-argument equality is case-insensitive on SQL Server's
         // collation, as Contains is (phase 34b).
@@ -79,16 +81,19 @@ internal static class PosSellableProducts
 
                 // The layer's own serial, not the scan's: a cashier typing imei-2 sells IMEI-2, and the sale should
                 // name the unit as it was received (the match is the collation's, case-insensitive).
-                var serial = await db.StockLedgerEntries
+                var held = await db.StockLedgerEntries
                     .Where(l => l.OrganizationId == organizationId && l.WarehouseId == warehouseId
                         && l.SerialNo == exact && l.QuantityRemaining > 0)
-                    .Select(l => l.SerialNo)
-                    .FirstOrDefaultAsync(cancellationToken);
+                    .Select(l => new { l.ProductId, SerialNo = l.SerialNo! })
+                    .ToListAsync(cancellationToken);
 
-                if (serial is not null && await bySerial.AnyAsync(cancellationToken))
+                if (held.Count > 0 && await bySerial.AnyAsync(cancellationToken))
                 {
                     byCode = bySerial;
-                    scannedSerial = serial;
+                    foreach (var unit in held)
+                    {
+                        scannedSerials.TryAdd(unit.ProductId, unit.SerialNo);
+                    }
                 }
             }
 
@@ -137,7 +142,8 @@ internal static class PosSellableProducts
 
                 return new PosProductDto(
                     p.Id, p.Code, p.Name, p.CategoryId, p.Type, p.VatRate, rate, p.ServiceChargeApplicable,
-                    p.PackagingFeeApplicable, p.BatchTracking, p.SerialTracking, p.Barcode, units, scannedSerial);
+                    p.PackagingFeeApplicable, p.BatchTracking, p.SerialTracking, p.Barcode, units,
+                    scannedSerials.GetValueOrDefault(p.Id));
             })
             .ToList();
 

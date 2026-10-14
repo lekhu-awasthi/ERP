@@ -4734,3 +4734,15 @@ The till's scan-by-serial matched `SerialNo == code`, which SQL Server compares 
 ## Pricing a part apart from the whole: record what the part was not charged (phase 91)
 
 A guest declining the service charge on their own bill is phase 83's part discount in another figure: "the last of a line takes what is left of the whole" charges the next guest the service charge the first declined, unless each bill records what it declined (`InvoiceLine.PartServiceChargeWaived`) and the whole is priced less every such record over bills not voided. Store the waived line at service charge rate 0 too: refunds and the sales readers rebuild every figure from the line's own rate. A twin tab (the same order billed without the waiver) is the test that the next guest's bill is unchanged to the paisa.
+
+## Phase 51's un-serialled restock had four copies, not one (phase 92)
+
+Phase 91 fixed the credit note, which restocked a serial-tracked return as one layer of the whole quantity with no serial. Grepping every `IncrementAsync` caller found the same shape in voiding an invoice (a till sale included), a debit note and a warehouse transfer, the last also dropping the batch its destination layer carried. Each fix is the same: restock through `LineStockAllocator.IncrementLineAsync` with the line's serials and batch, at the cost the void always used. When one path of a family is found wrong, census every member before calling it fixed.
+
+## A uniqueness check inside one unit of work must read the change tracker (phase 92)
+
+The ledger now refuses a serial already in stock before writing its layer. A database read alone sees the source layer of a transfer still at one, because the consume that zeroed it is unsaved, and so refuses every serialised transfer. It also misses two lines of one bill that both name the unit, because neither is saved. `SerialStock.IsInStockAsync` loads the matching rows, which identity resolution hands back as the tracked instances, then asks `Local`.
+
+## A required field no screen sends is a feature the screen cannot use (phase 92)
+
+Phase 43 made `DebitNote.WarehouseId` required for a goods line, with a fallback to the source bill's warehouse on a conversion. The form never gained the control, so converted notes worked through the fallback and a standalone goods return was a 400 from Save for 49 phases. No test saw it, because every test sent the field. Phase 29's "grep `web/` for the field name" applies to a required header field as much as to a tenant default.

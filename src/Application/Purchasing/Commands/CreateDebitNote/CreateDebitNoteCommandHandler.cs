@@ -77,6 +77,10 @@ public sealed class CreateDebitNoteCommandHandler(IAppDbContext db)
         // Phase 69 -- a return stays in its bill's currency (the credit note's mirror).
         await PurchasingValidation.EnsureDebitNoteInBillCurrencyAsync(db, debitNote, cancellationToken);
 
+        // Phase 92 -- the units each line sends back (phase 51 read them at Approve and nothing wrote them).
+        await DebitNoteSerials.SaveDraftAsync(
+            db, debitNote, [.. request.Lines.Select(x => x.SerialNumbers)], [], cancellationToken);
+
         db.DebitNotes.Add(debitNote);
         await db.SaveChangesAsync(cancellationToken);
 

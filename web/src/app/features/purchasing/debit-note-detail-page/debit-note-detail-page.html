@@ -12,6 +12,7 @@
       documentType="DebitNote"
       [disabled]="!isDraft()"
       [(locationId)]="locationId"
+      (defaultWarehouseId)="warehouseSeed.offer($event)"
     />
     @if (debitNote(); as dn) {
       @if (dn.status === 'Approved') {
@@ -98,6 +99,25 @@
               (valueChange)="date.set($event)"
               [disabled]="!isDraft()"
             />
+          </div>
+          <div class="col-12 col-sm-6">
+            <!-- Phase 92 -- where the returned goods leave from (the server has required it for a goods line since
+                 phase 43). Native select: [selected] per option, never [value] on the select (phase 5). -->
+            <label class="form-label small fw-semibold" for="debit-note-detail-page-warehouse">Warehouse (for goods)</label>
+            <select id="debit-note-detail-page-warehouse"
+              [class.is-invalid]="fieldError.is('debit-note-detail-page-warehouse')"
+              [attr.aria-invalid]="fieldError.invalid('debit-note-detail-page-warehouse')"
+              [attr.aria-describedby]="fieldError.describedBy('debit-note-detail-page-warehouse')"
+              class="form-select"
+              (change)="warehouseId.set($any($event.target).value)"
+              [disabled]="!isDraft()"
+            >
+              <option value="" [selected]="!warehouseId()">Select a warehouse</option>
+              @for (warehouse of warehouses(); track warehouse.id) {
+                <option [value]="warehouse.id" [selected]="warehouse.id === warehouseId()">{{ warehouse.name }}</option>
+              }
+            </select>
+            <app-field-error [state]="fieldError" control="debit-note-detail-page-warehouse" />
           </div>
           <div class="col-12 col-sm-6">
             <label class="form-label small fw-semibold" for="debit-note-detail-page-reference">Reference</label>
@@ -213,6 +233,22 @@
                       </select>
                     } @else {
                       {{ productLabel(line.productId) }}
+                    }
+                    @if (isDraft() && isSerialTracked(line.productId)) {
+                      <!-- Phase 92 -- one unit per serial: the units going back to the supplier, from the shelf. -->
+                      <input
+                        [attr.aria-label]="'Serial numbers returned of ' + productLabel(line.productId)"
+                        type="text"
+                        class="form-control form-control-sm mt-1"
+                        placeholder="Serial nos (scan, or comma separated)"
+                        [value]="line.serialsText"
+                        (input)="onSerialsChange(line.key, $event)"
+                        (keydown.enter)="onSerialsEnter(line.key, $event)"
+                        [attr.aria-describedby]="'serial-hint-' + line.key"
+                      />
+                      <div class="small text-body-secondary" [id]="'serial-hint-' + line.key" aria-live="polite">{{ serialHint(line) }}</div>
+                    } @else if (line.serialsText) {
+                      <div class="small text-body-secondary">SN {{ line.serialsText }}</div>
                     }
                   </td>
                   <td class="text-end">

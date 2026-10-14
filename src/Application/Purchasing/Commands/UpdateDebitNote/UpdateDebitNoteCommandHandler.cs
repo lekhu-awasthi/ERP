@@ -90,6 +90,11 @@ public sealed class UpdateDebitNoteCommandHandler(IAppDbContext db)
 
         await PurchasingValidation.EnsureDebitNoteInBillCurrencyAsync(db, debitNote, cancellationToken);
 
+        // Phase 92 -- the units each line sends back, replacing the old lines' rows.
+        await DebitNoteSerials.SaveDraftAsync(
+            db, debitNote, [.. request.Lines.Select(x => x.SerialNumbers)], [.. oldLines.Select(x => x.Id)],
+            cancellationToken);
+
         db.DebitNoteLines.RemoveRange(oldLines);
         db.DebitNoteLines.AddRange(debitNote.Lines);
 

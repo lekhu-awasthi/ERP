@@ -482,6 +482,12 @@ export interface DebitNoteLineInput {
    * the server resolves it from the catalogue once and freezes it on the line.
    */
   unitId?: string | null;
+  /**
+   * Phase 92 -- the units of a serial-tracked product this line sends back to the supplier, each in stock at the
+   * note's warehouse (and, on a converted note, one its bill received). The conversion template prefills those still
+   * on the shelf; read back on the detail.
+   */
+  serialNumbers?: string[] | null;
 }
 
 export interface DebitNote {
@@ -522,6 +528,8 @@ export interface DebitNoteDetail extends DebitNote {
   exchangeRate: number;
   lines: DebitNoteLineDto[];
   glLines: PostedGlLineDto[] | null;
+  /** Phase 43 -- where a Goods line's stock is returned from; phase 92 reads it back into the form, which had none. */
+  warehouseId: string | null;
 }
 
 export interface DebitNoteRequest {
@@ -539,6 +547,12 @@ export interface DebitNoteRequest {
   /** Phase 32/35a -- omitting it (or null) means "the tenant's default location", which the server
    * resolves to HeadOffice, or to nothing when this document type is out of the tenant's scope. */
   locationId?: string | null;
+  /**
+   * Phase 43 -- where a Goods line's stock is returned from: required when any line is Goods (a 400 naming it
+   * otherwise). Null on a conversion means the source bill's. Phase 92 -- the form sends it; until then a standalone
+   * goods return could not be saved from the screen at all.
+   */
+  warehouseId?: string | null;
 }
 
 export interface CreateDebitNoteResult {
@@ -582,6 +596,8 @@ export interface DebitNoteConversionTemplate {
   /** Phase 69 -- the source's currency and rate, carried verbatim as the reference product does. */
   currencyCode: string;
   exchangeRate: number;
+  /** Phase 43 -- the bill's warehouse, which the return leaves from unless the clerk picks another. */
+  warehouseId: string | null;
 }
 
 // --- Purchase Master Report (Phase 8b) ---

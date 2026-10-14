@@ -8,6 +8,9 @@ namespace ErpApp.Application.Purchasing;
 /// that is neither the product's primary nor one of its secondary units is a 400 naming the
 /// line. The conversion factor is <b>not</b> accepted from the client: it is resolved from the
 /// catalogue once, by <c>DocumentLineUnitResolver</c>, and frozen on the line.</param>
+/// <param name="SerialNumbers">Phase 92 -- the units of a serial-tracked product this line sends back to the supplier,
+/// each in stock at the note's warehouse and, on a converted note, one its bill received (<c>DebitNoteSerials</c>); the
+/// conversion template prefills those still on the shelf.</param>
 public sealed record DebitNoteLineInput(
     Guid ProductId, decimal Quantity, decimal Rate, VatRate VatRate, decimal DiscountPct = 0,
-    Guid? UnitId = null);
+    Guid? UnitId = null, IReadOnlyList<string>? SerialNumbers = null);

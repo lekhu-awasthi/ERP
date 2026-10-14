@@ -123,6 +123,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 89: the VAT Summary is the IRD return (a BS fiscal year, twelve month columns, English + the form's Nepali, credit carried across years) read through the registers' readers (`SalesBookReader`, `PurchaseBookReader`); expenses join the purchase book; Annex 5/13 export in BS; the client's day is the Nepal day in 67 sources. Before a statutory report, a client date default, or a new caller of a shared reader — `docs/phase-89-status.md`
 - Phase 90: an expense's VAT read live (as ours); Annex 13 before VAT (gross since 8e); the purchase book's *Invoice No* is the supplier's; one contact's settlements read through a subquery (38,015 → 238 reads); the return's history read measured and left. Before narrowing a slow query, filtering a shared reader by contact, or a statutory figure's basis — `docs/phase-90-status.md`
 - Phase 91: serials at the till (a picker, a scan by serial; off restaurant orders) and on returns (`CreditNoteSerials`: each unit restocks as its own layer, phase 51's gap); the refund's owed read narrowed by the sale (56,566 → 59); one guest declining the service charge. Before a reader asked about one document, or pricing a part apart — `docs/phase-91-status.md`
+- Phase 92: serial integrity (`DebitNoteSerials`; voids of an invoice, debit note and transfer restock each unit under its serial; `SerialStock` refuses a unit received twice, 400 at the draft and 409 in the ledger; the debit note's missing warehouse). Before any path that puts stock back, or a required header field — `docs/phase-92-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -268,6 +269,8 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A serial is a FIFO layer of **quantity one**, so specific identification and FIFO are the same walk with a different selector — and the report's *Status* filter is `QuantityRemaining`, not a modelled lifecycle (phase-51).
 - A serialised issue is refused whatever the Negative Item Balance setting says: naming a unit that was never received is a typo, not an oversell (phase-51).
 - A status doc saying a return "re-enters stock as a layer carrying the SerialNo" is not code: nothing wrote a credit note's serials for 40 phases. Grep for the call (phase-91).
+- …and the same bug had three more copies: voiding an invoice, a debit note or a transfer restocked a serial line nameless. When one member of a family is wrong, census every member (phase-92).
+- A uniqueness check inside one unit of work reads the change tracker too: a transfer's unsaved consume leaves the stored source layer at one, so a database read refuses every serialised transfer (phase-92).
 - A shortfall carries **whatever key the request named** — the batch when one was named and came up short, none when the walk was unnarrowed; and a receipt fills same-batch debts first, then un-batched ones, or an un-batched debt on a tracked product is unrepayable forever (phase-51).
 - A "reverse of X" posting rule can balance its own entry while leaving a paired control account (AP net of TDS) permanently off; trace the net effect on every account across original + reversal (phase-6 bug #3).
 - Reversals mirror the original entry's own posted lines via `GlJournalEntry.PostReversalOf` (a second entry, never a mutation); never re-derive a reversal from the posting rule (phase-16a).
@@ -331,6 +334,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - Rich text is sanitised on write, in the Domain setter, by re-emission from a parsed tree, never by filtering; `Sanitize` must stay idempotent (phase-39).
 - A rich-text grammar is its **renderer's capability list**: decide what `RichTextPdfRenderer` can draw, then build the toolbar, or the field looks one way on screen and another in the PDF the customer receives (phase-39).
 - A tenant-level field is reachable only if you can name the command that writes it and the screen that calls it; a read path proves nothing about the write path (phase-31).
+- …and a **required** field no screen sends is a feature the screen cannot use: the debit-note form never had phase 43's warehouse, so a standalone goods return was a 400 from Save (phase-92).
 - A field an aggregate refuses to expose should be **absent** from the request record, not merely unwritten — present-and-ignored reads to a client as accepted (phase-43's `WorkspaceName`).
 - …and a **row** no read can apply is the same lie: a location's template for a type carrying no location under the scope is a 409, not a stored choice (phase-75).
 - The credit-note list returns `CreditNoteListItemDto`, not its aggregate: a new `CreditNote` header field reaches that list only if the DTO gains it (phase-86).
@@ -590,27 +594,24 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 
 ## Current status
 
-**Phases 0-91 are complete. Next: not yet scheduled** (the user picks; candidates in `docs/roadmap.md`).
+**Phases 0-92 are complete. Next: not yet scheduled** (the user picks; candidates in `docs/roadmap.md`).
 Each phase's story is in its `docs/phase-N-status.md`, and finished planning entries are archived in
 `docs/roadmap-history.md`.
 
-**Phase 91 sold serial-tracked products at the till, made returns carry their serials, narrowed the refund's owed read,
-and let one guest decline the service charge.**
+**Phase 92 made serials hold through every movement of stock.**
 
-- The till offers a picker of the units in stock and finds a phone by its scanned serial; payment waits for every unit
-  to be named. Restaurant orders refuse serial products.
-- Credit notes carry serials (`CreditNoteSerials`): till refunds tick the sale's units, ERP notes are prefilled, and each
-  unit restocks as its own layer. Phase 51 had restocked them with no serial.
-- `OutstandingDocumentReader` takes `invoiceId`: the refund screen's read fell 56,566 → 59 logical reads, with a measured
-  `CreditNotes (OrganizationId, ReferrerId)` index. One guest's declined service charge is `InvoiceLine.PartServiceChargeWaived`.
-  Two migrations, no new keys.
+- A debit note names the units it sends back (`DebitNoteSerials`), prefilled with the bill's units still on the shelf;
+  the debit-note form gains the serial box and the warehouse phase 43 required and no screen sent.
+- Voiding an invoice, a debit note or a transfer restocks each unit under its serial (phase 51's bug, three more copies).
+- A unit already in stock is refused on receipt (`SerialStock`: 400 at the draft, 409 in the ledger); the till's scan
+  across two products names each one's own unit. No migration, no new keys.
 
-**Next:** not yet scheduled. Candidates: phase 91 § 5 (serials on a debit note, a serial on the printed bill, the tenant
-switch), phase 79 § 5 (positioning, renames, the vendor's DN/GRN/WT templates, lakh grouping, the money receipt on the
-roll), phase 88 § 5 (the vendor's per-row allocation table), phase 87 § 5 / Decision G, phase 62 § 5's barcode index.
+**Next:** not yet scheduled. Candidates: phase 92 § 5 (a void's un-narrowed batch, `DebitNoteLine.BatchId`, the serial
+length 500), phase 91 § 5 (a serial on the printed bill, the tenant switch), phase 79 § 5, phase 88 § 5, phase 87 § 5 /
+Decision G, phase 62 § 5's barcode index.
 
-Tests: Domain 1040, Application.UnitTests **1832**, Infrastructure.UnitTests 14,
-Api.IntegrationTests 76, Angular 900. Everything was green at phase 91's close with Docker up.
+Tests: Domain 1040, Application.UnitTests **1840**, Infrastructure.UnitTests 14,
+Api.IntegrationTests 76, Angular **902**. Everything was green at phase 92's close with Docker up.
 The bundle sits at **653.05 kB** against `build-budget.spec.ts`'s 680 kB; every POS screen is lazy.
 
 - `Api.IntegrationTests` needs Docker Desktop running. Without it the Testcontainers-backed tests

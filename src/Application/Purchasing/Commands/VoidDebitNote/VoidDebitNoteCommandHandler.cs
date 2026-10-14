@@ -62,11 +62,16 @@ public sealed class VoidDebitNoteCommandHandler(
 
         if (sourceWarehouseId is { } warehouseId)
         {
+            // Phase 92 -- each unit the note sent back comes home as its own layer, as Approve took it out; phase 51
+            // restocked the whole quantity with no serial.
+            var serialsByLine = await DebitNoteSerials.LoadAsync(db, debitNote, cancellationToken);
+
             foreach (var line in debitNote.Lines.Where(x => x.ConsumedUnitCost is not null))
             {
-                costCatchUp += await stockLedgerService.IncrementAsync(
-                    request.OrganizationId, line.ProductId, warehouseId, line.PrimaryQuantity,
-                    line.ConsumedUnitCost!.Value,
+                costCatchUp += await LineStockAllocator.IncrementLineAsync(
+                    stockLedgerService, request.OrganizationId, line.ProductId, warehouseId, line.PrimaryQuantity,
+                    line.ConsumedUnitCost!.Value, line.BatchId,
+                    serialsByLine.TryGetValue(line.Id, out var serials) ? serials : [],
                     DocumentType.DebitNote, debitNote.Id, debitNote.Date, cancellationToken, debitNote.LocationId);
             }
         }

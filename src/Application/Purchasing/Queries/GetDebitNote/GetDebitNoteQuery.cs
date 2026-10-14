@@ -28,7 +28,11 @@ public sealed record GetDebitNoteQuery(Guid OrganizationId, Guid Id)
 /// wire that can contradict the first.</param>
 public sealed record DebitNoteLineDto(
     Guid Id, Guid ProductId, decimal Quantity, decimal Rate, VatRate VatRate, decimal DiscountPct, decimal Amount, decimal VatAmount,
-    Guid? UnitId, string? UnitName, decimal ConversionFactor);
+    Guid? UnitId, string? UnitName, decimal ConversionFactor)
+{
+    /// <summary>Phase 92 -- the units of a serial-tracked product this line sends back.</summary>
+    public IReadOnlyList<string> SerialNumbers { get; init; } = [];
+}
 
 public sealed record PostedGlLineDto(Guid Id, Guid AccountId, decimal Debit, decimal Credit);
 

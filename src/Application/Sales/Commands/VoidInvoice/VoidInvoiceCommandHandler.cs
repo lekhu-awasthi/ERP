@@ -10,6 +10,7 @@ using ErpApp.Domain.Pos;
 using ErpApp.Domain.Sales;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using ErpApp.Domain.Inventory;
 
 namespace ErpApp.Application.Sales.Commands.VoidInvoice;
 
@@ -97,6 +98,13 @@ public sealed class VoidInvoiceCommandHandler(IAppDbContext db, ICurrentUserServ
 
         var costCatchUp = 0m;
 
+        // Phase 92 -- what each line took, by the keys it named: phase 51 restocked a serial-tracked line as one layer
+        // of the whole quantity with no serial, and a batch-named line into no batch, so a voided sale's phone could
+        // never be sold by its serial again. A line naming neither takes exactly the path it always took.
+        var serialsByLine = await LineStockAllocator.LoadSerialsAsync(
+            db, request.OrganizationId, DocumentLineParentType.InvoiceLine,
+            [.. invoice.Lines.Where(x => x.CogsUnitCost is not null).Select(x => x.Id)], cancellationToken);
+
         foreach (var line in invoice.Lines.Where(x => x.CogsUnitCost is not null))
         {
             // Phase 37 -- an oversold invoice left a shortfall layer behind, and putting the stock
@@ -104,9 +112,10 @@ public sealed class VoidInvoiceCommandHandler(IAppDbContext db, ICurrentUserServ
             // so filling its own shortfall usually catches up nothing. It catches up something when
             // a *later* document's shortfall is the one still outstanding, which is exactly when it
             // should.
-            costCatchUp += await stockLedgerService.IncrementAsync(
-                request.OrganizationId, line.ProductId, invoice.WarehouseId, line.PrimaryQuantity,
-                line.CogsUnitCost!.Value,
+            costCatchUp += await LineStockAllocator.IncrementLineAsync(
+                stockLedgerService, request.OrganizationId, line.ProductId, invoice.WarehouseId, line.PrimaryQuantity,
+                line.CogsUnitCost!.Value, line.BatchId,
+                serialsByLine.TryGetValue(line.Id, out var serials) ? serials : [],
                 DocumentType.Invoice, invoice.Id, invoice.Date, cancellationToken, invoice.LocationId);
         }
 

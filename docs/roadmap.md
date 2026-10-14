@@ -6,7 +6,7 @@ Guiding rule for phase sizing: each phase ends with something *runnable and demo
 
 ---
 
-## Completed phases (0–91)
+## Completed phases (0–92)
 
 One line each; phase *N*'s full story is `docs/phase-N-status.md`. The verbose index as it stood on
 2026-09-28 is archived verbatim in `roadmap-history.md` ("Completed-phases index, verbose form").
@@ -77,6 +77,7 @@ One line each; phase *N*'s full story is `docs/phase-N-status.md`. The verbose i
 | 89 | The VAT Summary is the IRD VAT return (a BS fiscal year, twelve month columns, the return's lines in English with the form's Nepali, a month's credit brought forward across the year's end), read through the registers' own readers (`SalesBookReader`, `PurchaseBookReader`) so a month equals the registers; expenses are purchases in the register and the return; Annex 5/13 and the return export in BS with AD beside it; Annex 5 gains Fiscal Year, Discount, prints and Entered By; both annexes open on this fiscal year to date; an ERP return's page names its warehouse; the client's calendar day is the Nepal day in 67 sources (reports opened, and due dates were suggested, a day early) |
 | 90 | An expense's VAT read live on the vendor (filed as ours, nothing changed); Annex 13 is before VAT, as the vendor's is (it was gross since phase 8e); the Purchase Register's *Invoice No* is the supplier's own number (a debit note's own), beside *Document No*; one contact's picker, Suggest and till refund read that contact's settlements through a subquery (38,015 → 238 reads per picker), and the voucher read is one join for every caller; the VAT return's history read measured and left; the registers' returns no longer export `-0` |
 | 91 | Serial-tracked products sell at the Retail till (a picker of the units in stock, a scan by serial, payment refused until each unit is named; kept off restaurant orders); returns carry their serials (`CreditNoteSerials`: till refunds tick the sale's units, ERP notes are prefilled; each unit restocks as its own layer, fixing phase 51's un-serialled restock); the till refund's owed read narrowed by the sale (56,566 → 59 logical reads with a measured `CreditNotes (OrganizationId, ReferrerId)` index); one guest may decline the service charge on their own bill (`InvoiceLine.PartServiceChargeWaived`), and the receipt, PDF and roll print a guest's discount apart from the order's |
+| 92 | Serial integrity: a debit note names the units it sends back (`DebitNoteSerials`; the template offers the bill's units still on the shelf, a standalone note any unit there), voiding an invoice, a debit note or a transfer restocks each unit under its serial, receiving a unit already in stock is a 400 on the draft and a 409 from the ledger (`SerialStock`), the till's scan across two products names each one's own unit, and the debit-note form gains the warehouse phase 43 required and no screen sent |
 
 ---
 
@@ -296,8 +297,12 @@ basis.
 
 **Carried from phase 91** (§ 5 there): the tenant-level switch for batch and serial tracking (the vendor's
 Configurations > General); a serial printed on the receipt and the PDF (the vendor's printed receipt unread); serials
-on a debit note (`DebitNoteLine` serials are read and never written, the credit note's bug in mirror); batch-tracked
-products at the till still sell un-narrowed.
+on a debit note were done in phase 92; batch-tracked products at the till still sell un-narrowed.
+
+**Carried from phase 92** (§ 5 there): a void of a batch-tracked line that named no batch restocks un-batched (read the
+document's Out movements per batch); `DebitNoteLine.BatchId` is read and never written (the batch half of phase 92's
+serial bug); a serial over 100 characters is a 500 on every serial path (a validator rule); two approvals racing for one
+serial still meet only the unique index.
 
 **Carried from phase 62** (§ 5 there):
 
