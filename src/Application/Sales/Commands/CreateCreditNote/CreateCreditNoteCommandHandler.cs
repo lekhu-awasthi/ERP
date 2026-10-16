@@ -66,12 +66,23 @@ public sealed class CreateCreditNoteCommandHandler(IAppDbContext db)
             [.. request.Lines.Select(x => new DocumentLineUnitResolver.LineUnitInput(x.ProductId, x.UnitId))],
             cancellationToken);
 
+        // Phase 93 -- the batch each line brings back (only a note converted from its invoice restocks, so only it names
+        // one): phase 63 restocked under the line's BatchId and nothing on the ERP wrote it.
+        var batches = await DocumentLineAllocationWriter.ResolveNoteBatchesAsync(
+            db, request.OrganizationId, [.. request.Lines.Select(x => (x.ProductId, x.BatchNo))], StockLineKind.Receipt,
+            movesStock: creditNote.IsConversionFromInvoice, cancellationToken);
+
         for (var i = 0; i < request.Lines.Count; i++)
         {
             var line = request.Lines[i];
             creditNote.AddLine(
                 line.ProductId, line.Quantity, line.Rate, line.VatRate, line.DiscountPct,
-                units[i].UnitId, units[i].ConversionFactor);
+                units[i].UnitId, units[i].ConversionFactor, batches[i]);
+        }
+
+        if (await CreditNoteBatches.FindProblemAsync(db, creditNote, cancellationToken) is { } batchProblem)
+        {
+            throw new FluentValidation.ValidationException([new FluentValidation.Results.ValidationFailure("Lines", batchProblem)]);
         }
 
         // Phase 69 -- the invoice the note relates to (VAT Rules Rule 20(1)(e)) and why. Last, because the

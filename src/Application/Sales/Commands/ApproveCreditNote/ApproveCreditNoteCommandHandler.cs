@@ -65,6 +65,13 @@ public sealed class ApproveCreditNoteCommandHandler(
 
         // Phase 63 -- the approve core moved to CreditNoteApprovalPosting, which the till's refund
         // also calls; see the doc comment above for what it does to stock.
+        // Phase 93 -- the batch each line brings back, named on a batch-tracked line and within what the invoice issued
+        // of it less what other notes returned; a draft saved before the batch was required meets it here.
+        if (await CreditNoteBatches.FindProblemAsync(db, creditNote, cancellationToken) is { } batchProblem)
+        {
+            throw new ConflictException(batchProblem);
+        }
+
         await CreditNoteApprovalPosting.ApproveAndPostAsync(
             db, numberGenerator, postingRule, stockLedgerService, currentUser.UserId, creditNote, cancellationToken);
 

@@ -58,6 +58,13 @@ interface EditableLine {
   serialsText: string;
   /** The serial the box's last Enter took out as a repeat, named under it until the next keystroke. */
   serialRepeat?: string | null;
+
+  /**
+   * Phase 93 -- the batch a batch-tracked line brings back, by number. Only a note converted from its invoice restocks,
+   * so only it names one: required there (the vendor's rule), one the invoice issued and no more of it than is left.
+   * The template prefills the invoice line's.
+   */
+  batchNo: string;
 }
 
 let nextLineKey = 1;
@@ -291,6 +298,7 @@ export class CreditNoteDetailPage {
               ? template.lines.map((l) => ({
                   key: nextLineKey++, ...l, unitId: l.unitId ?? '', discountPerUnit: 0,
                   serialsText: (l.serialNumbers ?? []).join(', '),
+                  batchNo: l.batchNo ?? '',
                 }))
               : [this.newLine()],
           );
@@ -593,6 +601,8 @@ export class CreditNoteDetailPage {
         unitId: l.unitId || null,
         // Phase 91 -- only a line that names units sends them.
         serialNumbers: parseSerials(l.serialsText),
+        // Phase 93 -- and only a line that names its batch sends one.
+        batchNo: l.batchNo.trim() || null,
       }));
 
     if (lines.length === 0) {
@@ -661,6 +671,16 @@ export class CreditNoteDetailPage {
     return line.serialRepeat ? `${line.serialRepeat} is already on this line. ${progress}` : progress;
   }
 
+  /** Phase 93 -- the batch box's text, written by its own event handler (zoneless, phase 17). */
+  protected onBatchNoChange(key: number, event: Event): void {
+    this.updateLine(key, { batchNo: (event.target as HTMLInputElement).value });
+  }
+
+  /** Phase 93 -- whether a line's product is batch-tracked, so its row offers the batch control. */
+  protected isBatchTracked(productId: string): boolean {
+    return this.products().find((p) => p.id === productId)?.batchTracking === true;
+  }
+
   /** Phase 91 -- whether a line's product is serial-tracked, so its row offers the serial control. */
   protected isSerialTracked(productId: string): boolean {
     return this.products().find((p) => p.id === productId)?.serialTracking === true;
@@ -669,7 +689,7 @@ export class CreditNoteDetailPage {
   private newLine(): EditableLine {
     return {
       unitId: '', key: nextLineKey++, productId: '', quantity: 1, rate: 0, vatRate: 'NoVat', discountPct: 0, discountPerUnit: 0,
-      serialsText: '',
+      serialsText: '', batchNo: '',
     };
   }
 
@@ -726,6 +746,8 @@ export class CreditNoteDetailPage {
                 unitId: l.unitId ?? '',
                 // Phase 91 -- the same rule for the units a line brings back.
                 serialsText: (l.serialNumbers ?? []).join(', '),
+                // Phase 93 -- and for its batch.
+                batchNo: l.batchNo ?? '',
               }))
             : [this.newLine()],
         );

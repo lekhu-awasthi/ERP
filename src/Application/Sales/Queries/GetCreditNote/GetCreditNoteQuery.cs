@@ -44,6 +44,9 @@ public sealed record CreditNoteLineDto(
 
     /// <summary>Phase 91 -- the units of a serial-tracked product this line brings back.</summary>
     public IReadOnlyList<string> SerialNumbers { get; init; } = [];
+
+    /// <summary>Phase 93 -- the batch a batch-tracked line brings back, by number; null when it names none.</summary>
+    public string? BatchNo { get; init; }
 }
 
 /// <summary>Phase 63 -- one way a till refund was paid back.</summary>

@@ -101,22 +101,33 @@ public sealed class VoidInvoiceCommandHandler(IAppDbContext db, ICurrentUserServ
         // Phase 92 -- what each line took, by the keys it named: phase 51 restocked a serial-tracked line as one layer
         // of the whole quantity with no serial, and a batch-named line into no batch, so a voided sale's phone could
         // never be sold by its serial again. A line naming neither takes exactly the path it always took.
+        var restocked = invoice.Lines.Where(x => x.CogsUnitCost is not null).ToList();
         var serialsByLine = await LineStockAllocator.LoadSerialsAsync(
-            db, request.OrganizationId, DocumentLineParentType.InvoiceLine,
-            [.. invoice.Lines.Where(x => x.CogsUnitCost is not null).Select(x => x.Id)], cancellationToken);
+            db, request.OrganizationId, DocumentLineParentType.InvoiceLine, [.. restocked.Select(x => x.Id)],
+            cancellationToken);
 
-        foreach (var line in invoice.Lines.Where(x => x.CogsUnitCost is not null))
+        // Phase 93 -- and a line that named no batch (a till sale, or an ERP sale from before the batch was required)
+        // goes back into the batches its walk took, read from the sale's own movements, where it went back as one
+        // un-batched layer (phase 92 § 5).
+        var plan = IssuedStockRestock.Plan(
+            [.. restocked.Select(x => new IssuedStockRestock.RestockLine(
+                x.ProductId, x.PrimaryQuantity.Value, x.BatchId, serialsByLine.GetValueOrDefault(x.Id) ?? []))],
+            await IssuedStockRestock.OfDocumentAsync(
+                db, request.OrganizationId, DocumentType.Invoice, invoice.Id, cancellationToken));
+
+        for (var i = 0; i < restocked.Count; i++)
         {
+            var line = restocked[i];
+
             // Phase 37 -- an oversold invoice left a shortfall layer behind, and putting the stock
             // back fills it: the restock's own cost is the blended figure this line was issued at,
             // so filling its own shortfall usually catches up nothing. It catches up something when
             // a *later* document's shortfall is the one still outstanding, which is exactly when it
             // should.
-            costCatchUp += await LineStockAllocator.IncrementLineAsync(
-                stockLedgerService, request.OrganizationId, line.ProductId, invoice.WarehouseId, line.PrimaryQuantity,
-                line.CogsUnitCost!.Value, line.BatchId,
-                serialsByLine.TryGetValue(line.Id, out var serials) ? serials : [],
-                DocumentType.Invoice, invoice.Id, invoice.Date, cancellationToken, invoice.LocationId);
+            costCatchUp += await IssuedStockRestock.PutBackAsync(
+                stockLedgerService, request.OrganizationId, line.ProductId, invoice.WarehouseId, plan[i],
+                line.CogsUnitCost!.Value, DocumentType.Invoice, invoice.Id, invoice.Date, cancellationToken,
+                invoice.LocationId);
         }
 
         await StockCostCatchUp.PostAsync(

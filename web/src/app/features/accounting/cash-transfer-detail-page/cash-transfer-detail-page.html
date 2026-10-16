@@ -89,13 +89,13 @@
               [attr.aria-invalid]="fieldError.invalid('cash-transfer-detail-page-from-account')"
               [attr.aria-describedby]="fieldError.describedBy('cash-transfer-detail-page-from-account')"
               class="form-select"
-              [value]="fromAccountId()"
               (change)="fromAccountId.set($any($event.target).value)"
               [disabled]="!isDraft()"
             >
-              <option value="" disabled>Select an account</option>
+              <!-- Bound per option, never [value] on the select: the options arrive after the value (phase 5's race). -->
+              <option value="" disabled [selected]="!fromAccountId()">Select an account</option>
               @for (account of sortedAccounts(); track account.id) {
-                <option [value]="account.id">{{ account.code }} — {{ account.name }}</option>
+                <option [value]="account.id" [selected]="account.id === fromAccountId()">{{ account.code }} — {{ account.name }}</option>
               }
             </select>
             <app-field-error [state]="fieldError" control="cash-transfer-detail-page-from-account" />
@@ -165,10 +165,11 @@
                 <tr>
                   <td>
                     @if (isDraft()) {
-                      <select aria-label="To Account" class="form-select form-select-sm" [value]="line.toAccountId" (change)="onToAccountChange(line.key, $event)">
-                        <option value="" disabled>Select an account</option>
+                      <select aria-label="To Account" class="form-select form-select-sm" (change)="onToAccountChange(line.key, $event)">
+                        <option value="" disabled [selected]="!line.toAccountId">Select an account</option>
                         @for (account of sortedAccounts(); track account.id) {
-                          <option [value]="account.id" [disabled]="account.id === fromAccountId()">
+                          <option [value]="account.id" [disabled]="account.id === fromAccountId()"
+                            [selected]="account.id === line.toAccountId">
                             {{ account.code }} — {{ account.name }}
                           </option>
                         }

@@ -10,6 +10,10 @@ namespace ErpApp.Application.Sales;
 /// catalogue once, by <c>DocumentLineUnitResolver</c>, and frozen on the line.</param>
 /// <param name="SerialNumbers">Phase 91 -- the units of a serial-tracked product this line brings back, each one its
 /// invoice sold (<c>CreditNoteSerials</c>); the conversion template prefills those not yet returned.</param>
+/// <param name="BatchNo">Phase 93 -- the batch a batch-tracked line brings back, by number: required on a note
+/// converted from its invoice (the vendor's rule; only that note restocks), one the invoice issued and no more of it
+/// than the invoice issued less what approved notes brought back (<c>CreditNoteBatches</c>). The conversion template
+/// prefills them. Phase 51 gave the line a <c>BatchId</c> and nothing on the ERP wrote it.</param>
 public sealed record CreditNoteLineInput(
     Guid ProductId, decimal Quantity, decimal Rate, VatRate VatRate, decimal DiscountPct = 0,
-    Guid? UnitId = null, IReadOnlyList<string>? SerialNumbers = null);
+    Guid? UnitId = null, IReadOnlyList<string>? SerialNumbers = null, string? BatchNo = null);

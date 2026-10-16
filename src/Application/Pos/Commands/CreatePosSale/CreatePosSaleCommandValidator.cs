@@ -1,5 +1,6 @@
 using ErpApp.Domain.Sales;
 using FluentValidation;
+using ErpApp.Application.Inventory.Stock;
 
 namespace ErpApp.Application.Pos.Commands.CreatePosSale;
 
@@ -42,7 +43,8 @@ public sealed class CreatePosSaleCommandValidator : AbstractValidator<CreatePosS
                 .WithMessage("A line's discount is a percentage or an amount, not both.");
             line.RuleFor(x => x.DiscountPerUnit).LessThanOrEqualTo(x => x.Rate)
                 .WithMessage("A discount per unit cannot be more than the line's rate.");
-            line.RuleFor(x => x.BatchNo).MaximumLength(100);
+            line.BatchNoRule(x => x.BatchNo);
+            line.SerialNumberRules(x => x.SerialNumbers);
         });
 
         RuleFor(x => x.Tenders).NotNull();

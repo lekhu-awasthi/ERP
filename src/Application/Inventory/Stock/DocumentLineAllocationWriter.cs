@@ -52,9 +52,11 @@ public static class DocumentLineAllocationWriter
         IAppDbContext db,
         Guid organizationId,
         IReadOnlyList<LineAllocationInput> lines,
-        bool isReceipt,
+        StockLineKind kind,
         CancellationToken cancellationToken)
     {
+        var isReceipt = kind == StockLineKind.Receipt;
+
         if (lines.Count == 0)
         {
             return [];
@@ -81,15 +83,15 @@ public static class DocumentLineAllocationWriter
             var serials = line.SerialNumbers ?? [];
 
             var message = StockTrackingRules.ValidateLineAllocation(
-                product, line.BatchNo is null ? null : Guid.Empty, serials, isReceipt);
+                product, line.BatchNo is null ? null : Guid.Empty, serials, kind);
 
             // ValidateLineAllocation takes an id it cannot have yet, so "is a batch named" is
             // expressed as a sentinel above. The one branch that sentinel gets wrong is the
-            // batch-tracked receipt with a blank number, which reads as "named" only if BatchNo is
+            // batch-tracked line with a blank number, which reads as "named" only if BatchNo is
             // non-null -- and a blank string is not a name.
-            if (product.BatchTracking && isReceipt && string.IsNullOrWhiteSpace(line.BatchNo))
+            if (product.BatchTracking && kind != StockLineKind.TillIssue && string.IsNullOrWhiteSpace(line.BatchNo))
             {
-                message = $"'{product.Name}' is batch-tracked, so a line receiving it must name a batch.";
+                message = StockTrackingRules.BatchRequiredMessage(product.Name, kind);
             }
 
             message ??= StockTrackingRules.ValidateSerialCount(product, line.Quantity, serials.Count);
@@ -110,6 +112,76 @@ public static class DocumentLineAllocationWriter
             throw new ValidationException(failures);
         }
 
+        return await ResolveNamedAsync(db, organizationId, lines, isReceipt, cancellationToken);
+    }
+
+    /// <summary>
+    /// Phase 93 -- the batch half of <see cref="ResolveBatchesAsync"/>, for a credit or debit note, whose serials have
+    /// their own rule (<c>CreditNoteSerials</c>, <c>DebitNoteSerials</c>: a draft may still be naming them, and a
+    /// converted note names only its source's units). Phase 51 gave both notes' lines a <c>BatchId</c> and nothing
+    /// wrote one, so a debit note relieved whichever batch FIFO reached first and a returned sale came back into no
+    /// batch at all. A tracked line that moves stock names its batch (the vendor refuses a blank one on both notes);
+    /// a line that moves none (<paramref name="movesStock"/> false: a credit note not converted from its invoice)
+    /// names none. Returns one nullable <c>BatchId</c> per line, positionally; a 400 naming the line otherwise.
+    /// </summary>
+    public static async Task<IReadOnlyList<Guid?>> ResolveNoteBatchesAsync(
+        IAppDbContext db,
+        Guid organizationId,
+        IReadOnlyList<(Guid ProductId, string? BatchNo)> lines,
+        StockLineKind kind,
+        bool movesStock,
+        CancellationToken cancellationToken)
+    {
+        var productIds = lines.Select(x => x.ProductId).Distinct().ToList();
+        var products = await db.Products
+            .Where(x => x.OrganizationId == organizationId && productIds.Contains(x.Id))
+            .ToDictionaryAsync(x => x.Id, cancellationToken);
+
+        var failures = new List<ValidationFailure>();
+        for (var i = 0; i < lines.Count; i++)
+        {
+            if (!products.TryGetValue(lines[i].ProductId, out var product))
+            {
+                continue;
+            }
+
+            var named = !string.IsNullOrWhiteSpace(lines[i].BatchNo);
+            var message = (named, product.BatchTracking, movesStock) switch
+            {
+                (true, false, _) => $"'{product.Name}' is not batch-tracked, so a line for it cannot name a batch.",
+                (true, true, false) => $"Line {i + 1}: this note returns no goods, so it names no batch.",
+                (false, true, true) when product.Type == ProductType.Goods =>
+                    StockTrackingRules.BatchRequiredMessage(product.Name, kind),
+                _ => null,
+            };
+
+            if (message is not null)
+            {
+                failures.Add(new ValidationFailure($"Lines[{i}]", message));
+            }
+        }
+
+        if (failures.Count > 0)
+        {
+            throw new ValidationException(failures);
+        }
+
+        // A note never mints: a converted credit note returns a batch its invoice issued and a debit note one on the
+        // shelf, so a number that does not exist is a typo, refused by name.
+        return await ResolveNamedAsync(
+            db, organizationId,
+            [.. lines.Select(x => new LineAllocationInput(x.ProductId, 0m, x.BatchNo, null, null, null))],
+            isReceipt: false, cancellationToken);
+    }
+
+    /// <summary>Resolves (on a receipt, mints) the batch each line names by number; null where it names none.</summary>
+    private static async Task<IReadOnlyList<Guid?>> ResolveNamedAsync(
+        IAppDbContext db,
+        Guid organizationId,
+        IReadOnlyList<LineAllocationInput> lines,
+        bool isReceipt,
+        CancellationToken cancellationToken)
+    {
         var resolved = new Guid?[lines.Count];
 
         for (var i = 0; i < lines.Count; i++)
@@ -135,7 +207,7 @@ public static class DocumentLineAllocationWriter
                     [
                         new ValidationFailure(
                             $"Lines[{i}]",
-                            $"There is no batch '{batchNo}' for this product, so there is none of it to issue."),
+                            $"There is no batch '{batchNo}' for this product, so there is none of it to move."),
                     ]);
                 }
 

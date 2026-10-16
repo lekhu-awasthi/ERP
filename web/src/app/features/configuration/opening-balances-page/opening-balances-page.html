@@ -80,11 +80,10 @@
                         <div style="width: 120px;">
                           <label class="form-label small fw-semibold mb-1" for="opening-balances-page-side">Side</label><select id="opening-balances-page-side"
                             class="form-select form-select-sm"
-                            [value]="editDrCr()"
                             (change)="editDrCr.set($any($event.target).value)"
                           >
-                            <option value="DR">DR</option>
-                            <option value="CR">CR</option>
+                            <option value="DR" [selected]="editDrCr() === 'DR'">DR</option>
+                            <option value="CR" [selected]="editDrCr() === 'CR'">CR</option>
                           </select>
                         </div>
                         <button type="button" class="btn btn-success btn-sm" [disabled]="saving()" (click)="saveAccount(row)">
@@ -129,11 +128,11 @@
         <select id="opening-balances-page-warehouse"
           class="form-select form-select-sm"
           style="max-width: 320px;"
-          [value]="warehouseId()"
           (change)="onWarehouseChange($any($event.target).value)"
         >
+          <!-- Bound per option, never [value] on the select: the options arrive after the value (phase 5's race). -->
           @for (warehouse of warehouses(); track warehouse.id) {
-            <option [value]="warehouse.id">{{ warehouse.name }}</option>
+            <option [value]="warehouse.id" [selected]="warehouse.id === warehouseId()">{{ warehouse.name }}</option>
           }
         </select>
       </div>

@@ -91,13 +91,14 @@
               [attr.aria-invalid]="fieldError.invalid('credit-note-detail-page-customer')"
               [attr.aria-describedby]="fieldError.describedBy('credit-note-detail-page-customer')"
               class="form-select"
-              [value]="contactId()"
               (change)="onContactChange($event)"
               [disabled]="!isDraft() || isLinkedToSource()"
             >
-              <option value="" disabled>Select a customer</option>
+              <!-- Phase 93 -- [selected] per option, never [value] on the select: the options arrive after the value,
+                   so the select showed its first customer (the walk-in) on every converted note (phase 5's race). -->
+              <option value="" disabled [selected]="!contactId()">Select a customer</option>
               @for (customer of customers(); track customer.id) {
-                <option [value]="customer.id">{{ customer.code }} — {{ customer.name }}</option>
+                <option [value]="customer.id" [selected]="customer.id === contactId()">{{ customer.code }} — {{ customer.name }}</option>
               }
             </select>
             <app-field-error [state]="fieldError" control="credit-note-detail-page-customer" />
@@ -311,6 +312,21 @@
                       </select>
                     } @else {
                       {{ productLabel(line.productId) }}
+                    }
+                    @if (isDraft() && isLinkedToSource() && isBatchTracked(line.productId)) {
+                      <!-- Phase 93 -- the batch that came back, by number: required on a batch-tracked line of a note
+                           converted from its invoice (only that note restocks), prefilled from the invoice line. -->
+                      <input
+                        [attr.aria-label]="'Batch returned of ' + productLabel(line.productId)"
+                        type="text"
+                        class="form-control form-control-sm mt-1"
+                        placeholder="Batch no"
+                        maxlength="100"
+                        [value]="line.batchNo"
+                        (input)="onBatchNoChange(line.key, $event)"
+                      />
+                    } @else if (line.batchNo) {
+                      <div class="small text-body-secondary">Batch {{ line.batchNo }}</div>
                     }
                     @if (isDraft() && isLinkedToSource() && isSerialTracked(line.productId)) {
                       <!-- Phase 91 -- one unit per serial: the units of the invoice that came back. -->

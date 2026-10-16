@@ -1,6 +1,7 @@
 using ErpApp.Application.Common.Currencies;
 using ErpApp.Application.Common.Validation;
 using FluentValidation;
+using ErpApp.Application.Inventory.Stock;
 
 namespace ErpApp.Application.Sales.Commands.UpdateInvoice;
 
@@ -25,6 +26,8 @@ public sealed class UpdateInvoiceCommandValidator : AbstractValidator<UpdateInvo
             line.RuleFor(x => x.Rate).GreaterThanOrEqualTo(0);
             line.RuleFor(x => x.VatRate).IsInEnum();
             line.RuleFor(x => x.DiscountPct).InclusiveBetween(0, 100);
+            line.BatchNoRule(x => x.BatchNo);
+            line.SerialNumberRules(x => x.SerialNumbers);
         });
 
         this.AddCurrencyRules(x => x.CurrencyCode, x => x.ExchangeRate);

@@ -21,6 +21,8 @@ public sealed class GetCreditNoteQueryHandler(IAppDbContext db) : IRequestHandle
 
         // Phase 91 -- the serials each line brings back.
         var serials = await CreditNoteSerials.LoadAsync(db, creditNote, cancellationToken);
+        var batches = await LineAllocationReader.LoadBatchesAsync(
+            db, request.OrganizationId, creditNote.Lines.Select(x => x.BatchId), cancellationToken);
 
         IReadOnlyList<PostedGlLineDto>? glLines = null;
 
@@ -69,6 +71,7 @@ public sealed class GetCreditNoteQueryHandler(IAppDbContext db) : IRequestHandle
                 DiscountPerUnit = x.DiscountPerUnit,
                 BillDiscountAmount = x.BillDiscountAmount,
                 SerialNumbers = serials.GetValueOrDefault(x.Id) ?? [],
+                BatchNo = x.BatchId is null ? null : batches.GetValueOrDefault(x.BatchId.Value)?.BatchNo,
             }).ToList(),
             glLines,
             creditNote.CurrencyCode,

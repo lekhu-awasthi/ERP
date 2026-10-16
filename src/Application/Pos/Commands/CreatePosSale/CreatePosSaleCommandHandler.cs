@@ -222,7 +222,7 @@ public sealed class CreatePosSaleCommandHandler(
             db, request.OrganizationId,
             [.. request.Lines.Select(x => new DocumentLineAllocationWriter.LineAllocationInput(
                 x.ProductId, x.Quantity, x.BatchNo, null, null, x.SerialNumbers))],
-            isReceipt: false, cancellationToken);
+            StockLineKind.TillIssue, cancellationToken);
 
         // Phase 52 -- the unit's factor frozen onto the line, read from the catalogue here and never again.
         var units = await DocumentLineUnitResolver.ResolveAsync(

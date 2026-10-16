@@ -4746,3 +4746,15 @@ The ledger now refuses a serial already in stock before writing its layer. A dat
 ## A required field no screen sends is a feature the screen cannot use (phase 92)
 
 Phase 43 made `DebitNote.WarehouseId` required for a goods line, with a fallback to the source bill's warehouse on a conversion. The form never gained the control, so converted notes worked through the fallback and a standalone goods return was a 400 from Save for 49 phases. No test saw it, because every test sent the field. Phase 29's "grep `web/` for the field name" applies to a required header field as much as to a tenant default.
+
+## A comment calling a value "derived" is a claim, like a status doc's (phase 93)
+
+`StockTrackingRules` filed the credit and debit notes under *Derived*: "a Credit Note line prefills from the Invoice line it returns and a Debit Note line from the Purchase Bill line". No template, handler or request carried a batch, so a debit note relieved whichever batch FIFO reached and an ERP return came back into no batch. Phase 91 said to grep for the call before building on a status doc's description; a class comment is the same kind of claim, and the census that found it was asking every reader of `BatchId` where its value came from.
+
+## Movements are per document, so dividing them back is a plan, not a lookup (phase 93)
+
+A walked issue's `StockMovement` rows say which batches the document took, never which line took them. Putting it back (a void, a refund) has to divide them: `IssuedStockRestock.Plan` gives a named batch first, then lets walked lines take what is left in the order it was taken, and sends what no movement covers back un-batched. Restocking each line from "its" movements by product alone would let two lines of one product both claim the same batch.
+
+## A save's unique-index violation needs its own answer, named by the index (phase 93)
+
+A read-then-write check (phase 92's `SerialStock`) cannot stop two requests that both read absent. The second save meets the unique index as a `DbUpdateException`, a 500. `AppDbContext.SaveChangesAsync` now maps a 2601/2627 naming `IX_StockLedgerEntries_OrganizationId_ProductId_SerialNo` to a 409. It matches the index by name, because a blanket mapping would dress every other duplicate as a serial in stock twice. Only SQL Server can show it (InMemory enforces no unique index).

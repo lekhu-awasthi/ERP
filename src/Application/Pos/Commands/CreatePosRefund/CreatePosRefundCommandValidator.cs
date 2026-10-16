@@ -1,5 +1,6 @@
 using ErpApp.Domain.Sales;
 using FluentValidation;
+using ErpApp.Application.Inventory.Stock;
 
 namespace ErpApp.Application.Pos.Commands.CreatePosRefund;
 
@@ -31,6 +32,7 @@ public sealed class CreatePosRefundCommandValidator : AbstractValidator<CreatePo
         RuleForEach(x => x.Lines).ChildRules(line =>
         {
             line.RuleFor(x => x.InvoiceLineId).NotEmpty();
+            line.SerialNumberRules(x => x.SerialNumbers);
             line.RuleFor(x => x.Quantity).GreaterThan(0);
         });
 

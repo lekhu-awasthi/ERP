@@ -6,7 +6,7 @@ Guiding rule for phase sizing: each phase ends with something *runnable and demo
 
 ---
 
-## Completed phases (0–92)
+## Completed phases (0–93)
 
 One line each; phase *N*'s full story is `docs/phase-N-status.md`. The verbose index as it stood on
 2026-09-28 is archived verbatim in `roadmap-history.md` ("Completed-phases index, verbose form").
@@ -78,6 +78,7 @@ One line each; phase *N*'s full story is `docs/phase-N-status.md`. The verbose i
 | 90 | An expense's VAT read live on the vendor (filed as ours, nothing changed); Annex 13 is before VAT, as the vendor's is (it was gross since phase 8e); the Purchase Register's *Invoice No* is the supplier's own number (a debit note's own), beside *Document No*; one contact's picker, Suggest and till refund read that contact's settlements through a subquery (38,015 → 238 reads per picker), and the voucher read is one join for every caller; the VAT return's history read measured and left; the registers' returns no longer export `-0` |
 | 91 | Serial-tracked products sell at the Retail till (a picker of the units in stock, a scan by serial, payment refused until each unit is named; kept off restaurant orders); returns carry their serials (`CreditNoteSerials`: till refunds tick the sale's units, ERP notes are prefilled; each unit restocks as its own layer, fixing phase 51's un-serialled restock); the till refund's owed read narrowed by the sale (56,566 → 59 logical reads with a measured `CreditNotes (OrganizationId, ReferrerId)` index); one guest may decline the service charge on their own bill (`InvoiceLine.PartServiceChargeWaived`), and the receipt, PDF and roll print a guest's discount apart from the order's |
 | 92 | Serial integrity: a debit note names the units it sends back (`DebitNoteSerials`; the template offers the bill's units still on the shelf, a standalone note any unit there), voiding an invoice, a debit note or a transfer restocks each unit under its serial, receiving a unit already in stock is a 400 on the draft and a 409 from the ledger (`SerialStock`), the till's scan across two products names each one's own unit, and the debit-note form gains the warehouse phase 43 required and no screen sent |
+| 93 | Batch integrity: an ERP invoice or debit-note line of a batch-tracked product names its batch, as the vendor requires (`StockLineKind`; the till still walks); both notes carry the batch phase 51 gave them and nothing wrote, prefilled by their templates (`DebitNoteBatches`: a converted note's from its bill; `CreditNoteBatches`: a converted note's from what the invoice issued, capped per batch); a void or till refund of a walked issue goes back into the batches it took, read from the document's own movements (`IssuedStockRestock`); over-long serial or batch numbers are 400s on all ten line commands, and two saves putting one serial in stock at once a 409; every native select binds per option (the credit note's showed the walk-in on every converted note), guarded by `select-binding-sweep-guard.spec.ts` |
 
 ---
 
@@ -297,12 +298,15 @@ basis.
 
 **Carried from phase 91** (§ 5 there): the tenant-level switch for batch and serial tracking (the vendor's
 Configurations > General); a serial printed on the receipt and the PDF (the vendor's printed receipt unread); serials
-on a debit note were done in phase 92; batch-tracked products at the till still sell un-narrowed.
+on a debit note were done in phase 92; batch-tracked products at the till still sell un-narrowed (their voids and
+refunds put each batch back since phase 93; the vendor's tenant switch was read in phase 93's § 0).
 
-**Carried from phase 92** (§ 5 there): a void of a batch-tracked line that named no batch restocks un-batched (read the
-document's Out movements per batch); `DebitNoteLine.BatchId` is read and never written (the batch half of phase 92's
-serial bug); a serial over 100 characters is a 500 on every serial path (a validator rule); two approvals racing for one
-serial still meet only the unique index.
+**Carried from phase 92** (§ 5 there): all four were done in phase 93 (the walked void, both notes' batch, the
+length 400s, the race's 409).
+
+**Carried from phase 93** (§ 5 there): focus falls to `<body>` after a failed Save and after *Remove line* on the line forms (an app-wide
+pass); the till's batch picker; the vendor's batch expiry and price (required there, a product question); a partial
+refund of a walked sale returns into the oldest-taken batch.
 
 **Carried from phase 62** (§ 5 there):
 

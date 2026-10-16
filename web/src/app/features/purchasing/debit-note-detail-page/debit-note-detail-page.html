@@ -234,6 +234,21 @@
                     } @else {
                       {{ productLabel(line.productId) }}
                     }
+                    @if (isDraft() && isBatchTracked(line.productId)) {
+                      <!-- Phase 93 -- the batch going back, by number: required on a batch-tracked line, as the
+                           vendor's form requires it, and prefilled from the bill line on a converted note. -->
+                      <input
+                        [attr.aria-label]="'Batch returned of ' + productLabel(line.productId)"
+                        type="text"
+                        class="form-control form-control-sm mt-1"
+                        placeholder="Batch no"
+                        maxlength="100"
+                        [value]="line.batchNo"
+                        (input)="onBatchNoChange(line.key, $event)"
+                      />
+                    } @else if (line.batchNo) {
+                      <div class="small text-body-secondary">Batch {{ line.batchNo }}</div>
+                    }
                     @if (isDraft() && isSerialTracked(line.productId)) {
                       <!-- Phase 92 -- one unit per serial: the units going back to the supplier, from the shelf. -->
                       <input

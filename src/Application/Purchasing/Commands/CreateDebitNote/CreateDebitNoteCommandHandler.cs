@@ -66,12 +66,22 @@ public sealed class CreateDebitNoteCommandHandler(IAppDbContext db)
             [.. request.Lines.Select(x => new DocumentLineUnitResolver.LineUnitInput(x.ProductId, x.UnitId))],
             cancellationToken);
 
+        // Phase 93 -- the batch each line sends back: phase 51 consumed under the line's BatchId and nothing wrote one.
+        var batches = await DocumentLineAllocationWriter.ResolveNoteBatchesAsync(
+            db, request.OrganizationId, [.. request.Lines.Select(x => (x.ProductId, x.BatchNo))], StockLineKind.Issue,
+            movesStock: true, cancellationToken);
+
         for (var i = 0; i < request.Lines.Count; i++)
         {
             var line = request.Lines[i];
             debitNote.AddLine(
                 line.ProductId, line.Quantity, line.Rate, line.VatRate, line.DiscountPct,
-                units[i].UnitId, units[i].ConversionFactor);
+                units[i].UnitId, units[i].ConversionFactor, batches[i]);
+        }
+
+        if (await DebitNoteBatches.FindProblemAsync(db, debitNote, cancellationToken) is { } batchProblem)
+        {
+            throw new FluentValidation.ValidationException([new FluentValidation.Results.ValidationFailure("Lines", batchProblem)]);
         }
 
         // Phase 69 -- a return stays in its bill's currency (the credit note's mirror).

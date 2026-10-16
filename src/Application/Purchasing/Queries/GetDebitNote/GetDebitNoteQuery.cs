@@ -32,6 +32,9 @@ public sealed record DebitNoteLineDto(
 {
     /// <summary>Phase 92 -- the units of a serial-tracked product this line sends back.</summary>
     public IReadOnlyList<string> SerialNumbers { get; init; } = [];
+
+    /// <summary>Phase 93 -- the batch a batch-tracked line sends back, by number; null when it names none.</summary>
+    public string? BatchNo { get; init; }
 }
 
 public sealed record PostedGlLineDto(Guid Id, Guid AccountId, decimal Debit, decimal Credit);

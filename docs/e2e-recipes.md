@@ -516,3 +516,16 @@ beside a 200 from the same user, and create a fresh Organization per phase.
   `inventory.StockLedgerEntries` should hold no row with `SerialNo IS NULL`. The 403 pair: a role copied from Admin
   without `Purchasing.DebitNote.Approve` (switch `tenancy.OrganizationMemberships.RoleId` and restore it) is 403 naming
   it on approving a nonexistent note, beside a 200 on `GET /debit-notes`; Admin gets 404.
+- Phase 93. Batch-tracked lines: `POST /products {..., batchTracking: true}`, a bill's lines carry `batchNo` (minted on
+  receipt). An invoice line without one is a **400** `Lines[0]` (*"…a line issuing it must name a batch."*); a till sale
+  (`POST /pos/sales`) may still omit it. Both notes' lines take `batchNo`: `GET /invoices/{id}/credit-note-conversion-template`
+  and `GET /purchase-bills/{id}/debit-note-conversion-template` prefill it batch by batch (match lines by `batchNo`, not
+  index), and `GET` of either note reads it back. A converted credit note beyond what the invoice issued of a batch is a
+  400 naming the figures; a standalone one naming a batch a 400 (*"returns no goods"*); a converted debit note's batch
+  from another bill a 400. A 101-character `batchNo` is a 400 `Lines[0].BatchNo`, a serial `Lines[0].SerialNumbers[0]`.
+  A walked till sale's void and refund are checked in SQL by `inventory.StockMovements` per `SourceDocumentId`, `Direction`
+  and `BatchId`, and the item's `StockLedgerEntries` should hold no row with `BatchId IS NULL`. The 403 pair: a role copied
+  from Admin without `Sales.CreditNote.Approve` (membership switched in SQL and restored) is 403 naming it on approving a
+  nonexistent note, beside 200s on `GET /credit-notes`; Admin gets 404 *"Credit note not found."* `GET /members` answers
+  `{items: [...]}`. Selects on our forms: read a native `<select>`'s `selectedOptions`, not `value`, when checking what it
+  shows.

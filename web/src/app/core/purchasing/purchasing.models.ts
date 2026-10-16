@@ -488,6 +488,11 @@ export interface DebitNoteLineInput {
    * on the shelf; read back on the detail.
    */
   serialNumbers?: string[] | null;
+  /**
+   * Phase 93 -- the batch a batch-tracked line sends back, by number: required (the vendor's rule), and on a converted
+   * note one its bill received. The conversion template prefills the bill line's; read back on the detail.
+   */
+  batchNo?: string | null;
 }
 
 export interface DebitNote {

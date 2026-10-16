@@ -70,7 +70,7 @@ public sealed class UpdateInvoiceCommandHandler(IAppDbContext db, ICurrentUserSe
             db, request.OrganizationId,
             request.Lines.Select(x => new DocumentLineAllocationWriter.LineAllocationInput(
                 x.ProductId, x.Quantity, x.BatchNo, x.ManufactureDate, x.ExpiryDate, x.SerialNumbers)).ToList(),
-            isReceipt: false, cancellationToken);
+            StockLineKind.Issue, cancellationToken);
 
         // Phase 52 -- the catalogue is read here and never again: ResolveAsync turns the unit
         // each line names into the factor frozen onto it, so editing (or deleting) the product's

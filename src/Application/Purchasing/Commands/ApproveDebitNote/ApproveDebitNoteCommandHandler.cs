@@ -101,6 +101,13 @@ public sealed class ApproveDebitNoteCommandHandler(
             throw new ConflictException(serialProblem);
         }
 
+        // Phase 93 -- the batch each line sends back, by the same door: named on a batch-tracked line, and on a converted
+        // note one its bill received.
+        if (await DebitNoteBatches.FindProblemAsync(db, debitNote, cancellationToken) is { } batchProblem)
+        {
+            throw new ConflictException(batchProblem);
+        }
+
         var code = await numberGenerator.GetNextNumberAsync(
             request.OrganizationId, DocumentType.DebitNote, cancellationToken, debitNote.LocationId);
 

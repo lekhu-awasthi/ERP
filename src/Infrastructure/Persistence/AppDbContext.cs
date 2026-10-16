@@ -1,4 +1,6 @@
-﻿using System.Reflection;
+﻿using ErpApp.Application.Common.Exceptions;
+using Microsoft.Data.SqlClient;
+using System.Reflection;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Domain.Accounting;
 using ErpApp.Domain.Catalog;
@@ -191,8 +193,14 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     /// a private constructor + no public mutator prevents Application code from ever composing a
     /// change, but nothing stops a future EF Core Update/Remove call reaching an Audit entity
     /// directly, so this checks the change tracker itself right before every save.
+    ///
+    /// <para>Phase 93 -- and turns two documents putting one serial into stock at the same moment into a 409. The ledger
+    /// refuses a serial already in stock before it writes (phase 92's <c>SerialStock</c>), but that is a read and then a
+    /// write: two approvals racing for one unit both read it absent, and the second meets phase 51's filtered unique
+    /// index as a <c>DbUpdateException</c>, which surfaced as a 500 telling the caller nothing. Nothing is saved either
+    /// way; the answer is the one the ledger's own check gives.</para>
     /// </summary>
-    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         var mutatedAudits = ChangeTracker.Entries<Audit>()
             .Where(e => e.State is EntityState.Modified or EntityState.Deleted)
@@ -204,6 +212,26 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
                 "Audit rows are append-only and can never be updated or deleted.");
         }
 
-        return base.SaveChangesAsync(cancellationToken);
+        try
+        {
+            return await base.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException ex) when (IsSerialInStockViolation(ex))
+        {
+            throw new ConflictException(SerialInStockRaceMessage);
+        }
     }
+
+    /// <summary>Phase 93 -- the 409's words: the same unit received twice, by two documents at once.</summary>
+    public const string SerialInStockRaceMessage =
+        "A serial number this document puts into stock was put into stock by another document at the same moment, so "
+        + "it would be in stock twice. Nothing was saved; reload and check the serial numbers.";
+
+    /// <summary>The name EF gives phase 51's unique index over a layer's serial, and the SQL Server errors a duplicate
+    /// key in a unique index or constraint raises.</summary>
+    private const string SerialInStockIndexName = "IX_StockLedgerEntries_OrganizationId_ProductId_SerialNo";
+
+    private static bool IsSerialInStockViolation(DbUpdateException exception) =>
+        exception.InnerException is SqlException { Number: 2601 or 2627 } sql
+        && sql.Message.Contains(SerialInStockIndexName, StringComparison.Ordinal);
 }

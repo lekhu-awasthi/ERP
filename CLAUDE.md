@@ -124,6 +124,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 90: an expense's VAT read live (as ours); Annex 13 before VAT (gross since 8e); the purchase book's *Invoice No* is the supplier's; one contact's settlements read through a subquery (38,015 → 238 reads); the return's history read measured and left. Before narrowing a slow query, filtering a shared reader by contact, or a statutory figure's basis — `docs/phase-90-status.md`
 - Phase 91: serials at the till (a picker, a scan by serial; off restaurant orders) and on returns (`CreditNoteSerials`: each unit restocks as its own layer, phase 51's gap); the refund's owed read narrowed by the sale (56,566 → 59); one guest declining the service charge. Before a reader asked about one document, or pricing a part apart — `docs/phase-91-status.md`
 - Phase 92: serial integrity (`DebitNoteSerials`; voids of an invoice, debit note and transfer restock each unit under its serial; `SerialStock` refuses a unit received twice, 400 at the draft and 409 in the ledger; the debit note's missing warehouse). Before any path that puts stock back, or a required header field — `docs/phase-92-status.md`
+- Phase 93: batch integrity (an ERP issue names its batch, the till walks: `StockLineKind`; both notes carry and cap the batch nothing wrote; a walked issue's void and refund restock per batch from its own movements, `IssuedStockRestock`; the serial race a 409). Before letting an issue walk, or binding a native `<select>` — `docs/phase-93-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -271,6 +272,9 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A status doc saying a return "re-enters stock as a layer carrying the SerialNo" is not code: nothing wrote a credit note's serials for 40 phases. Grep for the call (phase-91).
 - …and the same bug had three more copies: voiding an invoice, a debit note or a transfer restocked a serial line nameless. When one member of a family is wrong, census every member (phase-92).
 - A uniqueness check inside one unit of work reads the change tracker too: a transfer's unsaved consume leaves the stored source layer at one, so a database read refuses every serialised transfer (phase-92).
+- A class comment filing a value under "derived" is a claim too: nothing wrote either note's `BatchId` for 42 phases. Ask every reader where its value comes from (phase-93).
+- Movements are per document: putting a walked issue back divides them among its lines (named batch first, walked lines in the order taken), never per line by product (phase-93).
+- A read-then-write uniqueness check loses a race; map that unique index's violation at `SaveChangesAsync` to a 409 **by the index's name**, never every duplicate (phase-93).
 - A shortfall carries **whatever key the request named** — the batch when one was named and came up short, none when the walk was unnarrowed; and a receipt fills same-batch debts first, then un-batched ones, or an un-batched debt on a tracked product is unrepayable forever (phase-51).
 - A "reverse of X" posting rule can balance its own entry while leaving a paired control account (AP net of TDS) permanently off; trace the net effect on every account across original + reversal (phase-6 bug #3).
 - Reversals mirror the original entry's own posted lines via `GlJournalEntry.PostReversalOf` (a second entry, never a mutation); never re-derive a reversal from the posting rule (phase-16a).
@@ -429,7 +433,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A component serving both `.../new` and `.../:id` must read the id from `route.paramMap` (an Observable) and re-derive "is new" on every emission (phase-3 bug #1).
 - Annotate `HttpClient.get` `params` as `Record<string, string>`; a union including `{}` silently resolves to the `arraybuffer` overload (phase-3 bug #4).
 - Don't share a `request$` variable across Create/Update when the result types differ; use an explicit `if/else` (phase-4 bug #3).
-- Never bind `[value]` on a signal-fed native `<select>`; bind `[selected]` per `<option>` — this persisted wrong `WarehouseId`s, not just display glitches (phase-5/6/7).
+- Never bind `[value]` on a signal-fed native `<select>`; bind `[selected]` per `<option>` — this persisted wrong `WarehouseId`s, not just display glitches (phase-5/6/7). Guarded since phase 93.
 - Footer totals on paginated screens come from a server-computed field over the full filtered set, never a client-side reduce over one page (phase-16c bug #1).
 - A picker that loads the organization's first N and filters by contact in the browser offers what is settled and loses the N+1th; ask the server for one contact's open rows (phase-88).
 - `new Date(y, m, 1).toISOString()` or a `T00:00:00` parse without `Z` is the day before in Kathmandu: reports opened and due dates came out a day early. Use `nepal-time.ts`; a guard bans the shapes (phase-89).
@@ -594,24 +598,23 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 
 ## Current status
 
-**Phases 0-92 are complete. Next: not yet scheduled** (the user picks; candidates in `docs/roadmap.md`).
+**Phases 0-93 are complete. Next: not yet scheduled** (the user picks; candidates in `docs/roadmap.md`).
 Each phase's story is in its `docs/phase-N-status.md`, and finished planning entries are archived in
 `docs/roadmap-history.md`.
 
-**Phase 92 made serials hold through every movement of stock.**
+**Phase 93 made batches hold through every movement of stock, as phase 92 did serials.**
 
-- A debit note names the units it sends back (`DebitNoteSerials`), prefilled with the bill's units still on the shelf;
-  the debit-note form gains the serial box and the warehouse phase 43 required and no screen sent.
-- Voiding an invoice, a debit note or a transfer restocks each unit under its serial (phase 51's bug, three more copies).
-- A unit already in stock is refused on receipt (`SerialStock`: 400 at the draft, 409 in the ledger); the till's scan
-  across two products names each one's own unit. No migration, no new keys.
+- An ERP invoice or debit-note line of a batch-tracked product names its batch (the vendor's rule, read live); the till
+  still walks. Both notes carry the batch phase 51 gave them and nothing wrote, prefilled and capped.
+- A walked issue's void and till refund go back into the batches it took, read from its own movements
+  (`IssuedStockRestock`); serial/batch lengths are 400s; the serial race is a 409. No migration, no new keys.
 
-**Next:** not yet scheduled. Candidates: phase 92 § 5 (a void's un-narrowed batch, `DebitNoteLine.BatchId`, the serial
-length 500), phase 91 § 5 (a serial on the printed bill, the tenant switch), phase 79 § 5, phase 88 § 5, phase 87 § 5 /
+**Next:** not yet scheduled. Candidates: phase 93 § 5 (focus after a failed Save or *Remove line*, the till's batch
+picker), phase 91 § 5 (a serial on the printed bill), phase 79 § 5, phase 88 § 5, phase 87 § 5 /
 Decision G, phase 62 § 5's barcode index.
 
-Tests: Domain 1040, Application.UnitTests **1840**, Infrastructure.UnitTests 14,
-Api.IntegrationTests 76, Angular **902**. Everything was green at phase 92's close with Docker up.
+Tests: Domain 1040, Application.UnitTests **1879**, Infrastructure.UnitTests 14,
+Api.IntegrationTests **79**, Angular **907**. Everything was green at phase 93's close with Docker up.
 The bundle sits at **653.05 kB** against `build-budget.spec.ts`'s 680 kB; every POS screen is lazy.
 
 - `Api.IntegrationTests` needs Docker Desktop running. Without it the Testcontainers-backed tests

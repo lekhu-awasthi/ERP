@@ -66,13 +66,22 @@ public sealed class VoidDebitNoteCommandHandler(
             // restocked the whole quantity with no serial.
             var serialsByLine = await DebitNoteSerials.LoadAsync(db, debitNote, cancellationToken);
 
-            foreach (var line in debitNote.Lines.Where(x => x.ConsumedUnitCost is not null))
+            // Phase 93 -- and a line that named no batch (a note from before the batch was required) goes back into the
+            // batches its walk took, read from the note's own movements (IssuedStockRestock).
+            var restocked = debitNote.Lines.Where(x => x.ConsumedUnitCost is not null).ToList();
+            var plan = IssuedStockRestock.Plan(
+                [.. restocked.Select(x => new IssuedStockRestock.RestockLine(
+                    x.ProductId, x.PrimaryQuantity.Value, x.BatchId, serialsByLine.GetValueOrDefault(x.Id) ?? []))],
+                await IssuedStockRestock.OfDocumentAsync(
+                    db, request.OrganizationId, DocumentType.DebitNote, debitNote.Id, cancellationToken));
+
+            for (var i = 0; i < restocked.Count; i++)
             {
-                costCatchUp += await LineStockAllocator.IncrementLineAsync(
-                    stockLedgerService, request.OrganizationId, line.ProductId, warehouseId, line.PrimaryQuantity,
-                    line.ConsumedUnitCost!.Value, line.BatchId,
-                    serialsByLine.TryGetValue(line.Id, out var serials) ? serials : [],
-                    DocumentType.DebitNote, debitNote.Id, debitNote.Date, cancellationToken, debitNote.LocationId);
+                var line = restocked[i];
+                costCatchUp += await IssuedStockRestock.PutBackAsync(
+                    stockLedgerService, request.OrganizationId, line.ProductId, warehouseId, plan[i],
+                    line.ConsumedUnitCost!.Value, DocumentType.DebitNote, debitNote.Id, debitNote.Date,
+                    cancellationToken, debitNote.LocationId);
             }
         }
 

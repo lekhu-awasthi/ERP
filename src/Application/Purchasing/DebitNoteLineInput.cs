@@ -11,6 +11,9 @@ namespace ErpApp.Application.Purchasing;
 /// <param name="SerialNumbers">Phase 92 -- the units of a serial-tracked product this line sends back to the supplier,
 /// each in stock at the note's warehouse and, on a converted note, one its bill received (<c>DebitNoteSerials</c>); the
 /// conversion template prefills those still on the shelf.</param>
+/// <param name="BatchNo">Phase 93 -- the batch a batch-tracked line sends back, by number: required (the vendor's rule),
+/// existing, and on a converted note one its bill received (<c>DebitNoteBatches</c>). The conversion template prefills
+/// the bill line's. Phase 51 gave the line a <c>BatchId</c> and nothing wrote it.</param>
 public sealed record DebitNoteLineInput(
     Guid ProductId, decimal Quantity, decimal Rate, VatRate VatRate, decimal DiscountPct = 0,
-    Guid? UnitId = null, IReadOnlyList<string>? SerialNumbers = null);
+    Guid? UnitId = null, IReadOnlyList<string>? SerialNumbers = null, string? BatchNo = null);

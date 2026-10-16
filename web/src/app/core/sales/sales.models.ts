@@ -546,6 +546,11 @@ export interface CreditNoteLineInput {
   unitId?: string | null;
   /** Phase 91 -- the units of a serial-tracked product the line brings back; the template prefills those still out. */
   serialNumbers?: string[] | null;
+  /**
+   * Phase 93 -- the batch a batch-tracked line brings back, by number: required on a note converted from its invoice
+   * (only that note restocks), one the invoice issued and no more of it than is left. Prefilled by the template.
+   */
+  batchNo?: string | null;
 }
 
 export interface CreditNote {

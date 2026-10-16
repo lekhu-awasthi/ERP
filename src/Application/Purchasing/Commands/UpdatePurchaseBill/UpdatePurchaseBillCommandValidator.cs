@@ -1,5 +1,6 @@
 using ErpApp.Application.Common.Currencies;
 using FluentValidation;
+using ErpApp.Application.Inventory.Stock;
 
 namespace ErpApp.Application.Purchasing.Commands.UpdatePurchaseBill;
 
@@ -28,6 +29,8 @@ public sealed class UpdatePurchaseBillCommandValidator : AbstractValidator<Updat
             line.RuleFor(x => x.VatRate).IsInEnum();
             line.RuleFor(x => x.ExpenditureClassification).IsInEnum();
             line.RuleFor(x => x.DiscountPct).InclusiveBetween(0, 100);
+            line.BatchNoRule(x => x.BatchNo);
+            line.SerialNumberRules(x => x.SerialNumbers);
         });
 
 

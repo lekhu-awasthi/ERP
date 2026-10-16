@@ -131,12 +131,23 @@ internal static class CreditNoteApprovalPosting
                 .GroupBy(x => (x.ProductId, x.Rate, x.VatRate))
                 .ToDictionary(g => g.Key, g => g.Sum(x => x.Quantity * x.CogsUnitCost!.Value) / g.Sum(x => x.Quantity));
 
-            foreach (var line in goodsLines)
+            var restocked = goodsLines
+                .Where(x => costByLine.ContainsKey((x.ProductId, x.Rate, x.VatRate)))
+                .ToList();
+
+            // Phase 93 -- a line naming no batch (a till refund of a sale that walked its batches) goes back into the
+            // batches the sale issued and no other note brought back, where it went back as one un-batched layer. A line
+            // naming one (an ERP note since phase 93, a till refund of a narrowed sale) takes it, as it did.
+            var plan = IssuedStockRestock.Plan(
+                [.. restocked.Select(x => new IssuedStockRestock.RestockLine(
+                    x.ProductId, x.PrimaryQuantity.Value, x.BatchId, serialsByLine.GetValueOrDefault(x.Id) ?? []))],
+                await IssuedStockRestock.OutstandingOnInvoiceAsync(
+                    db, organizationId, sourceInvoice.Id, creditNote.Id, cancellationToken));
+
+            for (var i = 0; i < restocked.Count; i++)
             {
-                if (!costByLine.TryGetValue((line.ProductId, line.Rate, line.VatRate), out var unitCost))
-                {
-                    continue;
-                }
+                var line = restocked[i];
+                var unitCost = costByLine[(line.ProductId, line.Rate, line.VatRate)];
 
                 // Phase 63 -- the line's batch rides along: a till refund copies the sale line's, so a
                 // batch-tracked return goes back into the batch it came out of. An ERP note's line names
@@ -145,11 +156,10 @@ internal static class CreditNoteApprovalPosting
                 // branch than the sale), else the sale's, the path every ERP note takes.
                 // Phase 91 -- a serial-tracked line comes back one layer per serial it names (phase 51's "a returned
                 // serial re-enters stock as a new layer carrying the same SerialNo", which nothing had carried).
-                costCatchUp += await LineStockAllocator.IncrementLineAsync(
+                costCatchUp += await IssuedStockRestock.PutBackAsync(
                     stockLedgerService, organizationId, line.ProductId, creditNote.WarehouseId ?? sourceInvoice.WarehouseId,
-                    line.PrimaryQuantity, unitCost, line.BatchId,
-                    serialsByLine.TryGetValue(line.Id, out var serials) ? serials : [],
-                    DocumentType.CreditNote, creditNote.Id, creditNote.Date, cancellationToken, creditNote.LocationId);
+                    plan[i], unitCost, DocumentType.CreditNote, creditNote.Id, creditNote.Date, cancellationToken,
+                    creditNote.LocationId);
                 // Phase 52 -- priced per PRIMARY unit, because unitCost came off a FIFO layer.
                 totalCogsReversal += line.PrimaryQuantity.Value * unitCost;
             }

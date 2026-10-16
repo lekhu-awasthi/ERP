@@ -1,5 +1,6 @@
 using ErpApp.Application.Common.Currencies;
 using FluentValidation;
+using ErpApp.Application.Inventory.Stock;
 
 namespace ErpApp.Application.Purchasing.Commands.UpdateDebitNote;
 
@@ -20,6 +21,8 @@ public sealed class UpdateDebitNoteCommandValidator : AbstractValidator<UpdateDe
             line.RuleFor(x => x.Rate).GreaterThanOrEqualTo(0);
             line.RuleFor(x => x.VatRate).IsInEnum();
             line.RuleFor(x => x.DiscountPct).InclusiveBetween(0, 100);
+            line.BatchNoRule(x => x.BatchNo);
+            line.SerialNumberRules(x => x.SerialNumbers);
         });
 
         this.AddCurrencyRules(x => x.CurrencyCode, x => x.ExchangeRate);

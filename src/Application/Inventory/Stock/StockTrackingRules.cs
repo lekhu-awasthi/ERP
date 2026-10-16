@@ -27,7 +27,11 @@ namespace ErpApp.Application.Inventory.Stock;
 /// a Warehouse Transfer preserves whatever it consumed, relief by relief, and so needs no field at
 /// all. Phase 91 -- a Credit Note line that returns goods also names the serials it brings back, from those
 /// its invoice sold (prefilled on an ERP note, ticked at the till; <c>CreditNoteSerials</c>), and each
-/// comes back as its own layer: phase 51 had said so and written nothing that carried it.</item>
+/// comes back as its own layer: phase 51 had said so and written nothing that carried it. Phase 93 -- the batch was the
+/// same story: nothing wrote either note's <c>BatchId</c>. Both lines now carry one, prefilled by their conversion
+/// templates and required on a batch-tracked line as the vendor requires it, so these are named paths whose value is
+/// derived by default; a till refund of a sale that walked its batches restocks per batch from the sale's movements.
+/// </item>
 /// <item><b>Refused</b> -- see <see cref="RefusedPaths"/>, each with its reason.</item>
 /// </list></para>
 /// </summary>
@@ -128,16 +132,15 @@ public static class StockTrackingRules
     /// produce a 400 that names one, instead of a Domain invariant surfacing as a 500 that tells the
     /// caller nothing (phase 39). The Domain keeps its own backstop.</para>
     /// </summary>
-    /// <param name="isReceipt">
-    /// True for a path that creates stock (a Purchase Bill line, a Credit Note's restock), false for
-    /// one that consumes it. This is the asymmetry Decision D turns on: a receipt <b>must</b> name
-    /// the batch, an issue <b>may</b>.
+    /// <param name="kind">
+    /// What the line does to stock. Phase 51's Decision D made a receipt <b>must</b> name the batch and an issue
+    /// <b>may</b>; phase 93 made an ERP issue must as well (the vendor's rule), leaving only the till's walk.
     /// </param>
     public static string? ValidateLineAllocation(
         Product product,
         Guid? batchId,
         IReadOnlyCollection<string> serialNumbers,
-        bool isReceipt)
+        StockLineKind kind)
     {
         if (!product.BatchTracking && batchId is not null)
         {
@@ -149,9 +152,9 @@ public static class StockTrackingRules
             return $"'{product.Name}' is not serial-tracked, so a line for it cannot name serial numbers.";
         }
 
-        if (product.BatchTracking && isReceipt && batchId is null)
+        if (product.BatchTracking && kind != StockLineKind.TillIssue && batchId is null)
         {
-            return $"'{product.Name}' is batch-tracked, so a line receiving it must name a batch.";
+            return BatchRequiredMessage(product.Name, kind);
         }
 
         if (product.SerialTracking && serialNumbers.Count == 0)
@@ -173,6 +176,12 @@ public static class StockTrackingRules
 
         return null;
     }
+
+    /// <summary>Phase 93 -- the refusal of a batch-tracked line that names no batch, in the words of what it does.</summary>
+    public static string BatchRequiredMessage(string productName, StockLineKind kind) =>
+        kind == StockLineKind.Receipt
+            ? $"'{productName}' is batch-tracked, so a line receiving it must name a batch."
+            : $"'{productName}' is batch-tracked, so a line issuing it must name a batch.";
 
     /// <summary>
     /// The quantity rule for a serialised line, kept apart from
