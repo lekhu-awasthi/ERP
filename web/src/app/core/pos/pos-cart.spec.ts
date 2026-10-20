@@ -137,6 +137,7 @@ describe('PosCart', () => {
     expect(cart.lines()[0].rate).toBe(1200);
     expect(cart.toSaleLines()[0]).toEqual({
       productId: 'coke', quantity: 1, rate: 1200, vatRate: null, discountPct: 0, discountPerUnit: 0, unitId: 'crate', serialNumbers: null,
+      batchNo: null,
     });
 
     // The primary unit travels as null, as every ERP form sends it.
@@ -378,5 +379,63 @@ describe('PosCart serials (phase 91)', () => {
     const old = new PosCart(till(), ORG, 'ses-2', storage);
     expect(old.serialShortfall()).toBeNull();
     expect(old.toSaleLines()[0].serialNumbers).toBeNull();
+  });
+});
+
+// Phase 94 -- a batch-tracked product names the batch each line is sold from.
+const honey: PosProduct = {
+  id: 'honey', code: 'P0094', name: 'P94 Honey', categoryId: 'food', type: 'Goods', vatRate: 'ThirteenPercentVat',
+  rate: 150, serviceChargeApplicable: false, packagingFeeApplicable: true, batchTracking: true, serialTracking: false,
+  barcode: null, units: [{ unitId: 'jar', shortName: 'jar', conversionRate: 1, rate: 150 }],
+};
+
+describe('PosCart batches (phase 94)', () => {
+  it('grows only a line still waiting for its batch, and a line with a batch chosen is that batch\'s', () => {
+    const cart = new PosCart(till(), ORG, 'ses-1', new MemoryStorage());
+
+    const first = cart.add(honey)!;
+    cart.add(honey);
+    expect(cart.lines().length).toBe(1);
+    expect(cart.unbatchedLine()?.key).toBe(first.key);
+
+    cart.setBatch(first.key, ' B1 ');
+    expect(cart.unbatchedLine()).toBeNull();
+
+    // The next tap may be sold from another batch, so it is a line of its own, waiting for one.
+    const second = cart.add(honey)!;
+    expect(second.key).not.toBe(first.key);
+    expect(cart.unbatchedLine()?.key).toBe(second.key);
+    cart.setBatch(second.key, 'B2');
+
+    expect(cart.toSaleLines().map((x) => [x.quantity, x.batchNo])).toEqual([[2, 'B1'], [1, 'B2']]);
+  });
+
+  it('names no batch on an untracked line, and a stored cart from before the phase reads as untracked', () => {
+    const storage = new MemoryStorage();
+    const cart = new PosCart(till(), ORG, 'ses-1', storage);
+    cart.add(coke);
+    cart.setBatch(cart.lines()[0].key, 'B1');
+
+    expect(cart.lines()[0].batchNo).toBeNull();
+    expect(cart.toSaleLines()[0].batchNo).toBeNull();
+    expect(cart.unbatchedLine()).toBeNull();
+
+    storage.setItem(cartStorageKey(ORG, 'loc-1', 'ses-2'), JSON.stringify({
+      version: 1, discountPct: 0, customer: null, orderType: 'Retail', holds: [],
+      lines: [{ key: 1, product: { ...coke, batchTracking: undefined }, unitId: 'pc', quantity: 2, rate: 60, discountPct: 0 }],
+    }));
+    const old = new PosCart(till(), ORG, 'ses-2', storage);
+    expect(old.unbatchedLine()).toBeNull();
+    expect(old.toSaleLines()[0].batchNo).toBeNull();
+  });
+
+  it('keeps the batch through a hold and a recall', () => {
+    const cart = new PosCart(till(), ORG, 'ses-1', new MemoryStorage());
+    cart.setBatch(cart.add(honey)!.key, 'B1');
+    cart.hold();
+    cart.recall(cart.holds()[0].id);
+
+    expect(cart.lines()[0].batchNo).toBe('B1');
+    expect(cart.unbatchedLine()).toBeNull();
   });
 });

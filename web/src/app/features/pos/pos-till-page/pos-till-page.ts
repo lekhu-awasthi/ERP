@@ -10,6 +10,7 @@ import {
   POS_TAB_LABELS,
   PosDiscountKind,
   PosProduct,
+  PosProductBatch,
   PosReceipt,
   PosSession,
   PosTab,
@@ -100,6 +101,9 @@ export class PosTillPage {
   /** Phase 91 -- the open serial line's units in stock here (the picker), and what went wrong naming one. */
   protected readonly serialOptions = signal<string[]>([]);
   protected readonly serialError = signal<string | null>(null);
+  /** Phase 94 -- the open batch line's batches in stock here (the picker), and why they could not be read. */
+  protected readonly batchOptions = signal<PosProductBatch[]>([]);
+  protected readonly batchError = signal<string | null>(null);
   protected readonly holdsOpen = signal(false);
   protected readonly customerOpen = signal(false);
 
@@ -232,6 +236,13 @@ export class PosTillPage {
     return `${line.product.name} is serial-tracked: ${named} of ${line.quantity} serial number(s) named. Name each unit handed over.`;
   });
 
+  /** Phase 94 -- why the sale cannot be taken yet: a batch-tracked line has no batch chosen (the vendor's till asks the
+   * same: "Select a batch to continue"), which the server would refuse with a 400 naming the line. */
+  protected readonly batchRefusal = computed(() => {
+    const line = this.cart()?.unbatchedLine();
+    return line ? `${line.product.name} is batch-tracked: choose the batch it is sold from.` : null;
+  });
+
   protected readonly canComplete = computed(
     () =>
       (this.cart()?.lines().length ?? 0) > 0 &&
@@ -239,6 +250,7 @@ export class PosTillPage {
       this.changeError() === null &&
       this.discountRefusal() === null &&
       this.serialRefusal() === null &&
+      this.batchRefusal() === null &&
       (this.remainingPaisa() === 0 || (this.creditRefusal() === null && this.creditAccepted())),
   );
 
@@ -401,8 +413,58 @@ export class PosTillPage {
       return;
     }
 
+    // Phase 94 -- a batch-tracked product is sold from a batch: the line opens on its picker until one is chosen.
+    if (product.batchTracking) {
+      const line = cart.add(product);
+      if (line) this.openBatches(line);
+      this.announce(`Added ${product.name}. Choose its batch.`);
+      return;
+    }
+
     cart.add(product);
     this.announce(`Added ${product.name}. ${cart.lines().length} line(s), total ${cart.bill().grandTotal.toFixed(2)}.`);
+  }
+
+  // ---- Batches (phase 94) ----
+
+  /** Opens a batch line's edit panel on its picker, reading what is in stock here, and puts the cursor on it. */
+  private openBatches(line: CartLine): void {
+    this.editingKey.set(line.key);
+    this.loadBatches(line, true);
+  }
+
+  private loadBatches(line: CartLine, focus = false): void {
+    const till = this.till();
+    if (!till) return;
+    this.batchError.set(null);
+    this.batchOptions.set([]);
+    this.posService.listProductBatches(this.organizationId, till.locationId, line.product.id).subscribe({
+      next: (batches) => {
+        this.batchOptions.set(batches);
+        // The radio already chosen, or the first: a radio group takes focus on one of its own (phase 40).
+        if (focus) this.focusById(this.batchRadioId(line, this.batchChoices(line).findIndex((x) => x.batchNo === line.batchNo)));
+      },
+      error: (err: unknown) => this.batchError.set(extractErrorMessage(err) ?? 'Could not read the batches in stock.'),
+    });
+  }
+
+  /** The picker's rows: what is in stock here, and the line's own batch first when it is no longer among them (a
+   * restored cart), so a choice is never shown as unmade. */
+  protected batchChoices(line: CartLine): PosProductBatch[] {
+    const options = this.batchOptions();
+    const chosen = line.batchNo;
+    return chosen && !options.some((x) => x.batchNo === chosen)
+      ? [{ batchNo: chosen, expiryDate: null, quantity: 0 }, ...options]
+      : options;
+  }
+
+  protected batchRadioId(line: CartLine, index: number): string {
+    return index < 0 ? `pos-batch-${line.key}-0` : `pos-batch-${line.key}-${index}`;
+  }
+
+  protected onBatchPick(line: CartLine, batch: PosProductBatch): void {
+    this.cart()?.setBatch(line.key, batch.batchNo);
+    this.announce(`${line.product.name} from batch ${batch.batchNo}.`);
   }
 
   // ---- Serials (phase 91) ----
@@ -498,6 +560,10 @@ export class PosTillPage {
     if (opening && line?.product.serialTracking) {
       this.serialError.set(null);
       this.loadSerials(line);
+    }
+    // Phase 94 -- and a batch line's, the same way.
+    if (opening && line?.product.batchTracking) {
+      this.loadBatches(line);
     }
   }
 

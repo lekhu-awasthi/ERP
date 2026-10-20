@@ -11,6 +11,7 @@ import {
   CreatePosSaleRequest,
   CreatePosSaleResult,
   PosProduct,
+  PosProductBatch,
   PosReceipt,
   PosSession,
   PosTill,
@@ -44,6 +45,13 @@ describe('PosTillPage', () => {
     id: 'phone', code: 'P0091', name: 'P91 Phone', categoryId: 'food', type: 'Goods', vatRate: 'ThirteenPercentVat',
     rate: 10000, serviceChargeApplicable: false, packagingFeeApplicable: true, batchTracking: false, serialTracking: true,
     barcode: null, units: [{ unitId: 'pc', shortName: 'pc', conversionRate: 1, rate: 10000 }],
+  };
+
+  // Phase 94 -- a batch-tracked jar, 150 + 13% VAT = 169.50.
+  const honey: PosProduct = {
+    id: 'honey', code: 'P0094', name: 'P94 Honey', categoryId: 'food', type: 'Goods', vatRate: 'ThirteenPercentVat',
+    rate: 150, serviceChargeApplicable: false, packagingFeeApplicable: true, batchTracking: true, serialTracking: false,
+    barcode: null, units: [{ unitId: 'jar', shortName: 'jar', conversionRate: 1, rate: 150 }],
   };
 
   const till = (overrides: Partial<PosTill> = {}): PosTill => ({
@@ -87,6 +95,12 @@ describe('PosTillPage', () => {
     gridExtra: PosProduct[] = [];
     inStock = ['IMEI-1', 'IMEI-2', 'IMEI-3'];
     serialSearches: (string | undefined)[] = [];
+    /** Phase 94 -- the jar's batches in stock here, soonest-expiring first. */
+    batches: PosProductBatch[] = [
+      { batchNo: 'B93A', expiryDate: '2026-10-24', quantity: 2 },
+      { batchNo: 'B93B', expiryDate: null, quantity: 3 },
+    ];
+    batchReads = 0;
 
     constructor(
       private readonly current: PosTill,
@@ -109,6 +123,11 @@ describe('PosTillPage', () => {
     listProductSerials(_o: string, _l: string, _p: string, search?: string): Observable<string[]> {
       this.serialSearches.push(search);
       return of(search ? this.inStock.filter((x) => x.toLowerCase().includes(search.toLowerCase())) : this.inStock);
+    }
+
+    listProductBatches(): Observable<PosProductBatch[]> {
+      this.batchReads++;
+      return of(this.batches);
     }
 
     createSale(_o: string, request: CreatePosSaleRequest): Observable<CreatePosSaleResult> {
@@ -668,5 +687,69 @@ describe('PosTillPage', () => {
     p.complete().click();
     p.render();
     expect(p.service.sent[0].lines[0].serialNumbers).toEqual(['IMEI-1']);
+  });
+
+  // ---- Phase 94: batch-tracked products ----
+
+  it('opens a batch product on its picker, refuses payment until a batch is chosen, and sends the one chosen', () => {
+    const p = page();
+    p.service.gridExtra = [honey];
+    p.press('All');
+
+    p.tile('P94 Honey');
+
+    // The tap opened the line's picker, focus on its first radio, listing what is left here.
+    const radios = [...p.element.querySelectorAll<HTMLInputElement>('input[type="radio"][id^="pos-batch-"]')];
+    expect(radios.length).toBe(2);
+    expect(document.activeElement).toBe(radios[0]);
+    expect(radios.some((x) => x.checked)).toBe(false);
+    expect(radios[0].labels?.[0]?.textContent).toContain('B93A');
+    expect(radios[0].labels?.[0]?.textContent).toContain('2 jar left');
+    expect(radios[0].labels?.[0]?.textContent).toContain('expires');
+    expect(radios[1].labels?.[0]?.textContent).not.toContain('expires');
+    expect(radios[0].closest('fieldset')?.querySelector('legend')?.textContent?.trim()).toBe('Batch');
+    expect(p.text()).toContain('Batch not chosen yet');
+
+    p.press('Pay (F9)');
+    expect(p.text()).toContain('P94 Honey is batch-tracked: choose the batch it is sold from.');
+    expect(p.complete().disabled).toBe(true);
+    p.element.querySelector<HTMLElement>('[role="dialog"]')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    p.render();
+
+    // By keyboard: the focused group's second radio, chosen as an arrow key chooses it.
+    radios[1].focus();
+    expect(document.activeElement).toBe(radios[1]);
+    radios[1].checked = true;
+    radios[1].dispatchEvent(new Event('change', { bubbles: true }));
+    p.render();
+    expect(p.text()).toContain('Batch B93B');
+    expect(p.text()).not.toContain('is batch-tracked: choose');
+    expect(document.activeElement).toBe(radios[1]);
+
+    p.press('Pay (F9)');
+    p.tender('cash', '200');
+    p.complete().click();
+    p.render();
+
+    expect(p.service.sent[0].lines).toEqual([
+      expect.objectContaining({ productId: 'honey', quantity: 1, batchNo: 'B93B', serialNumbers: null }),
+    ]);
+  });
+
+  it('puts a second tap after a chosen batch on a line of its own, and re-reads the batches when a line is opened', () => {
+    const p = page();
+    p.service.gridExtra = [honey];
+    p.press('All');
+
+    p.tile('P94 Honey');
+    const first = p.element.querySelector<HTMLInputElement>('input[type="radio"][id^="pos-batch-"]')!;
+    first.checked = true;
+    first.dispatchEvent(new Event('change', { bubbles: true }));
+    p.render();
+
+    p.tile('P94 Honey');
+    expect(p.text()).toContain('Batch B93A');
+    expect(p.text()).toContain('Batch not chosen yet');
+    expect(p.service.batchReads).toBe(2);
   });
 });

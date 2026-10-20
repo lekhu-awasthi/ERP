@@ -15,6 +15,9 @@ export interface CartProduct {
   units: PosProductUnit[];
   /** Phase 91 -- each unit sold names its serial. A cart stored before the phase lacks it: not tracked. */
   serialTracking?: boolean;
+  /** Phase 94 -- each line names the batch it is sold from. A cart stored before the phase lacks it: not tracked, and
+   * the server's 400 names the line. */
+  batchTracking?: boolean;
 }
 
 /** Phase 70 -- the packaging fee terms a line is priced with. */
@@ -39,6 +42,9 @@ export interface CartLine {
   /** Phase 91 -- the units of a serial-tracked product, one per unit sold; the server refuses a sale whose count
    * is not the quantity. A cart stored before the phase lacks it: none. */
   serialNumbers?: string[];
+  /** Phase 94 -- the batch a batch-tracked line is sold from, chosen from those in stock at the till; null until it is
+   * chosen, which the server refuses as the vendor's till does. */
+  batchNo?: string | null;
 }
 
 /** Phase 91 -- a serial-tracked line whose serials do not yet match its quantity. */
@@ -133,6 +139,11 @@ export class PosCart {
     return line ? { line, named: (line.serialNumbers ?? []).length } : null;
   });
 
+  /** Phase 94 -- the first batch-tracked line with no batch chosen: the sale cannot be taken until it names one. */
+  readonly unbatchedLine = computed<CartLine | null>(
+    () => this.lines().find((x) => x.product.batchTracking && !x.batchNo) ?? null,
+  );
+
   private readonly storageKey: string;
 
   constructor(
@@ -178,6 +189,10 @@ export class PosCart {
    * Adds one of a product in its primary unit, or one more onto a line already holding exactly that. Phase 91 -- a
    * serial-tracked product has one line, whatever its price or discount, which its serials are named on; the line
    * returned is the one that grew, so the till can open its serial picker.
+   *
+   * Phase 94 -- a batch-tracked product grows only a line still waiting for its batch: one whose batch is chosen is
+   * that batch's, and another tap may be sold from another (the vendor's till asks for the batch on every add). Its
+   * batch is picked on the line, so the till opens the line's picker.
    */
   add(product: PosProduct | CartProduct): CartLine | null {
     const kept = toCartProduct(product);
@@ -185,6 +200,7 @@ export class PosCart {
     const existing = this.lines().find(
       (x) =>
         x.product.id === kept.id &&
+        (!kept.batchTracking || !x.batchNo) &&
         (kept.serialTracking ||
           (x.unitId === primary.unitId && x.rate === primary.rate && x.discountPct === 0 && !x.discountPerUnit)),
     );
@@ -203,6 +219,7 @@ export class PosCart {
       discountPct: 0,
       discountPerUnit: 0,
       serialNumbers: [],
+      batchNo: null,
     };
     this.lines.set([...this.lines(), line]);
     this.persist();
@@ -246,6 +263,17 @@ export class PosCart {
   hasSerial(serialNo: string): boolean {
     const wanted = serialNo.trim().toLowerCase();
     return this.lines().some((x) => (x.serialNumbers ?? []).some((s) => s.toLowerCase() === wanted));
+  }
+
+  /**
+   * Phase 94 -- names the batch a batch-tracked line is sold from. Lines of one batch are never merged here: the picker
+   * is a radio group a keyboard arrows through, and a line that vanished under the cursor would drop its focus.
+   */
+  setBatch(key: number, batchNo: string): void {
+    const line = this.lines().find((x) => x.key === key);
+    const batch = batchNo.trim();
+    if (!line?.product.batchTracking || !batch) return;
+    this.update(key, { batchNo: batch });
   }
 
   setQuantity(key: number, quantity: number): void {
@@ -409,6 +437,7 @@ export class PosCart {
     discountPerUnit: number;
     unitId: string | null;
     serialNumbers: string[] | null;
+    batchNo: string | null;
   }[] {
     return this.lines().map((line) => ({
       productId: line.product.id,
@@ -422,6 +451,8 @@ export class PosCart {
       unitId: line.unitId === line.product.units[0]?.unitId ? null : line.unitId,
       // Phase 91 -- the units handed over, for a serial-tracked product.
       serialNumbers: line.product.serialTracking ? (line.serialNumbers ?? []) : null,
+      // Phase 94 -- the batch it is sold from, for a batch-tracked product.
+      batchNo: line.product.batchTracking ? (line.batchNo ?? null) : null,
     }));
   }
 
@@ -564,6 +595,7 @@ function toCartProduct(product: PosProduct | CartProduct): CartProduct {
     packagingFeeApplicable: product.packagingFeeApplicable !== false,
     units: product.units,
     serialTracking: product.serialTracking === true,
+    batchTracking: product.batchTracking === true,
   };
 }
 

@@ -216,13 +216,14 @@ public sealed class CreatePosSaleCommandHandler(
         Invoice invoice,
         CancellationToken cancellationToken)
     {
-        // Phase 51 -- an issue may name a batch and must name the serials of a serialised product;
-        // resolved exactly as an ERP invoice's lines are, never minting anything (not a receipt).
+        // Phase 51 -- a till line names the serials of a serialised product; phase 94 -- and the batch of a
+        // batch-tracked one, as an ERP invoice's line must (the vendor's till refuses it blank). Resolved exactly as
+        // an invoice's lines are, never minting anything (not a receipt).
         var batches = await DocumentLineAllocationWriter.ResolveBatchesAsync(
             db, request.OrganizationId,
             [.. request.Lines.Select(x => new DocumentLineAllocationWriter.LineAllocationInput(
                 x.ProductId, x.Quantity, x.BatchNo, null, null, x.SerialNumbers))],
-            StockLineKind.TillIssue, cancellationToken);
+            StockLineKind.Issue, cancellationToken);
 
         // Phase 52 -- the unit's factor frozen onto the line, read from the catalogue here and never again.
         var units = await DocumentLineUnitResolver.ResolveAsync(

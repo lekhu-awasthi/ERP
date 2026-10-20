@@ -4758,3 +4758,11 @@ A walked issue's `StockMovement` rows say which batches the document took, never
 ## A save's unique-index violation needs its own answer, named by the index (phase 93)
 
 A read-then-write check (phase 92's `SerialStock`) cannot stop two requests that both read absent. The second save meets the unique index as a `DbUpdateException`, a 500. `AppDbContext.SaveChangesAsync` now maps a 2601/2627 naming `IX_StockLedgerEntries_OrganizationId_ProductId_SerialNo` to a 409. It matches the index by name, because a blanket mapping would dress every other duplicate as a serial in stock twice. Only SQL Server can show it (InMemory enforces no unique index).
+
+## A figure on the vendor's screen can be a field its payload lacks (phase 94)
+
+The vendor's till lists each batch with *Balance: 0*. The list is `GET item-batches`, whose rows carry the batch's number, dates and prices and no balance at all, so the screen renders a missing field as zero: B93A held 2 and B93B 3 at the time. Read as written, the vendor "had no stock" and its picker "offered empty batches". Read the response before the number, as phase 54 said of a field in a payload and phase 75 of a setting no print shows.
+
+## A fetch from a tab the dev server has just opened can be cut off by the app's own redirect (phase 94)
+
+Right after `erp-web-ssl` starts, its tab is still loading and the app is redirecting to `/login`. A `fetch` of the cookie file from that tab failed with *TypeError: Failed to fetch*, three times, though the file was being served. The fetch was aborted by the navigation, not refused. Wait until `location.href` has settled, then read. Delete the file only after a 200 with a body that is not HTML: deleting it after the failure meant writing it again, and `ng serve` serves `public/` as it was at start-up (phase 71), so each retry cost a restart.

@@ -89,7 +89,7 @@ public static class DocumentLineAllocationWriter
             // expressed as a sentinel above. The one branch that sentinel gets wrong is the
             // batch-tracked line with a blank number, which reads as "named" only if BatchNo is
             // non-null -- and a blank string is not a name.
-            if (product.BatchTracking && kind != StockLineKind.TillIssue && string.IsNullOrWhiteSpace(line.BatchNo))
+            if (product.BatchTracking && string.IsNullOrWhiteSpace(line.BatchNo))
             {
                 message = StockTrackingRules.BatchRequiredMessage(product.Name, kind);
             }

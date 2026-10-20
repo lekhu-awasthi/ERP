@@ -16,6 +16,7 @@ import {
   PosConfiguration,
   PosLocationSettings,
   PosProduct,
+  PosProductBatch,
   PosReceipt,
   PosRefundableSale,
   PosRefundPreview,
@@ -110,6 +111,14 @@ export class PosService {
     return this.http.get<string[]>(
       `${this.baseUrl(organizationId)}/tills/${locationId}/products/${productId}/serials`,
       { withCredentials: true, params },
+    );
+  }
+
+  /** Phase 94 -- a batch-tracked product's batches in stock at the till's warehouse, soonest-expiring first. */
+  listProductBatches(organizationId: string, locationId: string, productId: string): Observable<PosProductBatch[]> {
+    return this.http.get<PosProductBatch[]>(
+      `${this.baseUrl(organizationId)}/tills/${locationId}/products/${productId}/batches`,
+      { withCredentials: true },
     );
   }
 

@@ -16,6 +16,7 @@ using ErpApp.Application.Pos.Queries.GetPosSession;
 using ErpApp.Application.Pos.Queries.GetPosRefundableSale;
 using ErpApp.Application.Pos.Queries.GetPosTill;
 using ErpApp.Application.Pos.Queries.ListPosProducts;
+using ErpApp.Application.Pos.Queries.ListPosProductBatches;
 using ErpApp.Application.Pos.Queries.ListPosProductSerials;
 using ErpApp.Application.Pos.Queries.ListPosSessionRefunds;
 using ErpApp.Application.Pos.Queries.ListPosSessionSales;
@@ -173,6 +174,12 @@ public static class PosEndpoints
             Guid organizationId, Guid locationId, Guid productId, string? search, ISender sender, CancellationToken ct) =>
             Results.Ok(await sender.Send(
                 new ListPosProductSerialsQuery(organizationId, locationId, productId, search), ct)));
+
+        // Phase 94 -- a batch-tracked product's batches in stock at the till's warehouse, for the cart's picker.
+        group.MapGet("/tills/{locationId:guid}/products/{productId:guid}/batches", async (
+            Guid organizationId, Guid locationId, Guid productId, string? search, ISender sender, CancellationToken ct) =>
+            Results.Ok(await sender.Send(
+                new ListPosProductBatchesQuery(organizationId, locationId, productId, search), ct)));
 
         group.MapGet("/sessions/{sessionId:guid}/sales", async (
             Guid organizationId, Guid sessionId, ISender sender, CancellationToken ct) =>

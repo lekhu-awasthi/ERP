@@ -529,3 +529,13 @@ beside a 200 from the same user, and create a fresh Organization per phase.
   nonexistent note, beside 200s on `GET /credit-notes`; Admin gets 404 *"Credit note not found."* `GET /members` answers
   `{items: [...]}`. Selects on our forms: read a native `<select>`'s `selectedOptions`, not `value`, when checking what it
   shows.
+- Phase 94. The till's batch list is `GET /pos/tills/{loc}/products/{productId}/batches?search=` (`[{batchNo,
+  expiryDate, quantity}]`, what the till's warehouse holds, soonest expiry first; `[]` for an untracked product, 404 for
+  none). A bill line's expiry is `expiryDate` beside `batchNo`. `POST /pos/sales` lines now need `batchNo` on a
+  batch-tracked product (400 `Lines[0]`), and an unknown one is the same 400 (*"There is no batch 'B9'…"*). A restaurant
+  bill still walks. Its 403 pair: a role copied from Admin without `Pos.Session.Operate` (membership switched in SQL and
+  restored) is 403 naming it on a nonexistent product's list, beside a 200 on `GET /billing-locations`; Admin gets 404.
+  On a read-only vendor pass, the logger's refused POST still records its body, which is the vendor's request shape with
+  nothing written (`POST /pos/invoices` lines carry `batch_id`, `batch_no`, `batch_expiry`). Read the cookie file only
+  once the new `erp-web-ssl` tab's `location.href` has settled (a fetch during its redirect fails), and delete it after
+  a 200.

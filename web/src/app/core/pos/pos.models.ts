@@ -214,6 +214,13 @@ export interface PosProduct {
   scannedSerialNo?: string | null;
 }
 
+/** Phase 94 -- a batch in stock at the till's warehouse; `quantity` is in the product's primary unit. */
+export interface PosProductBatch {
+  batchNo: string;
+  expiryDate: string | null;
+  quantity: number;
+}
+
 export type PosSessionStatus = 'Open' | 'Closed';
 export type PosCashMovementDirection = 'In' | 'Out';
 

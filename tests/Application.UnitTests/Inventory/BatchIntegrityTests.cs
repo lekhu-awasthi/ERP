@@ -3,6 +3,8 @@ using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Inventory;
 using ErpApp.Application.Inventory.Stock;
 using ErpApp.Application.Pos.Commands.CreatePosSale;
+using ErpApp.Application.Pos.Queries.ListPosProductBatches;
+using ErpApp.Application.Pos.Restaurant;
 using ErpApp.Application.Purchasing;
 using ErpApp.Application.Purchasing.Commands.ApproveDebitNote;
 using ErpApp.Application.Purchasing.Commands.ApprovePurchaseBill;
@@ -26,6 +28,7 @@ using ErpApp.Application.UnitTests.Pos;
 using ErpApp.Application.UnitTests.TestSupport;
 using ErpApp.Domain.Catalog;
 using ErpApp.Domain.Common;
+using ErpApp.Domain.Pos;
 using ErpApp.Domain.Purchasing;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
@@ -35,7 +38,8 @@ namespace ErpApp.Application.UnitTests.Inventory;
 /// <summary>
 /// Phase 93 -- batch integrity (phase-93-status.md Decisions A-C), the batch half of phase 92's serials:
 /// <list type="bullet">
-/// <item>an ERP issue names its batch, as the vendor requires (read live 2026-10-15); the till may still walk;</item>
+/// <item>an ERP issue names its batch, as the vendor requires (read live 2026-10-15); phase 94 -- and so does a Retail
+/// till sale, while a restaurant bill, whose order line carries no batch, still walks;</item>
 /// <item>a void, or a till refund, of a line that walked its batches puts each batch back, read from the sale's own
 /// movements, where phase 51 put the whole quantity back into no batch;</item>
 /// <item>a debit note names its batch (written by nothing since phase 51), prefilled from its bill and, converted, one
@@ -46,14 +50,18 @@ namespace ErpApp.Application.UnitTests.Inventory;
 /// </summary>
 public class BatchIntegrityTests
 {
-    private sealed record Shop(PosTestTill Till, Guid ItemId, Guid BillId, Guid SessionId)
+    private sealed record Shop(
+        PosTestTill Till, Guid ItemId, Guid BillId, Guid SessionId, PosTestRestaurant? Restaurant = null)
     {
         public Guid WarehouseId => Till.Seed.WarehouseId;
     }
 
-    private static async Task<Shop> CreateShopAsync()
+    /// <param name="restaurant">Phase 94 -- a restaurant till, whose bills still walk the batches: the one sale left
+    /// that does, now that the Retail till names its batch.</param>
+    private static async Task<Shop> CreateShopAsync(bool restaurant = false)
     {
-        var till = await PosTestTill.CreateAsync();
+        var dining = restaurant ? await PosTestRestaurant.CreateAsync() : null;
+        var till = dining?.Till ?? await PosTestTill.CreateAsync();
         var db = till.Db;
         till.Location.Update(till.Location.Code, till.Location.Name, till.Location.Address, till.Seed.WarehouseId, true);
 
@@ -67,7 +75,7 @@ public class BatchIntegrityTests
         var bill = await ReceiveAsync(till, BillLine(item.Id, "B1", 5m, 100m), BillLine(item.Id, "B2", 5m, 120m));
         var session = await till.OpenAsync();
         await db.SaveChangesAsync();
-        return new Shop(till, item.Id, bill, session.Id);
+        return new Shop(till, item.Id, bill, session.Id, dining);
     }
 
     private static PurchaseBillLineInput BillLine(Guid productId, string batchNo, decimal quantity, decimal rate) =>
@@ -103,11 +111,23 @@ public class BatchIntegrityTests
             .ToDictionary(g => g.Key, g => g.Sum(x => x.QuantityRemaining));
     }
 
-    private static Task<CreatePosSaleResult> SellAtTillAsync(Shop shop, decimal quantity, string? batchNo = null) =>
+    private static Task<CreatePosSaleResult> SellAtTillAsync(Shop shop, decimal quantity, string? batchNo) =>
         shop.Till.SellAsync(
             shop.SessionId,
             [new PosSaleLineInput(shop.ItemId, quantity, 100m, BatchNo: batchNo)],
             [shop.Till.Cash(113m * quantity)]);
+
+    /// <summary>Phase 94 -- a take-away order of the item billed whole: a sale whose line names no batch, so it walks
+    /// them oldest-first.</summary>
+    private static async Task<Guid> BillWalkedOrderAsync(Shop shop, decimal quantity)
+    {
+        var restaurant = shop.Restaurant!;
+        var order = await restaurant.OpenAsync(PosTab.TakeAway, [new PosOrderItemInput(shop.ItemId, quantity, null, null)]);
+        var preview = await restaurant.PreviewAsync(order.Id, PosOrderSplit.Whole);
+        var bill = await restaurant.BillAsync(
+            shop.SessionId, order.Id, PosOrderSplit.Whole, [shop.Till.Cash(preview.Total)]);
+        return bill.Id;
+    }
 
     private static async Task<Guid> InvoiceAsync(Shop shop, params InvoiceLineInput[] lines)
     {
@@ -164,7 +184,7 @@ public class BatchIntegrityTests
             .Handle(new ApproveDebitNoteCommand(shop.Till.OrganizationId, noteId), CancellationToken.None);
 
     [Fact]
-    public async Task An_erp_invoice_line_of_a_batch_product_must_name_its_batch_and_the_till_may_walk()
+    public async Task An_erp_invoice_line_of_a_batch_product_must_name_its_batch()
     {
         var shop = await CreateShopAsync();
 
@@ -174,21 +194,76 @@ public class BatchIntegrityTests
 
         await InvoiceAsync(shop, SaleLine(shop, 2m, "B2"));
         Assert.Equal(new Dictionary<string, decimal> { ["B1"] = 5m, ["B2"] = 3m }, await OnShelfAsync(shop));
-
-        // The till has no batch picker yet (phase 91 § 5), so it walks, oldest first.
-        await SellAtTillAsync(shop, 6m);
-        Assert.Equal(new Dictionary<string, decimal> { ["B2"] = 2m }, await OnShelfAsync(shop));
     }
 
     [Fact]
-    public async Task Voiding_a_till_sale_that_walked_its_batches_puts_each_batch_back()
+    public async Task A_retail_till_line_of_a_batch_product_must_name_its_batch_and_takes_only_that_batch()
     {
         var shop = await CreateShopAsync();
-        var sale = await SellAtTillAsync(shop, 7m);
+
+        // Phase 94 -- the vendor's till refuses it ("Select a batch to continue", read live 2026-10-20); ours walked.
+        var blank = await Assert.ThrowsAsync<ValidationException>(() => SellAtTillAsync(shop, 2m, null));
+        Assert.Contains("'P93 Item' is batch-tracked, so a line issuing it must name a batch.", blank.Message);
+
+        var typo = await Assert.ThrowsAsync<ValidationException>(() => SellAtTillAsync(shop, 2m, "B9"));
+        Assert.Contains("There is no batch 'B9' for this product", typo.Message);
+
+        // The newer batch, named: B1, the older, stays whole where the walk would have taken it first.
+        await SellAtTillAsync(shop, 2m, "B2");
+        Assert.Equal(new Dictionary<string, decimal> { ["B1"] = 5m, ["B2"] = 3m }, await OnShelfAsync(shop));
+    }
+
+    [Fact]
+    public async Task A_restaurant_bill_still_walks_its_batches_oldest_first()
+    {
+        var shop = await CreateShopAsync(restaurant: true);
+
+        // Decision B: an order line carries no batch, so its bill walks, as phase 93 left the till.
+        await BillWalkedOrderAsync(shop, 6m);
+        Assert.Equal(new Dictionary<string, decimal> { ["B2"] = 4m }, await OnShelfAsync(shop));
+    }
+
+    private static Task<IReadOnlyList<PosProductBatchDto>> TillBatchesAsync(
+        Shop shop, string? search = null, Guid? productId = null) =>
+        new ListPosProductBatchesQueryHandler(shop.Till.Db).Handle(
+            new ListPosProductBatchesQuery(shop.Till.OrganizationId, shop.Till.Location.Id, productId ?? shop.ItemId, search),
+            CancellationToken.None);
+
+    [Fact]
+    public async Task The_till_lists_the_batches_left_at_its_warehouse_soonest_expiring_first()
+    {
+        var shop = await CreateShopAsync();
+        await ReceiveAsync(shop.Till, BillLine(shop.ItemId, "B3", 4m, 90m) with { ExpiryDate = PosTestTill.Today.AddDays(10) });
+        await SellAtTillAsync(shop, 5m, "B1");
+        await SellAtTillAsync(shop, 2m, "B2");
+
+        // B1 is sold out and gone from the list; B3 expires first, so it leads although it came in last.
+        var listed = await TillBatchesAsync(shop);
+        Assert.Equal([("B3", 4m), ("B2", 3m)], listed.Select(x => (x.BatchNo, x.Quantity)).ToArray());
+        Assert.Equal(PosTestTill.Today.AddDays(10), listed[0].ExpiryDate);
+        Assert.Null(listed[1].ExpiryDate);
+
+        Assert.Equal(["B2"], (await TillBatchesAsync(shop, "2")).Select(x => x.BatchNo));
+    }
+
+    [Fact]
+    public async Task A_product_not_batch_tracked_lists_no_batches_and_an_unknown_one_is_a_404()
+    {
+        var shop = await CreateShopAsync();
+
+        Assert.Empty(await TillBatchesAsync(shop, productId: shop.Till.CokeId));
+        await Assert.ThrowsAsync<NotFoundException>(() => TillBatchesAsync(shop, productId: Guid.NewGuid()));
+    }
+
+    [Fact]
+    public async Task Voiding_a_sale_that_walked_its_batches_puts_each_batch_back()
+    {
+        var shop = await CreateShopAsync(restaurant: true);
+        var sale = await BillWalkedOrderAsync(shop, 7m);
         Assert.Equal(new Dictionary<string, decimal> { ["B2"] = 3m }, await OnShelfAsync(shop));
 
         // Phase 92 § 5: the void restocked all seven into no batch, so B1 could never be sold by its number again.
-        await shop.Till.VoidAsync(sale.Id);
+        await shop.Till.VoidAsync(sale);
 
         Assert.Equal(new Dictionary<string, decimal> { ["B1"] = 5m, ["B2"] = 5m }, await OnShelfAsync(shop));
     }
@@ -196,16 +271,16 @@ public class BatchIntegrityTests
     [Fact]
     public async Task A_till_refund_of_a_walked_sale_returns_into_the_batches_it_took_and_no_batch_twice()
     {
-        var shop = await CreateShopAsync();
-        var sale = await SellAtTillAsync(shop, 7m);
+        var shop = await CreateShopAsync(restaurant: true);
+        var sale = await BillWalkedOrderAsync(shop, 7m);
 
         // Three back: they go into the first batch the walk took; four more take what is left of it, then B2.
         await shop.Till.RefundAsync(
-            shop.SessionId, sale.Id, [await shop.Till.ReturnAsync(sale.Id, shop.ItemId, 3m)], [shop.Till.Cash(339m)]);
+            shop.SessionId, sale, [await shop.Till.ReturnAsync(sale, shop.ItemId, 3m)], [shop.Till.Cash(339m)]);
         Assert.Equal(new Dictionary<string, decimal> { ["B1"] = 3m, ["B2"] = 3m }, await OnShelfAsync(shop));
 
         await shop.Till.RefundAsync(
-            shop.SessionId, sale.Id, [await shop.Till.ReturnAsync(sale.Id, shop.ItemId, 4m)], [shop.Till.Cash(452m)]);
+            shop.SessionId, sale, [await shop.Till.ReturnAsync(sale, shop.ItemId, 4m)], [shop.Till.Cash(452m)]);
         Assert.Equal(new Dictionary<string, decimal> { ["B1"] = 5m, ["B2"] = 5m }, await OnShelfAsync(shop));
     }
 

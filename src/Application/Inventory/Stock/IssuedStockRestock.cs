@@ -8,8 +8,9 @@ namespace ErpApp.Application.Inventory.Stock;
 /// <summary>
 /// Phase 93 -- what an issue took, per batch and serial, and how putting it back divides among the document's lines.
 ///
-/// <para><b>The bug.</b> A line that named no batch -- a till sale, which has no batch picker (phase 91 § 5), or an ERP
-/// issue saved before phase 93 made the batch required -- walks every batch oldest-first. Its void restocked the whole
+/// <para><b>The bug.</b> A line that named no batch -- a restaurant bill, whose order line carries none; a Retail till
+/// sale before phase 94 gave the till a picker; or an ERP issue saved before phase 93 made the batch required -- walks
+/// every batch oldest-first. Its void restocked the whole
 /// quantity as one un-batched layer (phase 92 § 5), and a till refund of it copied the sale line's empty batch the same
 /// way: stock of a batch-tracked product belonging to no batch, which is the bucket phase 51's Decision D refuses on a
 /// receipt and which reconciles against nothing.</para>

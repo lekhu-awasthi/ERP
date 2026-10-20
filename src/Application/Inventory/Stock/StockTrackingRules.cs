@@ -134,7 +134,7 @@ public static class StockTrackingRules
     /// </summary>
     /// <param name="kind">
     /// What the line does to stock. Phase 51's Decision D made a receipt <b>must</b> name the batch and an issue
-    /// <b>may</b>; phase 93 made an ERP issue must as well (the vendor's rule), leaving only the till's walk.
+    /// <b>may</b>; phase 93 made an ERP issue must as well (the vendor's rule), and phase 94 the Retail till's.
     /// </param>
     public static string? ValidateLineAllocation(
         Product product,
@@ -152,7 +152,7 @@ public static class StockTrackingRules
             return $"'{product.Name}' is not serial-tracked, so a line for it cannot name serial numbers.";
         }
 
-        if (product.BatchTracking && kind != StockLineKind.TillIssue && batchId is null)
+        if (product.BatchTracking && batchId is null)
         {
             return BatchRequiredMessage(product.Name, kind);
         }
