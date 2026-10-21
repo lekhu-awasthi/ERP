@@ -1,5 +1,6 @@
 using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Domain.Catalog;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Sales;
 using Microsoft.EntityFrameworkCore;
@@ -22,7 +23,7 @@ internal static class SalesBookReader
 {
     /// <summary>One line in base currency. Carried for the Sales Register's Group By Bill toggle (phase 36), so the per-line
     /// view and the per-document view split the same folded amounts.</summary>
-    internal sealed record InvoiceLineRow(Guid ProductId, decimal Quantity, decimal Amount, decimal VatAmount);
+    internal sealed record InvoiceLineRow(Guid ProductId, decimal Quantity, decimal Amount, decimal VatAmount, VatRate VatRate);
 
     internal sealed record InvoiceRow(
         Guid Id,
@@ -96,7 +97,7 @@ internal static class SalesBookReader
                     // not a supply, so no row carries it: Total stays Exempt + Taxable + VAT.
                     line.InvoiceId, line.ProductId, line.Quantity,
                     Amount = line.Amount + line.ServiceChargeAmount + line.PackagingFeeAmount,
-                    line.VatAmount, invoice.ExchangeRate,
+                    line.VatAmount, line.VatRate, invoice.ExchangeRate,
                 })
             .ToListAsync(cancellationToken);
 
@@ -113,7 +114,8 @@ internal static class SalesBookReader
                         x.ProductId,
                         x.Quantity,
                         ExchangeRates.ToBase(x.Amount, x.ExchangeRate),
-                        ExchangeRates.ToBase(x.VatAmount, x.ExchangeRate)))
+                        ExchangeRates.ToBase(x.VatAmount, x.ExchangeRate),
+                        x.VatRate))
                     .ToList());
 
         return
@@ -134,7 +136,7 @@ internal static class SalesBookReader
     /// Shared by a whole invoice and a single line, so the per-line view sums to the per-document one.</summary>
     internal static SalesReturnReader.Bucketed Split(IEnumerable<InvoiceLineRow> lines)
     {
-        decimal total = 0, taxExempt = 0, taxable = 0, vat = 0;
+        decimal total = 0, taxExempt = 0, taxable = 0, vat = 0, zeroRated = 0;
         foreach (var line in lines)
         {
             total += line.Amount + line.VatAmount;
@@ -142,6 +144,10 @@ internal static class SalesBookReader
             if (line.VatAmount == 0)
             {
                 taxExempt += line.Amount;
+                if (line.VatRate == VatRate.ZeroVat)
+                {
+                    zeroRated += line.Amount;
+                }
             }
             else
             {
@@ -149,6 +155,6 @@ internal static class SalesBookReader
             }
         }
 
-        return new SalesReturnReader.Bucketed(total, taxExempt, taxable, vat);
+        return new SalesReturnReader.Bucketed(total, taxExempt, taxable, vat, zeroRated);
     }
 }

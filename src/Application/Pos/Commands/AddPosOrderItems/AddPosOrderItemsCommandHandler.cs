@@ -26,6 +26,10 @@ public sealed class AddPosOrderItemsCommandHandler(IAppDbContext db, ICurrentUse
         db.PosOrderLines.AddRange(result.NewLines);
         db.KitchenTickets.AddRange(result.NewTickets);
 
+        // Phase 97 -- the order's discount follows the slab its total now reaches, until its first bill.
+        var billed = await PosOrderBilling.LoadAsync(db, request.OrganizationId, order.Id, cancellationToken);
+        await PosOrderSchemes.ApplySlabAsync(db, order, billed.Invoiced, cancellationToken);
+
         await db.SaveChangesAsync(cancellationToken);
 
         return await PosOrderView.ReadAsync(db, order, cancellationToken);

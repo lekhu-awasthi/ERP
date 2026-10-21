@@ -27,7 +27,8 @@ public sealed record PosOrderNewLine(
     PackagingFee PackagingFee,
     string? Note,
     Guid? KitchenStationId,
-    Guid? BatchId = null);
+    Guid? BatchId = null,
+    decimal DiscountPct = 0m);
 
 /// <summary>A quantity against one existing line: more of it (a send), served, or discarded.</summary>
 public sealed record PosOrderLineQuantity(Guid LineId, decimal Quantity);
@@ -207,6 +208,13 @@ public sealed class PosOrder
     /// <see cref="DiscountPct"/>.
     /// </summary>
     public bool ServiceChargeWaived { get; private set; }
+
+    /// <summary>
+    /// Phase 97 -- the order's discount was set by a cashier (<see cref="SetDiscount(PosDiscountKind, decimal, IReadOnlyDictionary{Guid, decimal})"/>),
+    /// to any value including none, so a slab discount scheme no longer moves it (<see cref="ApplySchemeDiscount"/>). Until
+    /// then the order's discount follows the slab its total reaches as dishes are sent and discarded, up to the first bill.
+    /// </summary>
+    public bool DiscountSetByHand { get; private set; }
 
     public DateTimeOffset LastActivityAt { get; private set; }
     public byte[] RowVersion { get; private set; } = null!;
@@ -714,6 +722,8 @@ public sealed class PosOrder
 
         if (pct == DiscountPct && amount == DiscountAmount)
         {
+            // Phase 97 -- a cashier confirming the figure a slab scheme gave it has still chosen it.
+            DiscountSetByHand = true;
             return;
         }
 
@@ -734,6 +744,35 @@ public sealed class PosOrder
 
         DiscountPct = pct;
         DiscountAmount = amount;
+        DiscountSetByHand = true;
+        Touch();
+    }
+
+    /// <summary>What the order comes to before VAT and its own discount, after each dish's: the amount a slab discount
+    /// scheme is judged on (phase 97), and the most an Amount discount can take.</summary>
+    public decimal AmountBeforeOrderDiscount => _lines.Sum(x => PosLineArithmetic.NetOf(
+        QuantitiesOf(x).Net, x.Rate, x.DiscountPerUnit, x.DiscountPct, 0m));
+
+    /// <summary>
+    /// Phase 97 -- the order's discount follows a slab discount scheme: <paramref name="slabRate"/> gives the percent for
+    /// what the order now comes to (<see cref="AmountBeforeOrderDiscount"/>). Nothing changes once a cashier has set the
+    /// discount by hand, or once anything on the order is billed (the terms are fixed then, as <see cref="SetDiscount(decimal, IReadOnlyDictionary{Guid, decimal})"/> says).
+    /// </summary>
+    public void ApplySchemeDiscount(Func<decimal, decimal> slabRate, IReadOnlyDictionary<Guid, decimal> invoiced)
+    {
+        if (Status != PosOrderStatus.Open || DiscountSetByHand || _lines.Any(x => invoiced.GetValueOrDefault(x.Id) > 0m))
+        {
+            return;
+        }
+
+        var pct = RequireDiscountPct(slabRate(AmountBeforeOrderDiscount));
+        if (pct == DiscountPct && DiscountAmount == 0m)
+        {
+            return;
+        }
+
+        DiscountPct = pct;
+        DiscountAmount = 0m;
         Touch();
     }
 
@@ -1340,6 +1379,7 @@ public sealed class PosOrder
         {
             DiscountPct = source.DiscountPct;
             ServiceChargeWaived = source.ServiceChargeWaived;
+            DiscountSetByHand = source.DiscountSetByHand;
             return;
         }
 
@@ -1503,6 +1543,9 @@ public sealed class PosOrderLine
             Note = note,
             KitchenStationId = row.KitchenStationId,
             BatchId = row.BatchId,
+            // Phase 97 -- a discount scheme's percent for the dish when it was ordered (zero without one): the line's
+            // own discount from the start, changed afterwards like any other.
+            DiscountPct = PosOrder.RequireDiscountPct(row.DiscountPct),
         };
     }
 

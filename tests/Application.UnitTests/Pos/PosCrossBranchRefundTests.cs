@@ -316,6 +316,96 @@ public sealed class PosCrossBranchRefundTests
         Assert.Equal(-20m, await home.BalanceAsync(home.ServiceChargeAccountId));
     }
 
+    // ---- Phase 96: a refund rounds into the account its sale rounded into ---------------------------
+
+    [Fact]
+    public async Task A_refund_after_the_location_changed_its_round_off_account_rounds_into_the_account_the_sale_used()
+    {
+        var home = await PosTestTill.CreateAsync();
+        var branch = await home.AddBranchAsync();
+        var oldRounding = await AddAccountAsync(home, "4201", "Rounding - Thamel");
+        var newRounding = await AddAccountAsync(home, "4211", "Rounding - Thamel 2083");
+        var branchRounding = await AddAccountAsync(home, "4221", "Rounding - Lakeside");
+        await SetRoundOffAccountAsync(home, oldRounding);
+        await SetRoundOffAccountAsync(branch, branchRounding);
+
+        var homeSession = await home.OpenAsync();
+        var branchSession = await branch.OpenAsync();
+
+        // Two identical sales: 3 Coke, 203.40 rounded to 203. Each keeps the account its round-off went to.
+        var away = await home.SellAsync(homeSession.Id, [home.Coke(3)], [home.Cash(203m)]);
+        var twin = await home.SellAsync(homeSession.Id, [home.Coke(3)], [home.Cash(203m)]);
+        foreach (var id in new[] { away.Id, twin.Id })
+        {
+            Assert.Equal(oldRounding, (await home.Db.Invoices.SingleAsync(x => x.Id == id)).RoundingAccountId);
+        }
+
+        Assert.Equal(0.80m, await home.BalanceAsync(oldRounding));
+
+        // Head office moves its round-off; a later sale keeps the new account.
+        await SetRoundOffAccountAsync(home, newRounding);
+        var later = await home.SellAsync(homeSession.Id, [home.Coke(3)], [home.Cash(203m)]);
+        Assert.Equal(newRounding, (await home.Db.Invoices.SingleAsync(x => x.Id == later.Id)).RoundingAccountId);
+
+        // Two of the first come back at the branch, two of the twin at home: both round into the old account.
+        var refundedAway = await branch.RefundAsync(
+            branchSession.Id, away.Id, [await branch.ReturnAsync(away.Id, home.CokeId, 2m)], [branch.Cash(136m)]);
+        var refundedHome = await home.RefundAsync(
+            homeSession.Id, twin.Id, [await home.ReturnAsync(twin.Id, home.CokeId, 2m)], [home.Cash(136m)]);
+        Assert.NotEqual(0m, refundedAway.RoundOff);
+        Assert.Equal(await PostedAsync(home, refundedHome.Id), await PostedAsync(home, refundedAway.Id));
+        Assert.Equal(0m, await home.BalanceAsync(branchRounding));
+
+        // The last Coke of each: the old account ties out to nothing, as if no setting had moved.
+        await home.RefundAsync(
+            homeSession.Id, away.Id, [await home.ReturnAsync(away.Id, home.CokeId, 1m)], [home.Cash(67m)]);
+        await home.RefundAsync(
+            homeSession.Id, twin.Id, [await home.ReturnAsync(twin.Id, home.CokeId, 1m)], [home.Cash(67m)]);
+        Assert.Equal(0m, await home.BalanceAsync(oldRounding));
+        Assert.Equal(0.40m, await home.BalanceAsync(newRounding));
+        Assert.Equal(0m, await home.BalanceAsync(branchRounding));
+        Assert.Equal(0m, await home.BalanceAsync(home.RoundingAccountId));
+    }
+
+    [Fact]
+    public async Task A_sale_that_recorded_no_rounding_account_refunds_through_the_refunding_locations_current_setting()
+    {
+        var home = await PosTestTill.CreateAsync();
+        var branch = await home.AddBranchAsync();
+        var branchRounding = await AddAccountAsync(home, "4221", "Rounding - Lakeside");
+        await SetRoundOffAccountAsync(branch, branchRounding);
+        var homeSession = await home.OpenAsync();
+        var branchSession = await branch.OpenAsync();
+
+        var sale = await home.SellAsync(homeSession.Id, [home.Coke(3)], [home.Cash(203m)]);
+        var invoice = await home.Db.Invoices.SingleAsync(x => x.Id == sale.Id);
+        Assert.Equal(home.RoundingAccountId, invoice.RoundingAccountId);
+
+        // As every sale approved before phase 96: nothing recorded, so the note rounds as every note did before.
+        ((DbContext)home.Db).Entry(invoice).Property(nameof(Invoice.RoundingAccountId)).CurrentValue = null;
+        await home.Db.SaveChangesAsync();
+
+        var refunded = await branch.RefundAsync(
+            branchSession.Id, sale.Id, [await branch.ReturnAsync(sale.Id, home.CokeId, 2m)], [branch.Cash(136m)]);
+
+        Assert.Equal(refunded.RoundOff, await home.BalanceAsync(branchRounding));
+        Assert.Equal(0.40m, await home.BalanceAsync(home.RoundingAccountId));
+    }
+
+    [Fact]
+    public async Task A_sale_not_rounded_records_no_rounding_account()
+    {
+        var home = await PosTestTill.CreateAsync();
+        var session = await home.OpenAsync();
+
+        // 5 Coke: 300 + 39 VAT = 339, a whole rupee, so nothing is rounded and no account is kept.
+        var whole = await home.SellAsync(session.Id, [home.Coke(5)], [home.Cash(339m)]);
+
+        var invoice = await home.Db.Invoices.SingleAsync(x => x.Id == whole.Id);
+        Assert.Equal(0m, invoice.RoundOff);
+        Assert.Null(invoice.RoundingAccountId);
+    }
+
     [Fact]
     public async Task The_credit_note_page_names_the_warehouse_a_refunds_goods_went_back_into()
     {
@@ -531,6 +621,18 @@ public sealed class PosCrossBranchRefundTests
             till.Location.PosMode, serviceCharge, s.ServiceChargeRate, serviceChargeAccountId, s.ServiceChargeOnTakeAway,
             fee, packagingFeeAccountId, s.RoundOffEnabled, s.RoundOffAccountId, s.CashVerificationRequired, s.Denominations,
             s.DefaultTab, s.PrintEstimateBill, s.PrintInvoice, s.PrintCreditNote, s.PrintKot, s.AbbreviatedTaxInvoiceEnabled);
+        await till.Db.SaveChangesAsync();
+    }
+
+    /// <summary>Phase 96 -- one location's Round Off account, everything else as it is.</summary>
+    private static async Task SetRoundOffAccountAsync(PosTestTill till, Guid? roundOffAccountId)
+    {
+        var s = await till.Db.PosLocationSettings.SingleAsync(x => x.BillingLocationId == till.Location.Id);
+        s.Update(
+            till.Location.PosMode, s.ServiceChargeEnabled, s.ServiceChargeRate, s.ServiceChargeAccountId,
+            s.ServiceChargeOnTakeAway, s.PackagingFee, s.PackagingFeeAccountId, s.RoundOffEnabled, roundOffAccountId,
+            s.CashVerificationRequired, s.Denominations, s.DefaultTab, s.PrintEstimateBill, s.PrintInvoice, s.PrintCreditNote,
+            s.PrintKot, s.AbbreviatedTaxInvoiceEnabled);
         await till.Db.SaveChangesAsync();
     }
 

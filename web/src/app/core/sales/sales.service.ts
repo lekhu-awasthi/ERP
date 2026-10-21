@@ -6,6 +6,9 @@ import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { PagedResult } from '../common/paged-result';
 import {
+  ApplicableDiscounts,
+  DiscountScheme,
+  DiscountSchemeRequest,
   PricedSalesDocumentType,
   SalesPricePowers,
   DeliveryNote,
@@ -77,6 +80,44 @@ export class SalesService {
       params['locationId'] = locationId;
     }
     return this.http.get<SalesPricePowers>(`${this.baseUrl(organizationId)}/sales/price-powers`, {
+      params,
+      withCredentials: true,
+    });
+  }
+
+  /** Phase 97 -- the Discount Schemes settings screen. */
+  listDiscountSchemes(organizationId: string): Observable<DiscountScheme[]> {
+    return this.http.get<DiscountScheme[]>(`${this.baseUrl(organizationId)}/sales/discount-schemes`, { withCredentials: true });
+  }
+
+  createDiscountScheme(organizationId: string, request: DiscountSchemeRequest): Observable<DiscountScheme> {
+    return this.http.post<DiscountScheme>(`${this.baseUrl(organizationId)}/sales/discount-schemes`, request, {
+      withCredentials: true,
+    });
+  }
+
+  updateDiscountScheme(organizationId: string, id: string, request: DiscountSchemeRequest): Observable<DiscountScheme> {
+    return this.http.put<DiscountScheme>(`${this.baseUrl(organizationId)}/sales/discount-schemes/${id}`, request, {
+      withCredentials: true,
+    });
+  }
+
+  deleteDiscountScheme(organizationId: string, id: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl(organizationId)}/sales/discount-schemes/${id}`, { withCredentials: true });
+  }
+
+  /** Phase 97 -- what the schemes give these products, and the bill's slab ladder, at a location on a day. */
+  getApplicableDiscounts(
+    organizationId: string,
+    date: string,
+    locationId: string | undefined,
+    productIds: string[],
+  ): Observable<ApplicableDiscounts> {
+    const params: Record<string, string | string[]> = { date, productIds };
+    if (locationId) {
+      params['locationId'] = locationId;
+    }
+    return this.http.get<ApplicableDiscounts>(`${this.baseUrl(organizationId)}/sales/discount-schemes/applicable`, {
       params,
       withCredentials: true,
     });

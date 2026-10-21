@@ -49,7 +49,7 @@ public sealed class UpdatePosOrderServiceChargeCommandHandler(IAppDbContext db, 
     public async Task<PosOrderDto> Handle(UpdatePosOrderServiceChargeCommand request, CancellationToken cancellationToken)
     {
         var (order, invoiced) = await PosOrderTerms.LoadForChangeAsync(
-            db, request.OrganizationId, currentUser.UserId, request.OrderId, PermissionKeys.InvoiceTillRemoveServiceCharge,
+            db, request.OrganizationId, currentUser.UserId, request.OrderId, PermissionKeys.InvoiceTillRemoveServiceCharge, null,
             cancellationToken);
 
         PosOrderCommands.Run(() => order.WaiveServiceCharge(request.Waived!.Value, invoiced));

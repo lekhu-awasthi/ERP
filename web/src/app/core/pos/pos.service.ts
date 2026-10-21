@@ -6,6 +6,7 @@ import { PagedResult } from '../common/paged-result';
 
 import { environment } from '../../../environments/environment';
 import { PosMode } from '../organizations/organizations.models';
+import { ApplicableDiscounts } from '../sales/sales.models';
 import {
   ClosePosSessionRequest,
   CreatePosRefundRequest,
@@ -115,6 +116,14 @@ export class PosService {
   }
 
   /** Phase 94 -- a batch-tracked product's batches in stock at the till's warehouse, soonest-expiring first. */
+  /** Phase 97 -- what the discount schemes give these products, and the bill's slab ladder, at this till today. */
+  getTillDiscounts(organizationId: string, locationId: string, productIds: string[]): Observable<ApplicableDiscounts> {
+    return this.http.get<ApplicableDiscounts>(`${this.baseUrl(organizationId)}/tills/${locationId}/discounts`, {
+      params: { productIds } as Record<string, string[]>,
+      withCredentials: true,
+    });
+  }
+
   listProductBatches(organizationId: string, locationId: string, productId: string): Observable<PosProductBatch[]> {
     return this.http.get<PosProductBatch[]>(
       `${this.baseUrl(organizationId)}/tills/${locationId}/products/${productId}/batches`,

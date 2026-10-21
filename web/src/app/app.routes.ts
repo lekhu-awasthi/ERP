@@ -106,6 +106,15 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    // Phase 97 -- dated discounts a sale picks up by itself.
+    path: 'organizations/:id/configuration/discount-schemes',
+    loadComponent: () =>
+      import('./features/configuration/discount-scheme-list-page/discount-scheme-list-page').then(
+        (m) => m.DiscountSchemeListPage,
+      ),
+    canActivate: [authGuard],
+  },
+  {
     path: 'organizations/:id/configuration/payment-modes',
     loadComponent: () =>
       import('./features/configuration/payment-mode-list-page/payment-mode-list-page').then(

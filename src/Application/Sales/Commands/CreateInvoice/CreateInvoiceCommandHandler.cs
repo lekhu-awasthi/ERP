@@ -94,6 +94,8 @@ public sealed class CreateInvoiceCommandHandler(IAppDbContext db, ICurrentUserSe
             quotation is null
                 ? []
                 : [.. quotation.Lines.Select(x => new SalesPriceGate.PricedLine(x.ProductId, x.UnitId, x.Rate, x.DiscountPct))],
+            SalesPriceGate.SchemeBasis.For(
+                request.Date, invoice.ExchangeRate, request.Lines.Select(x => (x.Quantity, x.Rate, x.DiscountPct))),
             cancellationToken);
 
         for (var i = 0; i < request.Lines.Count; i++)

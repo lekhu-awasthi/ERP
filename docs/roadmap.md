@@ -311,9 +311,19 @@ one from before phase 94/95) still returns into the oldest-taken batch: no recor
 
 **Carried from phase 94** (§ 5 there): both done in phase 95.
 
-**Carried from phase 95** (§ 5 there): only what is not ours to settle -- a tax advisor's word (phases 89/90), and the
-differences from the vendor nobody asked for (phases 79 and 88 § 5), offered to the user as droppable on 2026-10-20.
-Whether a sale return's rounding should follow its invoice is asked, not assumed.
+**Carried from phase 95** (§ 5 there): answered in phase 96 (2026-10-21). A sale return's rounding follows its
+invoice (built); the vendor's print extras (phase 79 § 5) and its per-row allocation table (phase 88 § 5) are
+**dropped**, not carried.
+
+**Carried from phase 96** (§ 5 there): the tax advisor answered all three (2026-10-21), built in phase 97: the credit
+carries on unchanged, a domestic zero-rated sale has its own return line, and Annex 13 stays before VAT.
+
+**Carried from phase 97** (§ 5 there):
+
+- Whether **exempt** sales should limit the input VAT a month claims (proportional credit). The app has never
+  apportioned; a question for the tax advisor, written in § 5.
+- **Free goods** in a discount scheme (the vendor's mock-up has an *Issue Qty*): left out by the user's choice (percent
+  only). Start condition: a user asking for "buy N get M free", plus the advisor's word on VAT for free units.
 
 **Carried from phase 62** (§ 5 there):
 
@@ -324,7 +334,6 @@ Whether a sale return's rounding should follow its invoice is asked, not assumed
 
 - FonePay/NepalPay dynamic QR: merchant credentials, plus phase 22's third-party-data decision.
 - IRD CBMS real-time sync: IRD test credentials.
-- Discount schemes (item / category / slab): after 62's basic discounts.
 - Delivery partners and their statement: the settlement shape is unread.
 - Offline mode: a product decision, which also changes numbering.
 - Device binding (OTP per device).

@@ -1,5 +1,7 @@
 import { computed, signal } from '@angular/core';
 
+import { ApplicableDiscounts, SlabStep } from '../sales/sales.models';
+import { slabDiscountPct } from '../../shared/sales/discount-schemes';
 import { BillFigures, BillLineInput, computeBill } from './pos-bill';
 import { PackagingFeeBasis, PosProduct, PosProductUnit, PosTab, PosTill } from './pos.models';
 
@@ -48,6 +50,9 @@ export interface CartLine {
   /** Phase 95 -- the chosen batch's own price per primary unit, exclusive of VAT; null when it has none. The line's
    * rate in any unit is this times the unit's conversion, and that rate is the batch's price, not a changed one. */
   batchRate?: number | null;
+  /** Phase 97 -- the line's discount follows its product's discount scheme: from the tap until the cashier changes it.
+   * A cart stored before the phase lacks it: the line keeps what it has. */
+  schemeFollows?: boolean;
 }
 
 /** Phase 91 -- a serial-tracked line whose serials do not yet match its quantity. */
@@ -72,6 +77,8 @@ export interface HeldCart {
   discountPct: number;
   /** Phase 74 -- rupees off the bill; absent on a cart held before the phase. */
   discountAmount?: number;
+  /** Phase 97 -- absent on a cart stored or held before the phase: its discount is the cashier's. */
+  billDiscountFollows?: boolean;
   customer: CartCustomer | null;
   orderType: PosTab | null;
 }
@@ -81,6 +88,8 @@ interface StoredCart {
   lines: CartLine[];
   discountPct: number;
   discountAmount?: number;
+  /** Phase 97 -- absent on a cart stored or held before the phase: its discount is the cashier's. */
+  billDiscountFollows?: boolean;
   customer: CartCustomer | null;
   orderType: PosTab | null;
   holds: HeldCart[];
@@ -120,6 +129,21 @@ export class PosCart {
   readonly customer = signal<CartCustomer | null>(null);
   readonly orderType = signal<PosTab | null>(null);
   readonly holds = signal<HeldCart[]>([]);
+
+  /**
+   * Phase 97 -- discount schemes. A line starts at its product's scheme percent and the bill at the slab its amount
+   * reaches; each follows until the cashier changes it (the user, 2026-10-21: "the scheme is the start"). The server keeps
+   * these figures without Sales.Invoice.TillDiscount, so a cashier without it still gets them.
+   */
+  readonly schemeRates = signal<Readonly<Record<string, number>>>({});
+  readonly slabs = signal<readonly SlabStep[]>([]);
+  readonly billDiscountFollows = signal(true);
+
+  /** What the bill comes to before VAT and its own discount, after each line's: the amount a slab is judged on, to the
+   * paisa as the server sums it. */
+  readonly amountBeforeBillDiscount = computed(
+    () => computeBill(this.lines().map((line) => this.toBillLine(line)), 0, false, 0).subTotal,
+  );
 
   /** The bill as the server will compute it -- see pos-bill.ts. */
   readonly bill = computed<BillFigures>(() =>
@@ -200,12 +224,14 @@ export class PosCart {
   add(product: PosProduct | CartProduct): CartLine | null {
     const kept = toCartProduct(product);
     const primary = kept.units[0];
+    // Phase 97 -- a line still at its scheme's percent is the product's own line, as an undiscounted one was.
     const existing = this.lines().find(
       (x) =>
         x.product.id === kept.id &&
         (!kept.batchTracking || !x.batchNo) &&
         (kept.serialTracking ||
-          (x.unitId === primary.unitId && x.rate === primary.rate && x.discountPct === 0 && !x.discountPerUnit)),
+          (x.unitId === primary.unitId && x.rate === primary.rate && !x.discountPerUnit
+            && (x.discountPct === 0 || !!x.schemeFollows))),
     );
 
     if (existing) {
@@ -219,10 +245,11 @@ export class PosCart {
       unitId: primary.unitId,
       quantity: 1,
       rate: primary.rate,
-      discountPct: 0,
+      discountPct: this.schemeRateOf(kept.id),
       discountPerUnit: 0,
       serialNumbers: [],
       batchNo: null,
+      schemeFollows: true,
     };
     this.lines.set([...this.lines(), line]);
     this.persist();
@@ -333,7 +360,7 @@ export class PosCart {
       return;
     }
 
-    this.update(key, { discountPct, discountPerUnit: 0 });
+    this.update(key, { discountPct, discountPerUnit: 0, schemeFollows: false });
   }
 
   /** Phase 74 -- rupees off each unit of the line, replacing a percentage; never more than its rate. */
@@ -343,7 +370,7 @@ export class PosCart {
       return;
     }
 
-    this.update(key, { discountPerUnit, discountPct: 0 });
+    this.update(key, { discountPerUnit, discountPct: 0, schemeFollows: false });
   }
 
   setBillDiscount(discountPct: number): void {
@@ -353,6 +380,7 @@ export class PosCart {
 
     this.discountPct.set(discountPct);
     this.discountAmount.set(0);
+    this.billDiscountFollows.set(false);
     this.persist();
   }
 
@@ -365,7 +393,51 @@ export class PosCart {
 
     this.discountAmount.set(discountAmount);
     this.discountPct.set(0);
+    this.billDiscountFollows.set(false);
     this.persist();
+  }
+
+  /** Phase 97 -- the scheme percent the till has read for a product; zero for one it has not, or no scheme names. */
+  schemeRateOf(productId: string): number {
+    return this.schemeRates()[productId] ?? 0;
+  }
+
+  /** Phase 97 -- the slab percent for what the bill now comes to. */
+  slabRate(): number {
+    return slabDiscountPct(this.slabs(), this.amountBeforeBillDiscount());
+  }
+
+  /** Phase 97 -- takes in what the till read about the schemes (the slab ladder, and the products asked about), and moves
+   * every line still following its scheme to its product's percent. */
+  setSchemes(discounts: ApplicableDiscounts): void {
+    const rates = { ...this.schemeRates() };
+    for (const product of discounts.products) {
+      rates[product.productId] = product.discountPct;
+    }
+    this.schemeRates.set(rates);
+    this.slabs.set(discounts.slabs);
+
+    const moved = this.lines().map((x) =>
+      x.schemeFollows && !x.discountPerUnit && x.discountPct !== (rates[x.product.id] ?? 0)
+        ? { ...x, discountPct: rates[x.product.id] ?? 0 }
+        : x);
+    if (moved.some((x, i) => x !== this.lines()[i])) {
+      this.lines.set(moved);
+      this.persist();
+    }
+  }
+
+  /** Phase 97 -- the bill's discount moves to the slab its amount reaches, while the cashier has not set it. */
+  followSlab(): void {
+    if (!this.billDiscountFollows()) {
+      return;
+    }
+    const pct = this.slabRate();
+    if (pct !== this.discountPct() || this.discountAmount() !== 0) {
+      this.discountPct.set(pct);
+      this.discountAmount.set(0);
+      this.persist();
+    }
   }
 
   setCustomer(customer: CartCustomer | null): void {
@@ -388,6 +460,7 @@ export class PosCart {
     this.lines.set([]);
     this.discountPct.set(0);
     this.discountAmount.set(0);
+    this.billDiscountFollows.set(true);
     this.customer.set(null);
     this.orderType.set(this.till.defaultTab);
     this.persist();
@@ -407,6 +480,7 @@ export class PosCart {
       lines: this.lines(),
       discountPct: this.discountPct(),
       discountAmount: this.discountAmount(),
+      billDiscountFollows: this.billDiscountFollows(),
       customer,
       orderType: this.orderType(),
     };
@@ -432,6 +506,7 @@ export class PosCart {
     this.lines.set(held.lines.map((line) => ({ ...line, discountPerUnit: line.discountPerUnit ?? 0, key: this.nextKey++ })));
     this.discountPct.set(held.discountPct);
     this.discountAmount.set(held.discountAmount ?? 0);
+    this.billDiscountFollows.set(held.billDiscountFollows ?? false);
     this.customer.set(held.customer);
     this.orderType.set(held.orderType ?? this.till.defaultTab);
     this.persist();
@@ -506,6 +581,7 @@ export class PosCart {
       lines: this.lines(),
       discountPct: this.discountPct(),
       discountAmount: this.discountAmount(),
+      billDiscountFollows: this.billDiscountFollows(),
       customer: this.customer(),
       orderType: this.orderType(),
       holds: this.holds(),
@@ -539,6 +615,7 @@ export class PosCart {
       this.lines.set(stored.lines.map((line) => ({ ...line, discountPerUnit: line.discountPerUnit ?? 0, key: this.nextKey++ })));
       this.discountPct.set(stored.discountPct ?? 0);
       this.discountAmount.set(stored.discountAmount ?? 0);
+      this.billDiscountFollows.set(stored.billDiscountFollows ?? false);
       this.customer.set(stored.customer ?? null);
       this.orderType.set(stored.orderType ?? this.till.defaultTab);
       this.holds.set(stored.holds ?? []);

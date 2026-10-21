@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal, viewChild } from '@angular/core';
+import { Component, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { BASE_CURRENCY_CODE } from '../../../core/organizations/organizations.models';
 import { CurrencyRateFields } from '../../../shared/currency/currency-rate-fields';
@@ -23,6 +23,8 @@ import { SendEmailDialog } from '../../../shared/send-email/send-email-dialog';
 import { DocumentLocationPicker } from '../../../shared/locations/document-location-picker';
 import { locationAwareProducts } from '../../../shared/catalog/location-aware-products';
 import { SalesPriceNote, SalesPricePowers, rateIsLocked, salesPricePowers } from '../../../shared/sales/sales-price-powers';
+import { SlabStep } from '../../../core/sales/sales.models';
+import { followDiscountSchemes, slabDiscountPct, withSchemeRate } from '../../../shared/sales/discount-schemes';
 import { FieldError, FieldErrorMessage } from '../../../shared/a11y/field-error';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
 import { LineUnitControl, LineUnitOption } from '../../../shared/catalog/line-unit-control';
@@ -36,6 +38,9 @@ interface EditableLine {
   rate: number;
   vatRate: VatRate;
   discountPct: number;
+  /** Phase 97 -- the line's discount follows its product's discount scheme: from the pick until the user changes
+   * or removes it. Unset on a line read back from a saved draft or a conversion, which nothing moves. */
+  schemeFollows?: boolean;
 
   /**
    * Phase 52 -- the unit this line is entered in. Empty means the product's own primary unit.
@@ -80,6 +85,11 @@ export class QuotationDetailPage {
   // and rendered by the shared app-currency-rate-fields control.
   protected readonly currencyCode = signal(BASE_CURRENCY_CODE);
   protected readonly exchangeRate = signal(1);
+  /** Phase 97 -- the discount schemes' slab ladder at this document's location and date. */
+  protected readonly schemeSlabs = signal<SlabStep[]>([]);
+  /** Phase 97 -- the document's discount follows the slab its amount reaches: on a fresh document, until the user
+   * sets or removes it. Never on a saved draft or a conversion. */
+  protected readonly headerDiscountFollows = signal(false);
   protected readonly saving = signal(false);
   protected readonly approving = signal(false);
   protected readonly voiding = signal(false);
@@ -160,8 +170,26 @@ export class QuotationDetailPage {
     // and re-reads when the header location changes. See shared/catalog/location-aware-products.
     locationAwareProducts(this.organizationId, this.locationId, this.products);
     salesPricePowers(this.organizationId, 'Quotation', this.locationId, this.pricePowers);
+    // Phase 97 -- discount schemes: each following line at its product's percent, the document at its slab.
+    followDiscountSchemes({
+      organizationId: this.organizationId,
+      locationId: this.locationId,
+      date: this.date,
+      productIds: () => this.lines().filter((l) => l.schemeFollows && l.productId).map((l) => l.productId),
+      apply: (discounts) => {
+        this.schemeSlabs.set(discounts.slabs);
+        this.lines.update((lines) => lines.map((l) => withSchemeRate(l, discounts)));
+      },
+    });
+    effect(() => {
+      if (!this.headerDiscountFollows()) return;
+      // In rupees, as a slab is: the amount before VAT and this discount, after each line's.
+      const pct = slabDiscountPct(this.schemeSlabs(), this.subTotal() * this.exchangeRate());
+      untracked(() => this.discountPct.set(pct));
+    });
 
     this.route.paramMap.subscribe((params) => {
+      this.headerDiscountFollows.set(false);
       this.routeQuotationId = params.get('quotationId')!;
       const isNew = this.routeQuotationId === 'new';
       this.isNew.set(isNew);
@@ -180,6 +208,7 @@ export class QuotationDetailPage {
         this.terms.set('');
         this.discountPct.set(0);
         this.lines.set([this.newLine()]);
+        this.headerDiscountFollows.set(true);
       } else {
         this.load();
       }
@@ -221,9 +250,21 @@ export class QuotationDetailPage {
     const product = this.products().find((p) => p.id === productId);
     this.updateLine(key, { productId, rate: product?.sellingPrice ?? 0, vatRate: product?.vatRate ?? 'NoVat' });
 
+    // Phase 97 -- a line with no discount of its own starts at the new product's scheme percent (none without one).
+    this.lines.update((lines) =>
+      lines.map((l) => (l.key === key ? { ...l, schemeFollows: !!l.schemeFollows || l.discountPct === 0 } : l)));
+
     if (!productId) {
       return;
     }
+
+    this.salesService
+      .getApplicableDiscounts(this.organizationId, this.date(), this.locationId() || undefined, [productId])
+      .subscribe({
+        next: (discounts) =>
+          this.lines.update((lines) => lines.map((l) => (l.key === key ? withSchemeRate(l, discounts) : l))),
+        error: () => undefined,
+      });
 
     this.catalogService.suggestProductRate(this.organizationId, productId).subscribe({
       next: (suggestion) => this.updateLine(key, { rate: suggestion.rate, vatRate: suggestion.vatRate }),
@@ -254,12 +295,13 @@ export class QuotationDetailPage {
 
   protected onDiscountPctChange(key: number, event: Event): void {
     const discountPct = (event.target as HTMLInputElement).valueAsNumber;
-    this.updateLine(key, { discountPct: Number.isFinite(discountPct) ? discountPct : 0 });
+    this.updateLine(key, { discountPct: Number.isFinite(discountPct) ? discountPct : 0, schemeFollows: false });
   }
 
   protected onHeaderDiscountPctChange(event: Event): void {
     const discountPct = (event.target as HTMLInputElement).valueAsNumber;
     this.discountPct.set(Number.isFinite(discountPct) ? discountPct : 0);
+    this.headerDiscountFollows.set(false);
   }
 
   /**
@@ -272,13 +314,14 @@ export class QuotationDetailPage {
 
   protected removeLineDiscount(key: number): void {
     if (this.removedDiscounts().has(key)) return;
-    this.updateLine(key, { discountPct: 0 });
+    this.updateLine(key, { discountPct: 0, schemeFollows: false });
     this.removedDiscounts.update((removed) => new Set(removed).add(key));
   }
 
   protected removeHeaderDiscount(): void {
     if (this.removedDiscounts().has('document')) return;
     this.discountPct.set(0);
+    this.headerDiscountFollows.set(false);
     this.removedDiscounts.update((removed) => new Set(removed).add('document'));
   }
 
@@ -506,7 +549,7 @@ export class QuotationDetailPage {
   }
 
   private newLine(): EditableLine {
-    return { unitId: '',  key: nextLineKey++, productId: '', quantity: 1, rate: 0, vatRate: 'NoVat', discountPct: 0};
+    return { unitId: '',  key: nextLineKey++, productId: '', quantity: 1, rate: 0, vatRate: 'NoVat', discountPct: 0, schemeFollows: true };
   }
 
   private today(): string {

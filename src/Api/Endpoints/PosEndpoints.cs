@@ -22,10 +22,12 @@ using ErpApp.Application.Pos.Queries.ListPosSessionRefunds;
 using ErpApp.Application.Pos.Queries.ListPosSessionSales;
 using ErpApp.Application.Pos.Queries.PreviewPosRefund;
 using ErpApp.Application.Pos.Queries.ListPosTills;
+using ErpApp.Application.Pos.Queries.ListPosTillDiscounts;
 using ErpApp.Domain.Pos;
 using ErpApp.Domain.Sales;
 using ErpApp.Domain.Tenancy;
 using MediatR;
+using Microsoft.AspNetCore.Mvc;
 
 namespace ErpApp.Api.Endpoints;
 
@@ -174,6 +176,12 @@ public static class PosEndpoints
             Guid organizationId, Guid locationId, Guid productId, string? search, ISender sender, CancellationToken ct) =>
             Results.Ok(await sender.Send(
                 new ListPosProductSerialsQuery(organizationId, locationId, productId, search), ct)));
+
+        // Phase 97 -- what the discount schemes give the cart's products and bill at this till today.
+        group.MapGet("/tills/{locationId:guid}/discounts", async (
+            Guid organizationId, Guid locationId, [FromQuery] Guid[]? productIds, ISender sender, CancellationToken ct) =>
+            Results.Ok(await sender.Send(
+                new ListPosTillDiscountsQuery(organizationId, locationId, productIds ?? []), ct)));
 
         // Phase 94 -- a batch-tracked product's batches in stock at the till's warehouse, for the cart's picker.
         group.MapGet("/tills/{locationId:guid}/products/{productId:guid}/batches", async (

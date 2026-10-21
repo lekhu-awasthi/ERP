@@ -17,6 +17,7 @@ internal sealed record RecordedSaleAccounts(
     Guid? InventoryAccountId,
     Guid? ServiceChargeAccountId,
     Guid? PackagingFeeAccountId,
+    Guid? RoundingAccountId,
     Guid? LocationId,
     IReadOnlyDictionary<Guid, Guid> SalesAccountByProduct)
 {
@@ -30,6 +31,7 @@ internal sealed record RecordedSaleAccounts(
         invoice.InventoryAccountId,
         invoice.ServiceChargeAccountId,
         invoice.PackagingFeeAccountId,
+        invoice.RoundingAccountId,
         invoice.LocationId,
         invoice.Lines
             .Where(x => x.SalesAccountId is not null)

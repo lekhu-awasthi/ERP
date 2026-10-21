@@ -1,0 +1,252 @@
+<div class="container py-5" style="max-width: 960px;">
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
+      <div class="d-flex align-items-center gap-3">
+        <div class="bg-primary bg-gradient text-white p-2.5 rounded-3">
+          <i aria-hidden="true" class="bi bi-percent fs-4 d-flex"></i>
+        </div>
+        <div>
+          <h1 class="h3 fw-bold mb-0 text-dark">Discount Schemes</h1>
+          <p class="text-muted small mb-0">Dated discounts a sale picks up by itself, on sales documents and at the till</p>
+        </div>
+      </div>
+      <a class="btn btn-outline-secondary btn-sm fw-bold" [routerLink]="['/organizations', organizationId, 'configuration']">
+        <i aria-hidden="true" class="bi bi-arrow-left"></i> Configurations
+      </a>
+    </div>
+  </div>
+
+  <app-status-banner [message]="errorMessage()" />
+
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4">
+      <h2 #formHeading tabindex="-1" class="h6 fw-bold text-dark mb-3">
+        {{ editingId() ? 'Edit Discount Scheme' : 'New Discount Scheme' }}
+      </h2>
+      <form (submit)="$event.preventDefault(); save()" class="row g-3">
+        <div class="col-12 col-md-4">
+          <label class="form-label small fw-semibold" for="discount-scheme-kind">Type of scheme</label>
+          <select id="discount-scheme-kind" class="form-select" (change)="onKind($event)">
+            @for (k of kinds; track k.value) {
+              <option [value]="k.value" [selected]="k.value === kind()">{{ k.label }}</option>
+            }
+          </select>
+        </div>
+        <div class="col-6 col-md-3">
+          <label class="form-label small fw-semibold" for="discount-scheme-code">Code</label>
+          <input id="discount-scheme-code" type="text" class="form-control" maxlength="20" [value]="code()" (input)="onCode($event)" />
+        </div>
+        <div class="col-6 col-md-5">
+          <label class="form-label small fw-semibold" for="discount-scheme-name">Scheme name</label>
+          <input id="discount-scheme-name" type="text" class="form-control" maxlength="100" [value]="name()" (input)="onName($event)" />
+        </div>
+        <div class="col-6 col-md-3">
+          <label class="form-label small fw-semibold" for="discount-scheme-start">Starts</label>
+          <app-bs-date-input [inputId]="'discount-scheme-start'" [value]="startDate()" (valueChange)="startDate.set($event)" />
+        </div>
+        <div class="col-6 col-md-3">
+          <label class="form-label small fw-semibold" for="discount-scheme-end">Ends</label>
+          <app-bs-date-input [inputId]="'discount-scheme-end'" [value]="endDate()" (valueChange)="endDate.set($event)" />
+        </div>
+
+        <fieldset class="col-12 col-md-6">
+          <legend class="form-label small fw-semibold mb-1">Applies at</legend>
+          <div class="form-check form-check-inline">
+            <input type="checkbox" class="form-check-input" id="discount-scheme-all" [checked]="allLocations()" (change)="onAllLocations($event)" />
+            <label class="form-check-label small" for="discount-scheme-all">All locations</label>
+          </div>
+          @if (!allLocations()) {
+            @for (location of locations(); track location.id) {
+              <div class="form-check form-check-inline">
+                <input
+                  type="checkbox"
+                  class="form-check-input"
+                  [id]="'discount-scheme-location-' + location.id"
+                  [checked]="locationIds().has(location.id)"
+                  (change)="onLocation(location.id, $event)"
+                />
+                <label class="form-check-label small" [for]="'discount-scheme-location-' + location.id">{{ location.name }}</label>
+              </div>
+            }
+          }
+        </fieldset>
+
+        <div class="col-12">
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-2">
+              <caption class="visually-hidden">Scheme rows</caption>
+              <thead>
+                <tr>
+                  <th scope="col">
+                    @switch (kind()) {
+                      @case ('ItemWise') { Product }
+                      @case ('CategoryWise') { Category (and its sub-categories) }
+                      @default { Bill of at least (Rs, before VAT) }
+                    }
+                  </th>
+                  <th scope="col" class="text-end" style="width: 9rem;">Discount %</th>
+                  <th scope="col" style="width: 3rem;"><span class="visually-hidden">Remove</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of rows(); track row.key; let i = $index) {
+                  <tr>
+                    <td>
+                      @switch (kind()) {
+                        @case ('ItemWise') {
+                          <label class="visually-hidden" [for]="'discount-scheme-row-product-' + row.key">Product, row {{ i + 1 }}</label>
+                          <select class="form-select form-select-sm" [id]="'discount-scheme-row-product-' + row.key" (change)="onRowProduct(row.key, $event)">
+                            <option value="" [selected]="!row.productId">Choose a product</option>
+                            @for (product of products(); track product.id) {
+                              <option [value]="product.id" [selected]="product.id === row.productId">{{ product.code }} — {{ product.name }}</option>
+                            }
+                          </select>
+                        }
+                        @case ('CategoryWise') {
+                          <label class="visually-hidden" [for]="'discount-scheme-row-category-' + row.key">Category, row {{ i + 1 }}</label>
+                          <select class="form-select form-select-sm" [id]="'discount-scheme-row-category-' + row.key" (change)="onRowCategory(row.key, $event)">
+                            <option value="" [selected]="!row.categoryId">Choose a category</option>
+                            @for (category of categories(); track category.id) {
+                              <option [value]="category.id" [selected]="category.id === row.categoryId">{{ category.name }}</option>
+                            }
+                          </select>
+                        }
+                        @default {
+                          <label class="visually-hidden" [for]="'discount-scheme-row-minimum-' + row.key">Bill of at least, row {{ i + 1 }}</label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            class="form-control form-control-sm text-end"
+                            [id]="'discount-scheme-row-minimum-' + row.key"
+                            [value]="row.minimumAmount ?? ''"
+                            (input)="onRowMinimum(row.key, $event)"
+                          />
+                        }
+                      }
+                    </td>
+                    <td>
+                      <label class="visually-hidden" [for]="'discount-scheme-row-pct-' + row.key">Discount percent, row {{ i + 1 }}</label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        class="form-control form-control-sm text-end"
+                        style="min-width: 6rem;"
+                        [id]="'discount-scheme-row-pct-' + row.key"
+                        [value]="row.discountPct ?? ''"
+                        (input)="onRowPct(row.key, $event)"
+                      />
+                    </td>
+                    <td>
+                      <button
+                        type="button"
+                        class="btn btn-outline-danger btn-sm"
+                        [disabled]="rows().length === 1"
+                        (click)="removeRow(row.key)"
+                      >
+                        <i aria-hidden="true" class="bi bi-x-lg"></i><span class="visually-hidden">Remove row {{ i + 1 }}</span>
+                      </button>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          <button type="button" class="btn btn-outline-primary btn-sm" (click)="addRow()">
+            <i aria-hidden="true" class="bi bi-plus-lg"></i> Add row
+          </button>
+          <p class="form-text mb-0 mt-2">
+            A product named by two schemes, or by one and in a category of another, gets the larger percent. A slab gives the
+            whole bill its percent once the bill (before VAT, after each item's own discount) reaches the amount; the highest
+            amount reached wins. A user may keep a scheme's percent without the discount permission; changing it needs it.
+          </p>
+        </div>
+
+        @if (editingId()) {
+          <div class="col-12 form-check ps-4">
+            <input type="checkbox" class="form-check-input" id="discount-scheme-active" [checked]="isActive()" (change)="onActive($event)" />
+            <label class="form-check-label small" for="discount-scheme-active">Active</label>
+          </div>
+        }
+
+        <div class="col-12 d-flex gap-2">
+          <button type="submit" class="btn btn-primary fw-bold" [disabled]="saving()">
+            @if (saving()) {
+              <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+              <span class="visually-hidden">Saving</span>
+            } @else {
+              {{ editingId() ? 'Update scheme' : 'Add scheme' }}
+            }
+          </button>
+          @if (editingId()) {
+            <button type="button" class="btn btn-outline-secondary" (click)="cancelEdit()">Cancel</button>
+          }
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-4">
+      <h2 #listHeading tabindex="-1" class="h6 fw-bold text-dark mb-3">Schemes</h2>
+      @if (loading()) {
+        <div class="text-center py-5">
+          <div class="spinner-border text-primary mb-3" role="status"></div>
+          <p class="text-muted mb-0">Loading discount schemes...</p>
+        </div>
+      } @else if (items().length === 0) {
+        <div class="text-center py-5">
+          <h3 class="h5 fw-bold text-dark">No Discount Schemes Yet</h3>
+          <p class="text-muted small mb-0">Add one using the form above.</p>
+        </div>
+      } @else {
+        <app-lookup-filter
+          controlId="discount-scheme-search"
+          [shown]="filtered().length"
+          [total]="items().length"
+          (termChange)="term.set($event)"
+        />
+
+        @if (filtered().length === 0) {
+          <p class="text-muted small mb-0">No rows match that search.</p>
+        }
+
+        <div class="list-group list-group-flush">
+          @for (item of filtered(); track item.id) {
+            <div class="list-group-item border rounded-3 mb-3 p-3 d-flex justify-content-between align-items-center flex-wrap gap-3">
+              <div>
+                <h3 class="h6 fw-bold mb-1 text-dark">{{ item.code }} — {{ item.name }}</h3>
+                <span class="badge bg-light text-dark border me-1">{{ kindLabel(item.kind) }}</span>
+                <span class="small text-muted me-1">
+                  {{ item.startDate | nepaliDate }} to {{ item.endDate | nepaliDate }} · {{ where(item) }}
+                </span>
+                @if (!item.isActive) {
+                  <span class="badge bg-secondary-subtle text-secondary-emphasis">Inactive</span>
+                }
+                <div class="small text-muted mt-1">{{ describe(item) }}</div>
+              </div>
+              <div class="d-flex gap-2">
+                @if (confirmingDeleteId() === item.id) {
+                  <span class="small text-danger fw-semibold align-self-center me-1">Delete this scheme?</span>
+                  <button type="button" class="btn btn-danger btn-sm" (click)="confirmDelete(item)">
+                    <i aria-hidden="true" class="bi bi-check2"></i> Confirm
+                  </button>
+                  <button type="button" class="btn btn-outline-secondary btn-sm" (click)="cancelDelete()">Cancel</button>
+                } @else {
+                  <button type="button" class="btn btn-outline-secondary btn-sm" (click)="startEdit(item)">
+                    <i aria-hidden="true" class="bi bi-pencil"></i> Edit<span class="visually-hidden"> {{ item.code }}</span>
+                  </button>
+                  <button type="button" class="btn btn-outline-danger btn-sm" (click)="requestDelete(item)">
+                    <i aria-hidden="true" class="bi bi-trash"></i> Delete<span class="visually-hidden"> {{ item.code }}</span>
+                  </button>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      }
+    </div>
+  </div>
+</div>

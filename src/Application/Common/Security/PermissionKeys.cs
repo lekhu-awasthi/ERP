@@ -1193,4 +1193,18 @@ public static class PermissionKeys
     // phase 32b's derivation makes them grantable per location.
     public const string InvoiceDiscount = "Sales.Invoice.Discount";
     public const string InvoiceChangeRate = "Sales.Invoice.ChangeRate";
+
+    // Phase 97 (discount schemes) -- dated percent-off rules a sale picks up by itself. The vendor's screen is a mock-up
+    // with no key of its own (its 168 keys hold none), so these are ours, derived as CLAUDE.md says:
+    //
+    // - Sales.DiscountScheme.View, Admin+Member: the schemes and what they give a product or a bill -- routine daily-use
+    //   working data that every ERP sales form reads to suggest a discount, exposing no PAN or contact identity.
+    // - Sales.DiscountScheme.Manage, Admin-only: a scheme lowers what every customer pays at every till it covers,
+    //   without the per-sale discount key (a scheme's own percent needs none), so writing one is a pricing decision
+    //   for the whole business, like the till keys.
+    //
+    // Organization-wide: a scheme names its own locations, and DiscountScheme is no DocumentType, so phase 32b's
+    // derivation does not make these per-location.
+    public const string DiscountSchemeView = "Sales.DiscountScheme.View";
+    public const string DiscountSchemeManage = "Sales.DiscountScheme.Manage";
 }

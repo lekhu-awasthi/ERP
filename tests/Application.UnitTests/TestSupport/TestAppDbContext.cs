@@ -59,6 +59,9 @@ public sealed class TestAppDbContext(DbContextOptions<TestAppDbContext> options)
     public DbSet<PosArea> PosAreas => Set<PosArea>();
     public DbSet<PosTable> PosTables => Set<PosTable>();
     public DbSet<KitchenStation> KitchenStations => Set<KitchenStation>();
+    public DbSet<DiscountScheme> DiscountSchemes => Set<DiscountScheme>();
+    public DbSet<DiscountSchemeLine> DiscountSchemeLines => Set<DiscountSchemeLine>();
+    public DbSet<DiscountSchemeLocation> DiscountSchemeLocations => Set<DiscountSchemeLocation>();
     public DbSet<PosOrder> PosOrders => Set<PosOrder>();
     public DbSet<PosOrderLine> PosOrderLines => Set<PosOrderLine>();
     public DbSet<KitchenTicket> KitchenTickets => Set<KitchenTicket>();

@@ -10,6 +10,7 @@ using ErpApp.Application.Pos.Sales;
 using ErpApp.Application.Pos.Sessions;
 using ErpApp.Application.Sales;
 using ErpApp.Application.Sales.Credit;
+using ErpApp.Application.Sales.Discounts;
 using ErpApp.Application.Sales.Posting;
 using ErpApp.Application.Sales.Stock;
 using ErpApp.Domain.Accounting;
@@ -162,11 +163,24 @@ public sealed class CreatePosSaleCommandHandler(
     /// draft at the branch. A discount needs <c>Sales.Invoice.TillDiscount</c> here, a price other than the
     /// catalogue's <c>Sales.Invoice.TillChangeRate</c>; a sale doing both needs both, discount first.</para>
     /// </summary>
+    /// <para><b>Phase 97 -- a discount scheme's own percent needs no key</b>: a line at exactly its product's scheme
+    /// percent, and a bill at exactly the slab percent its amount reaches (before VAT and the bill's discount, after each
+    /// line's), are the business's price, not the cashier's (<see cref="DiscountSchemeRates"/>, which the till reads to
+    /// start the line there). An Amount discount is never a scheme's.</para>
     private async Task EnsureMayChangeThePriceAsync(
         CreatePosSaleCommand request, PosTillContext till, CancellationToken cancellationToken)
     {
-        if (request.DiscountPct > 0m || request.DiscountAmount > 0m
-            || request.Lines.Any(x => x.DiscountPct > 0m || x.DiscountPerUnit > 0m))
+        var schemes = await DiscountSchemeRates.LoadAsync(
+            db, request.OrganizationId, till.Location.Id, request.Date, [.. request.Lines.Select(x => x.ProductId)],
+            cancellationToken);
+        // A per-unit discount beyond the rate is the Domain's refusal later, not this sum's.
+        var billAmount = request.Lines
+            .Where(x => x.DiscountPerUnit >= 0m && x.DiscountPerUnit <= x.Rate)
+            .Sum(x => PosLineArithmetic.NetOf(x.Quantity, x.Rate, x.DiscountPerUnit, x.DiscountPct, 0m));
+
+        if ((request.DiscountPct > 0m && request.DiscountPct != schemes.ForBillAmount(billAmount))
+            || request.DiscountAmount > 0m
+            || request.Lines.Any(x => (x.DiscountPct > 0m && x.DiscountPct != schemes.ForProduct(x.ProductId)) || x.DiscountPerUnit > 0m))
         {
             await GrantedPermissionReader.EnsureGrantedAtLocationAsync(
                 db, request.OrganizationId, currentUser.UserId, PermissionKeys.InvoiceTillDiscount, till.Location.Id,

@@ -66,6 +66,9 @@ public sealed class VoidPosOrderItemsCommandHandler(IAppDbContext db, ICurrentUs
 
         order.SettleIfFullyBilled(billed.Invoiced, DateTimeOffset.UtcNow);
 
+        // Phase 97 -- a discard lowers the total, so the slab it reaches may be a lower one, until the first bill.
+        await PosOrderSchemes.ApplySlabAsync(db, order, billed.Invoiced, cancellationToken);
+
         db.KitchenTickets.AddRange(tickets);
         await db.SaveChangesAsync(cancellationToken);
 

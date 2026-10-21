@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, computed, inject, signal, viewChild } from '@angular/core';
+import { Component, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ConfigurationService } from '../../../core/configuration/configuration.service';
 import { CreditTerm } from '../../../core/configuration/configuration.models';
@@ -36,6 +36,8 @@ import { defaultWarehouseSeed } from '../../../shared/locations/default-warehous
 import { locationAwareProducts } from '../../../shared/catalog/location-aware-products';
 import { acceptSerialEntry, parseSerials, serialProgress } from '../../../shared/catalog/serial-entry';
 import { SalesPriceNote, SalesPricePowers, rateIsLocked, salesPricePowers } from '../../../shared/sales/sales-price-powers';
+import { SlabStep } from '../../../core/sales/sales.models';
+import { followDiscountSchemes, slabDiscountPct, withSchemeRate } from '../../../shared/sales/discount-schemes';
 import { LineUnitControl, LineUnitOption } from '../../../shared/catalog/line-unit-control';
 import { UnitOfMeasurementStore } from '../../../shared/catalog/unit-of-measurement-store';
 import { FieldError, FieldErrorMessage } from '../../../shared/a11y/field-error';
@@ -51,6 +53,9 @@ interface EditableLine {
   rate: number;
   vatRate: VatRate;
   discountPct: number;
+  /** Phase 97 -- the line's discount follows its product's discount scheme: from the pick until the user changes
+   * or removes it. Unset on a line read back from a saved draft or a conversion, which nothing moves. */
+  schemeFollows?: boolean;
   /** Phase 74 -- a till line's Amount discount, rupees off each unit; zero on every line this form can write. Required,
    * so every one of the form's line mappings had to say so (phase 52: an optional field ends a sweep). */
   discountPerUnit: number;
@@ -118,6 +123,11 @@ export class InvoiceDetailPage {
   // and rendered by the shared app-currency-rate-fields control.
   protected readonly currencyCode = signal(BASE_CURRENCY_CODE);
   protected readonly exchangeRate = signal(1);
+  /** Phase 97 -- the discount schemes' slab ladder at this document's location and date. */
+  protected readonly schemeSlabs = signal<SlabStep[]>([]);
+  /** Phase 97 -- the document's discount follows the slab its amount reaches: on a fresh document, until the user
+   * sets or removes it. Never on a saved draft or a conversion. */
+  protected readonly headerDiscountFollows = signal(false);
   protected readonly saving = signal(false);
   protected readonly approving = signal(false);
   protected readonly converting = signal(false);
@@ -269,6 +279,23 @@ export class InvoiceDetailPage {
     // and re-reads when the header location changes. See shared/catalog/location-aware-products.
     locationAwareProducts(this.organizationId, this.locationId, this.products);
     salesPricePowers(this.organizationId, 'Invoice', this.locationId, this.pricePowers);
+    // Phase 97 -- discount schemes: each following line at its product's percent, the document at its slab.
+    followDiscountSchemes({
+      organizationId: this.organizationId,
+      locationId: this.locationId,
+      date: this.date,
+      productIds: () => this.lines().filter((l) => l.schemeFollows && l.productId).map((l) => l.productId),
+      apply: (discounts) => {
+        this.schemeSlabs.set(discounts.slabs);
+        this.lines.update((lines) => lines.map((l) => withSchemeRate(l, discounts)));
+      },
+    });
+    effect(() => {
+      if (!this.headerDiscountFollows()) return;
+      // In rupees, as a slab is: the amount before VAT and this discount, after each line's.
+      const pct = slabDiscountPct(this.schemeSlabs(), this.subTotal() * this.exchangeRate());
+      untracked(() => this.discountPct.set(pct));
+    });
     this.accountingService.listAllAccounts(this.organizationId).subscribe({ next: (a) => this.accounts.set(a) });
     this.organizationsService.listWarehouses(this.organizationId).subscribe({
       next: (w) => {
@@ -283,6 +310,7 @@ export class InvoiceDetailPage {
     });
 
     this.route.paramMap.subscribe((params) => {
+      this.headerDiscountFollows.set(false);
       this.routeInvoiceId = params.get('invoiceId')!;
       const isNew = this.routeInvoiceId === 'new';
       this.isNew.set(isNew);
@@ -344,6 +372,7 @@ export class InvoiceDetailPage {
         this.terms.set('');
           this.discountPct.set(0);
           this.lines.set([this.newLine()]);
+          this.headerDiscountFollows.set(true);
         }
         this.warehouseId.set('');
         // Phase 32 -- a new invoice starts on the tenant's default location. Empty rather than
@@ -506,9 +535,21 @@ export class InvoiceDetailPage {
     const product = this.products().find((p) => p.id === productId);
     this.updateLine(key, { productId, rate: product?.sellingPrice ?? 0, vatRate: product?.vatRate ?? 'NoVat' });
 
+    // Phase 97 -- a line with no discount of its own starts at the new product's scheme percent (none without one).
+    this.lines.update((lines) =>
+      lines.map((l) => (l.key === key ? { ...l, schemeFollows: !!l.schemeFollows || l.discountPct === 0 } : l)));
+
     if (!productId) {
       return;
     }
+
+    this.salesService
+      .getApplicableDiscounts(this.organizationId, this.date(), this.locationId() || undefined, [productId])
+      .subscribe({
+        next: (discounts) =>
+          this.lines.update((lines) => lines.map((l) => (l.key === key ? withSchemeRate(l, discounts) : l))),
+        error: () => undefined,
+      });
 
     this.catalogService.suggestProductRate(this.organizationId, productId).subscribe({
       next: (suggestion) => this.updateLine(key, { rate: suggestion.rate, vatRate: suggestion.vatRate }),
@@ -594,12 +635,13 @@ export class InvoiceDetailPage {
 
   protected onDiscountPctChange(key: number, event: Event): void {
     const discountPct = (event.target as HTMLInputElement).valueAsNumber;
-    this.updateLine(key, { discountPct: Number.isFinite(discountPct) ? discountPct : 0 });
+    this.updateLine(key, { discountPct: Number.isFinite(discountPct) ? discountPct : 0, schemeFollows: false });
   }
 
   protected onHeaderDiscountPctChange(event: Event): void {
     const discountPct = (event.target as HTMLInputElement).valueAsNumber;
     this.discountPct.set(Number.isFinite(discountPct) ? discountPct : 0);
+    this.headerDiscountFollows.set(false);
   }
 
   /**
@@ -612,13 +654,14 @@ export class InvoiceDetailPage {
 
   protected removeLineDiscount(key: number): void {
     if (this.removedDiscounts().has(key)) return;
-    this.updateLine(key, { discountPct: 0 });
+    this.updateLine(key, { discountPct: 0, schemeFollows: false });
     this.removedDiscounts.update((removed) => new Set(removed).add(key));
   }
 
   protected removeHeaderDiscount(): void {
     if (this.removedDiscounts().has('document')) return;
     this.discountPct.set(0);
+    this.headerDiscountFollows.set(false);
     this.removedDiscounts.update((removed) => new Set(removed).add('document'));
   }
 
@@ -928,6 +971,7 @@ Approve anyway?`)) {
       rate: 0,
       vatRate: 'NoVat',
       discountPct: 0,
+      schemeFollows: true,
       discountPerUnit: 0,
       batchNo: '',
       manufactureDate: '',

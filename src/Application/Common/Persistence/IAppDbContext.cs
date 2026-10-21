@@ -57,6 +57,11 @@ public interface IAppDbContext
     DbSet<PosOrderLine> PosOrderLines { get; }
     DbSet<KitchenTicket> KitchenTickets { get; }
     DbSet<KitchenTicketLine> KitchenTicketLines { get; }
+
+    // Phase 97 -- discount schemes.
+    DbSet<DiscountScheme> DiscountSchemes { get; }
+    DbSet<DiscountSchemeLine> DiscountSchemeLines { get; }
+    DbSet<DiscountSchemeLocation> DiscountSchemeLocations { get; }
     DbSet<Bank> Banks { get; }
     DbSet<CustomStatus> CustomStatuses { get; }
     DbSet<CostTerm> CostTerms { get; }

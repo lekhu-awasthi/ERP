@@ -4782,3 +4782,29 @@ At 1,024 px a line table wider than its card squeezed the purchase bill's Rate b
 ## A switch that overrides a flag is read in one place, or it overrides nothing (phase 95)
 
 The company's tracking switches override each product's `BatchTracking`/`SerialTracking`, and about twenty readers asked the product directly. Every rule now asks `StockTrackingSwitches`, and the two rule methods take it as a required argument so the compiler listed every caller. A switch added beside a flag owes a census of the flag's readers, and a backfill that keeps every existing tenant's behaviour.
+
+## A vendor screen that saves nothing (phase 97)
+
+Phase 59's scan listed the reference product's POS *Discount Schemes* screen with three kinds, dates, locations and rows,
+and the roadmap carried it as a feature to build. Read in the client bundle, it is a mock-up: the list renders a static
+`data: []`, Save is `router.push(...)` back to the list, the product picker offers one hard-coded item, and no
+permission key names it. A screen's fields describe what someone once drew; only its Save handler (what it sends) and
+its list's data source (what it reads) say whether a feature exists. Read both before modelling from a screen, and when
+they are empty, the rules are a product decision for the user, asked before code.
+
+## Two VAT rates that compute the same nothing (phase 97)
+
+`VatRate.NoVat` (exempt) and `VatRate.ZeroVat` (zero-rated) both give a line `VatAmount = 0`, and the sales registers
+had always bucketed by that amount, which is right for the sales book's single Tax Exempt column. The VAT return must
+tell them apart (the tax advisor: zero-rated is not exempt and must not be listed with it). A line's amount cannot
+answer that; its stored rate can. The readers now carry the zero-rated part of `TaxExempt` from the rate
+(`Bucketed.ZeroRated`), leaving every existing column as it was, and the register-agreement test sums both.
+
+## Confirming a figure is choosing it (phase 97)
+
+A restaurant order's discount follows the slab scheme its total reaches until a cashier sets it. `SetDiscount` returned
+early when the value was unchanged, so a cashier setting the very figure the slab had given left the order following
+the slab, and the next dish moved the discount the cashier had just confirmed. A setter whose "unchanged" branch
+returns early must still record anything that is about *who chose*, not *what* (`DiscountSetByHand`), or an automatic
+rule will treat a person's decision as its own.
+

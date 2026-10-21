@@ -23,7 +23,7 @@ namespace ErpApp.Application.Sales.Posting;
 /// "a return relieves at the cost the layers gave up" for a sale. A standalone note moves no stock.</para>
 ///
 /// <para><b>The till's legs</b>: a refund's service charge is debited to the account the sale credited
-/// (location, then tenant default, then a 409), and its round-off to the rounding account. Both are
+/// (location, then tenant default, then a 409), and its round-off to the rounding account (phase 96: the sale's). Both are
 /// zero on an ERP note, so its entry is byte-for-byte what it was.</para>
 /// </summary>
 internal static class CreditNoteApprovalPosting
@@ -76,8 +76,7 @@ internal static class CreditNoteApprovalPosting
         // Resolved before the number is drawn, so a missing account is a 409 that has consumed nothing.
         // Phase 85 -- out of the accounts the sale put them in, wherever the refund happens. Phase 86 -- the ones the sale
         // recorded; a sale approved before phase 86 recorded none, and resolves them as phase 85 did (the selling location's
-        // current setting, then the tenant default). The entry stays stamped with the note's location (phase 84 Decision D),
-        // and its round-off stays the note's below.
+        // current setting, then the tenant default). The entry stays stamped with the note's location (phase 84 Decision D).
         var feeLocationId = recorded is null ? creditNote.LocationId : recorded.LocationId;
         if (creditNote.ServiceChargeTotal > 0)
         {
@@ -97,13 +96,16 @@ internal static class CreditNoteApprovalPosting
             };
         }
 
+        // The note rounds its own figure. Phase 96 (the user) -- into the account its sale rounded into, when the sale recorded
+        // one; a sale not rounded, or approved before phase 96, leaves it to the refunding location's current setting, then
+        // the tenant default, as every note took it before.
         if (creditNote.RoundOff != 0)
         {
             postingInput = postingInput with
             {
                 RoundOff = ExchangeRates.ToBase(creditNote.RoundOff, creditNote.ExchangeRate),
-                RoundingAccountId = await PosAccountResolver.RoundingAccountAsync(
-                    db, organizationId, creditNote.LocationId, cancellationToken),
+                RoundingAccountId = recorded?.RoundingAccountId
+                    ?? await PosAccountResolver.RoundingAccountAsync(db, organizationId, creditNote.LocationId, cancellationToken),
             };
         }
 

@@ -98,8 +98,8 @@ internal static class InvoiceApprovalPosting
             invoice.OrganizationId, DocumentType.Invoice, cancellationToken, invoice.LocationId);
 
         // Phases 86-87 -- every account the entry below posts to, kept on the sale: a credit note reverses into these and a
-        // receipt allocated to it settles out of its Receivable, whatever the settings say by then. The round-off is not
-        // kept: a refund rounds its own figure.
+        // receipt allocated to it settles out of its Receivable, whatever the settings say by then. Phase 96 -- the round-off's
+        // account too: a refund rounds its own figure, but into the account the sale rounded into.
         invoice.RecordPostingAccounts(new InvoicePostingAccounts(
             postingInput.AccountsReceivableAccountId,
             postingInput.VatPayableAccountId == Guid.Empty ? null : postingInput.VatPayableAccountId,
@@ -107,6 +107,7 @@ internal static class InvoiceApprovalPosting
             postingInput.InventoryAccountId,
             postingInput.ServiceChargeAccountId,
             postingInput.PackagingFeeAccountId,
+            postingInput.RoundingAccountId,
             [.. postingInput.Lines.Select(x => x.SalesAccountId)]));
         invoice.Approve(approvedByUserId, code);
 

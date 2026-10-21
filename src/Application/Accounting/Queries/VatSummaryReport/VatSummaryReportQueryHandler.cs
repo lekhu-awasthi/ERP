@@ -74,10 +74,13 @@ public sealed class VatSummaryReportQueryHandler(IAppDbContext db)
             var b = invoice.Buckets;
             f.Add(VatReturnLines.TaxableSales, c, b.Taxable);
             f.Add(VatReturnLines.TaxableSalesVat, c, b.Vat);
-            // An export's lines are zero-rated, so its value is in TaxExempt; it is reported once, as an export, and only
-            // a domestic invoice's zero-VAT value is local exempt (SalesBookReader's summary).
+            // An export's lines are zero-rated, so its value is in TaxExempt; it is reported once, as an export (SalesBookReader's
+            // summary). Phase 97 -- a domestic invoice's zero-VAT value splits by its rate: a zero-rated supply is not an
+            // exempt one under Nepali law and is never listed with exempt sales, where it would read as a supply that limits
+            // the input credit (the tax advisor, 2026-10-21). It has its own line beside the exports.
             f.Add(VatReturnLines.ExportSales, c, invoice.ExportValue);
-            f.Add(VatReturnLines.LocalExemptSales, c, invoice.IsExport ? 0 : b.TaxExempt);
+            f.Add(VatReturnLines.ZeroRatedLocalSales, c, invoice.IsExport ? 0 : b.ZeroRated);
+            f.Add(VatReturnLines.LocalExemptSales, c, invoice.IsExport ? 0 : b.TaxExempt - b.ZeroRated);
         }
 
         foreach (var note in creditNotes)
@@ -88,7 +91,8 @@ public sealed class VatSummaryReportQueryHandler(IAppDbContext db)
             }
 
             var b = note.Buckets;
-            f.Add(VatReturnLines.LocalExemptSalesReturns, c, b.TaxExempt);
+            f.Add(VatReturnLines.LocalExemptSalesReturns, c, b.TaxExempt - b.ZeroRated);
+            f.Add(VatReturnLines.ZeroRatedSalesReturns, c, b.ZeroRated);
             f.Add(VatReturnLines.TaxableSalesReturns, c, b.Taxable);
             f.Add(VatReturnLines.TaxableSalesReturnsVat, c, b.Vat);
         }
@@ -200,9 +204,11 @@ public sealed class VatSummaryReportQueryHandler(IAppDbContext db)
             .. Enumerable.Range(0, columns).Select(c => key switch
             {
                 VatReturnLines.TotalSales =>
-                    Get(VatReturnLines.TaxableSales, c) + Get(VatReturnLines.ExportSales, c) + Get(VatReturnLines.LocalExemptSales, c),
+                    Get(VatReturnLines.TaxableSales, c) + Get(VatReturnLines.ExportSales, c)
+                    + Get(VatReturnLines.ZeroRatedLocalSales, c) + Get(VatReturnLines.LocalExemptSales, c),
                 VatReturnLines.TotalSalesReturns =>
-                    Get(VatReturnLines.LocalExemptSalesReturns, c) + Get(VatReturnLines.TaxableSalesReturns, c),
+                    Get(VatReturnLines.LocalExemptSalesReturns, c) + Get(VatReturnLines.ZeroRatedSalesReturns, c)
+                    + Get(VatReturnLines.TaxableSalesReturns, c),
                 VatReturnLines.TotalPurchases =>
                     Get(VatReturnLines.TaxablePurchases, c) + Get(VatReturnLines.TaxableImports, c)
                     + Get(VatReturnLines.CapitalPurchases, c) + Get(VatReturnLines.ExemptPurchases, c),
@@ -233,9 +239,11 @@ public static class VatReturnLines
     public const string TaxableSales = "taxableSales";
     public const string TaxableSalesVat = "taxableSalesVat";
     public const string ExportSales = "exportSales";
+    public const string ZeroRatedLocalSales = "zeroRatedLocalSales";
     public const string LocalExemptSales = "localExemptSales";
     public const string TotalSales = "totalSales";
     public const string LocalExemptSalesReturns = "localExemptSalesReturns";
+    public const string ZeroRatedSalesReturns = "zeroRatedSalesReturns";
     public const string TaxableSalesReturns = "taxableSalesReturns";
     public const string TaxableSalesReturnsVat = "taxableSalesReturnsVat";
     public const string TotalSalesReturns = "totalSalesReturns";
@@ -266,9 +274,13 @@ public static class VatReturnLines
         new(TaxableSales, VatReturnSection.Sales, "Taxable sales", "करयोग्य बिक्री"),
         new(TaxableSalesVat, VatReturnSection.Sales, "VAT on taxable sales", "करयोग्य बिक्रीको कर"),
         new(ExportSales, VatReturnSection.Sales, "Exports", "निकासी गरेको वस्तु वा सेवा"),
+        // Phase 97 -- the two zero-rated lines' Nepali is ours, in the form's own words (शून्य दर, the zero rate): the vendor's
+        // screen has no such line to copy.
+        new(ZeroRatedLocalSales, VatReturnSection.Sales, "Zero-rated local sales", "शून्य दरको स्थानीय बिक्री"),
         new(LocalExemptSales, VatReturnSection.Sales, "Local exempt sales", "स्थानीय कर छुटको बिक्री"),
         new(TotalSales, VatReturnSection.Sales, "Total sales and exports", "जम्मा बिक्री / निकासी", IsTotal: true),
         new(LocalExemptSalesReturns, VatReturnSection.SalesReturns, "Local exempt sales returns", "स्थानीय कर छुटको फिर्ता"),
+        new(ZeroRatedSalesReturns, VatReturnSection.SalesReturns, "Zero-rated sales returns", "शून्य दरको बिक्री फिर्ता"),
         new(TaxableSalesReturns, VatReturnSection.SalesReturns, "Taxable sales returns", "करयोग्य फिर्ता"),
         new(TaxableSalesReturnsVat, VatReturnSection.SalesReturns, "VAT on taxable sales returns", "करयोग्य फिर्ताको कर"),
         new(TotalSalesReturns, VatReturnSection.SalesReturns, "Total sales and export returns", "जम्मा बिक्री / निकासी फिर्ता", IsTotal: true),

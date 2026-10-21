@@ -65,6 +65,8 @@ public sealed class UpdateSalesOrderCommandHandler(IAppDbContext db, ICurrentUse
             [.. request.Lines.Select((x, i) => new SalesPriceGate.PricedLine(x.ProductId, units[i].UnitId, x.Rate, x.DiscountPct))],
             carriedDiscountPct,
             [.. oldLines.Select(x => new SalesPriceGate.PricedLine(x.ProductId, x.UnitId, x.Rate, x.DiscountPct))],
+            SalesPriceGate.SchemeBasis.For(
+                request.Date, salesOrder.ExchangeRate, request.Lines.Select(x => (x.Quantity, x.Rate, x.DiscountPct))),
             cancellationToken);
 
         for (var i = 0; i < request.Lines.Count; i++)

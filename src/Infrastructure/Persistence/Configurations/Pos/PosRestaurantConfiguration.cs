@@ -107,6 +107,7 @@ public sealed class PosOrderConfiguration : IEntityTypeConfiguration<PosOrder>
         // Phase 74 -- no existing order has an amount discount.
         builder.Property(x => x.DiscountAmount).HasPrecision(18, 2).IsRequired().HasDefaultValue(0m).ValueGeneratedNever();
         builder.Property(x => x.ServiceChargeWaived).IsRequired().HasDefaultValue(false).ValueGeneratedNever();
+        builder.Property(x => x.DiscountSetByHand).IsRequired().HasDefaultValue(false).ValueGeneratedNever();
 
         // One open order per table, as a constraint rather than a read-then-write check: two waiters
         // seating one table at once must not both win. Filtered on both halves explicitly -- EF would

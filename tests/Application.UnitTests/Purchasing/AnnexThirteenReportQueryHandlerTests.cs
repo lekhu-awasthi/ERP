@@ -136,6 +136,28 @@ public class AnnexThirteenReportQueryHandlerTests
         Assert.DoesNotContain(aboveValue.Rows, r => r.ContactId == seed.SupplierId);
     }
 
+    /// <summary>Phase 97 -- the tax advisor's own example (2026-10-21): an invoice of 95,000 plus 13% VAT (12,350) bills
+    /// 107,350, but the one-lakh threshold is judged on the 95,000 before VAT, so the party is not on Annex 13.</summary>
+    [Fact]
+    public async Task A_party_billed_over_one_lakh_only_with_its_VAT_is_not_on_the_annex()
+    {
+        var db = TestAppDbContext.Create();
+        var seed = await SeedAsync(db);
+        var day = new DateOnly(2026, 1, 10);
+
+        await CreateAndApproveInvoiceAsync(db, seed, day, [(seed.ServiceProductId, 1m, 95_000m)], VatRate.ThirteenPercentVat);
+
+        var handler = new AnnexThirteenReportQueryHandler(db);
+        var all = await handler.Handle(
+            new AnnexThirteenReportQuery(seed.OrganizationId, day, day, ThresholdAmount: 0m), CancellationToken.None);
+        Assert.Equal(95_000m, Assert.Single(all.Rows, r => r.ContactId == seed.CustomerId).ServiceSales);
+
+        // The default threshold is the statutory 100,000.
+        var annex = await handler.Handle(new AnnexThirteenReportQuery(seed.OrganizationId, day, day), CancellationToken.None);
+        Assert.Equal(100_000m, annex.ThresholdAmount);
+        Assert.DoesNotContain(annex.Rows, r => r.ContactId == seed.CustomerId);
+    }
+
     [Fact]
     public async Task Handle_filters_by_threshold_approved_only_status_and_date_range()
     {

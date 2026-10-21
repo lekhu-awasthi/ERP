@@ -1,5 +1,6 @@
 using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Domain.Catalog;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Sales;
 using Microsoft.EntityFrameworkCore;
@@ -19,7 +20,10 @@ namespace ErpApp.Application.Sales.Reports;
 /// </summary>
 internal static class SalesReturnReader
 {
-    internal sealed record Bucketed(decimal Total, decimal TaxExempt, decimal Taxable, decimal Vat)
+    /// <param name="ZeroRated">Phase 97 -- the part of <paramref name="TaxExempt"/> sold at the zero rate (<c>VatRate.ZeroVat</c>)
+    /// rather than exempt (<c>NoVat</c>). The registers keep one tax-exempt column for both, as the sales book does; the VAT
+    /// return lists zero-rated supplies apart from exempt ones (the tax advisor, 2026-10-21). Zero on the purchase side.</param>
+    internal sealed record Bucketed(decimal Total, decimal TaxExempt, decimal Taxable, decimal Vat, decimal ZeroRated = 0)
     {
         internal static Bucketed Empty { get; } = new(0, 0, 0, 0);
     }
@@ -84,7 +88,7 @@ internal static class SalesReturnReader
             .Where(x => creditNoteIds.Contains(x.CreditNoteId))
             // Phase 63 -- a till refund's service charge is inside the taxable value it returns, and its
             // round-off is not a supply, so it is in no line (phase 61 Decision B, for the sale).
-            .Select(x => new { x.CreditNoteId, x.ProductId, x.Quantity, Amount = x.Amount + x.ServiceChargeAmount + x.PackagingFeeAmount, x.VatAmount })
+            .Select(x => new { x.CreditNoteId, x.ProductId, x.Quantity, Amount = x.Amount + x.ServiceChargeAmount + x.PackagingFeeAmount, x.VatAmount, x.VatRate })
             .ToListAsync(cancellationToken);
 
         // Phase 43 (36 carried item #5) -- the fold to base currency, here rather than in the Sales
@@ -104,6 +108,7 @@ internal static class SalesReturnReader
                 x.Quantity,
                 Amount = ExchangeRates.ToBase(x.Amount, rateByNote[x.CreditNoteId]),
                 VatAmount = ExchangeRates.ToBase(x.VatAmount, rateByNote[x.CreditNoteId]),
+                x.VatRate,
             })
             .ToList();
 
@@ -139,7 +144,8 @@ internal static class SalesReturnReader
                                 Total: line.Amount + line.VatAmount,
                                 TaxExempt: line.VatAmount == 0 ? line.Amount : 0,
                                 Taxable: line.VatAmount != 0 ? line.Amount : 0,
-                                Vat: line.VatAmount));
+                                Vat: line.VatAmount,
+                                ZeroRated: line.VatAmount == 0 && line.VatRate == VatRate.ZeroVat ? line.Amount : 0));
                     }),
                 ]);
 
@@ -149,7 +155,8 @@ internal static class SalesReturnReader
                 Total: g.Sum(x => x.Amount + x.VatAmount),
                 TaxExempt: g.Where(x => x.VatAmount == 0).Sum(x => x.Amount),
                 Taxable: g.Where(x => x.VatAmount != 0).Sum(x => x.Amount),
-                Vat: g.Sum(x => x.VatAmount)));
+                Vat: g.Sum(x => x.VatAmount),
+                ZeroRated: g.Where(x => x.VatAmount == 0 && x.VatRate == VatRate.ZeroVat).Sum(x => x.Amount)));
 
         return [.. creditNotes.Select(x => new CreditNoteRow(
             x.Id, x.ContactId, x.Code, x.Date, buckets.GetValueOrDefault(x.Id) ?? Bucketed.Empty,

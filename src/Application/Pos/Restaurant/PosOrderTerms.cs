@@ -25,17 +25,25 @@ namespace ErpApp.Application.Pos.Restaurant;
 /// cashier approve every ERP draft at the branch. A discount now needs <c>Sales.Invoice.TillDiscount</c> there and
 /// a waiver (or its undoing) <c>Sales.Invoice.TillRemoveServiceCharge</c>, each grantable per location as the
 /// vendor's switches are.</para>
+///
+/// <para><b>Phase 97 -- <paramref name="keyNotNeeded"/></b>: a discount set to exactly what a discount scheme gives (the
+/// dish's scheme percent, or the slab the order's total reaches) is the business's price and needs no key, as at the
+/// Retail till and on an ERP draft.</para>
 /// </summary>
 internal static class PosOrderTerms
 {
     public static async Task<(PosOrder Order, IReadOnlyDictionary<Guid, decimal> Invoiced)> LoadForChangeAsync(
         IAppDbContext db, Guid organizationId, Guid userId, Guid orderId, string permissionKey,
+        Func<PosOrder, Task<bool>>? keyNotNeeded,
         CancellationToken cancellationToken)
     {
         var (order, _) = await PosRestaurant.LoadOrderForActionAsync(db, organizationId, userId, orderId, cancellationToken);
 
-        await GrantedPermissionReader.EnsureGrantedAtLocationAsync(
-            db, organizationId, userId, permissionKey, order.BillingLocationId, cancellationToken);
+        if (keyNotNeeded is null || !await keyNotNeeded(order))
+        {
+            await GrantedPermissionReader.EnsureGrantedAtLocationAsync(
+                db, organizationId, userId, permissionKey, order.BillingLocationId, cancellationToken);
+        }
 
         // What is billed fixes the terms: the Domain refuses a change once a part was priced with them.
         var invoiced = (await PosOrderBilling.LoadAsync(db, organizationId, order.Id, cancellationToken)).Invoiced;

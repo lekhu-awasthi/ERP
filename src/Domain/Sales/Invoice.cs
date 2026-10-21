@@ -195,6 +195,14 @@ public sealed class Invoice
     public Guid? InventoryAccountId { get; private set; }
 
     /// <summary>
+    /// Phase 96 -- the account the approval posted <see cref="RoundOff"/> to, so a refund of this sale rounds into the same
+    /// one, at any branch and after the location's Round Off setting changes (the user, 2026-10-21). Null when the sale was
+    /// not rounded, and on every sale approved before phase 96, whose refund rounds as before (the refunding location's
+    /// current setting, then the tenant default).
+    /// </summary>
+    public Guid? RoundingAccountId { get; private set; }
+
+    /// <summary>
     /// Phase 61 -- cash handed back to the customer. Always cash and always out of the session's
     /// drawer (Decision C of docs/phase-61-status.md): change can only be given out of cash that was
     /// tendered, so it is capped by the cash tenders, and it never leaves anything on credit.
@@ -779,6 +787,7 @@ public sealed class Invoice
         InventoryAccountId = accounts.InventoryAccountId;
         ServiceChargeAccountId = ServiceChargeTotal != 0m ? accounts.ServiceChargeAccountId : null;
         PackagingFeeAccountId = PackagingFeeTotal != 0m ? accounts.PackagingFeeAccountId : null;
+        RoundingAccountId = RoundOff != 0m ? accounts.RoundingAccountId : null;
 
         for (var i = 0; i < _lines.Count; i++)
         {

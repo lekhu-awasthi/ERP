@@ -161,6 +161,82 @@ public class VatSummaryReportQueryHandlerTests
         Assert.Equal(0m, Line(report, VatReturnLines.TaxableSales).Total);
     }
 
+    /// <summary>Phase 97 -- the tax advisor (2026-10-21): an unused credit carries into the next fiscal year as it is, is
+    /// never lost and has no time limit. Three whole years with nothing on the books leave it whole.</summary>
+    [Fact]
+    public async Task A_credit_carries_on_across_years_with_nothing_on_the_books_and_never_lapses()
+    {
+        var db = TestAppDbContext.Create();
+        var seed = await SeedAsync(db);
+
+        // Shrawan 2079: input VAT 130 and no sales. Nothing at all happens in 2080 or 2081.
+        await CreateAndApprovePurchaseBillAsync(db, seed, Bs(2079, 4, 5), 10m, 100m, VatRate.ThirteenPercentVat);
+
+        var report = await ReturnAsync(db, seed);
+
+        Assert.All(Line(report, VatReturnLines.CreditBroughtForward).Monthly, x => Assert.Equal(130m, x));
+        Assert.Equal(-130m, Line(report, VatReturnLines.Payable).Monthly[11]);
+    }
+
+    /// <summary>Phase 97 -- the tax advisor (2026-10-21): Shrawan's opening credit is Asar's closing credit on the year
+    /// before's return, so the two returns read as one chain.</summary>
+    [Fact]
+    public async Task Shrawan_opens_with_exactly_the_credit_Asar_closed_on_the_year_befores_return()
+    {
+        var db = TestAppDbContext.Create();
+        var seed = await SeedAsync(db);
+
+        // Fiscal year 2081-82: Kartik a credit of 117, Poush 26 payable against it, Asar a further credit of 104.
+        await CreateAndApprovePurchaseBillAsync(db, seed, Bs(2081, 7, 5), 10m, 100m, VatRate.ThirteenPercentVat);
+        await CreateAndApproveInvoiceAsync(db, seed, Bs(2081, 7, 6), 1m, 100m, VatRate.ThirteenPercentVat);
+        await CreateAndApproveInvoiceAsync(db, seed, Bs(2081, 9, 6), 2m, 100m, VatRate.ThirteenPercentVat);
+        await CreateAndApprovePurchaseBillAsync(db, seed, Bs(2082, 3, 5), 10m, 100m, VatRate.ThirteenPercentVat);
+        await CreateAndApproveInvoiceAsync(db, seed, Bs(2082, 3, 6), 2m, 100m, VatRate.ThirteenPercentVat);
+        // Shrawan 2082: 13 payable out of the credit brought in.
+        await CreateAndApproveInvoiceAsync(db, seed, Bs(2082, 4, 6), 1m, 100m, VatRate.ThirteenPercentVat);
+
+        var before = await ReturnAsync(db, seed, Fy - 1);
+        var report = await ReturnAsync(db, seed);
+
+        var asarClosed = -Line(before, VatReturnLines.Payable).Monthly[11];
+        Assert.Equal(195m, asarClosed); // 117 - 26 + 104
+        Assert.Equal(asarClosed, Line(report, VatReturnLines.CreditBroughtForward).Monthly[0]);
+        Assert.Equal(-182m, Line(report, VatReturnLines.Payable).Monthly[0]);
+    }
+
+    /// <summary>Phase 97 -- the tax advisor (2026-10-21): a sale at 0% inside Nepal is zero-rated, not exempt, so it is never
+    /// listed with local exempt sales; it has its own line beside the exports. And it leaves the whole of the month's input
+    /// VAT claimable, as an exempt sale does in this return too (nothing here apportions input VAT).</summary>
+    [Fact]
+    public async Task A_zero_rated_local_sale_has_its_own_line_apart_from_exempt_sales_and_the_input_VAT_stays_whole()
+    {
+        var db = TestAppDbContext.Create();
+        var seed = await SeedAsync(db);
+
+        // Aswin 2082 (column 2): zero-rated 1,000, exempt 250, a zero-rated return of 100, input VAT 52.
+        await CreateAndApproveInvoiceAsync(db, seed, Bs(2082, 6, 5), 10m, 100m, VatRate.ZeroVat);
+        await CreateAndApproveInvoiceAsync(db, seed, Bs(2082, 6, 6), 5m, 50m, VatRate.NoVat);
+        await CreateAndApproveStandaloneCreditNoteAsync(db, seed, Bs(2082, 6, 8), 1m, 100m, VatRate.ZeroVat);
+        await CreateAndApprovePurchaseBillAsync(db, seed, Bs(2082, 6, 10), 4m, 100m, VatRate.ThirteenPercentVat);
+
+        var report = await ReturnAsync(db, seed);
+        decimal M(string key) => Line(report, key).Monthly[2];
+
+        Assert.Equal(1_000m, M(VatReturnLines.ZeroRatedLocalSales));
+        Assert.Equal(250m, M(VatReturnLines.LocalExemptSales));
+        Assert.Equal(0m, M(VatReturnLines.ExportSales));
+        Assert.Equal(0m, M(VatReturnLines.TaxableSales));
+        Assert.Equal(1_250m, M(VatReturnLines.TotalSales));
+        Assert.Equal(100m, M(VatReturnLines.ZeroRatedSalesReturns));
+        Assert.Equal(0m, M(VatReturnLines.LocalExemptSalesReturns));
+        Assert.Equal(100m, M(VatReturnLines.TotalSalesReturns));
+        Assert.Equal(-52m, M(VatReturnLines.MonthVat));
+
+        // The line sits right after the exports, as the advisor placed it.
+        var keys = report.Lines.Select(x => x.Key).ToList();
+        Assert.Equal(keys.IndexOf(VatReturnLines.ExportSales) + 1, keys.IndexOf(VatReturnLines.ZeroRatedLocalSales));
+    }
+
     [Fact]
     public async Task An_expense_is_a_purchase_its_VAT_claimed_and_its_untaxed_value_exempt()
     {
@@ -206,6 +282,9 @@ public class VatSummaryReportQueryHandlerTests
         await CreateAndApproveStandaloneDebitNoteAsync(db, seed, day.AddDays(9), 1m, 40m, VatRate.ThirteenPercentVat);
         await CreateAndApproveExpenseAsync(db, seed, day.AddDays(10), 120m, VatRate.ThirteenPercentVat);
         await CreateAndApproveExpenseAsync(db, seed, day.AddDays(11), 30m, VatRate.NoVat);
+        await CreateAndApproveInvoiceAsync(db, seed, day.AddDays(12), 3m, 20m, VatRate.ZeroVat);
+        await CreateAndApproveStandaloneCreditNoteAsync(db, seed, day.AddDays(13), 1m, 20m, VatRate.ZeroVat);
+        await CreateAndApproveStandaloneCreditNoteAsync(db, seed, day.AddDays(14), 1m, 75m, VatRate.NoVat);
 
         var report = await ReturnAsync(db, seed);
         var month = report.Columns[2];
@@ -220,9 +299,11 @@ public class VatSummaryReportQueryHandlerTests
 
         Assert.Equal(sales.TotalTaxableValue, M(VatReturnLines.TaxableSales) - M(VatReturnLines.TaxableSalesReturns));
         Assert.Equal(sales.TotalVatAmount, M(VatReturnLines.TaxableSalesVat) - M(VatReturnLines.TaxableSalesReturnsVat));
+        // Phase 97 -- the register's one tax-exempt column is the return's exempt, export and zero-rated lines together.
         Assert.Equal(
             sales.TotalTaxExemptValue,
-            M(VatReturnLines.LocalExemptSales) + M(VatReturnLines.ExportSales) - M(VatReturnLines.LocalExemptSalesReturns));
+            M(VatReturnLines.LocalExemptSales) + M(VatReturnLines.ExportSales) + M(VatReturnLines.ZeroRatedLocalSales)
+            - M(VatReturnLines.LocalExemptSalesReturns) - M(VatReturnLines.ZeroRatedSalesReturns));
         Assert.Equal(sales.Items.Sum(x => x.ExportValue), M(VatReturnLines.ExportSales));
 
         Assert.Equal(purchases.TotalTaxableNonCapitalLocalValue, M(VatReturnLines.TaxablePurchases) - M(VatReturnLines.TaxablePurchaseReturns));
@@ -238,6 +319,7 @@ public class VatSummaryReportQueryHandlerTests
             new[]
             {
                 VatReturnLines.TaxableSales, VatReturnLines.LocalExemptSales, VatReturnLines.ExportSales,
+                VatReturnLines.ZeroRatedLocalSales, VatReturnLines.ZeroRatedSalesReturns, VatReturnLines.LocalExemptSalesReturns,
                 VatReturnLines.TaxableSalesReturns, VatReturnLines.TaxablePurchases, VatReturnLines.TaxableImports,
                 VatReturnLines.CapitalPurchases, VatReturnLines.ExemptPurchases, VatReturnLines.TaxablePurchaseReturns,
             },

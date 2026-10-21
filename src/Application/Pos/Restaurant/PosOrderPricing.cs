@@ -1,6 +1,7 @@
 using ErpApp.Application.Catalog;
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Application.Sales.Discounts;
 using ErpApp.Application.Inventory.Stock;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Pos;
@@ -111,6 +112,10 @@ internal static class PosOrderPricing
         var basis = await PosSellableProducts.PriceBasisAsync(db, organizationId, cancellationToken);
         var lines = new List<PosOrderNewLine>();
 
+        // Phase 97 -- each dish starts at its discount scheme's percent, on the day it is ordered (PosOrderSchemes).
+        var schemes = await DiscountSchemeRates.LoadAsync(
+            db, organizationId, locationId, PosOrderSchemes.Today, ids, cancellationToken);
+
         // Phase 95 -- an item served from a batch with its own price is priced at it, as picking it on the vendor's
         // order screen does; the rate is frozen on the order line like any other.
         var batchIds = batches.Where(x => x is not null).Select(x => x!.Value).Distinct().ToList();
@@ -155,7 +160,8 @@ internal static class PosOrderPricing
                 PosPackagingFee.For(till.Settings, product.PackagingFeeApplicable, orderType),
                 item.Note,
                 product.KitchenStationId,
-                batches[i]));
+                batches[i],
+                schemes.ForProduct(product.Id)));
         }
 
         return lines;

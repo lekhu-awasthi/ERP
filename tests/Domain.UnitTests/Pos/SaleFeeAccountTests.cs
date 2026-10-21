@@ -6,8 +6,8 @@ namespace ErpApp.Domain.UnitTests.Pos;
 
 /// <summary>
 /// Phases 86-87 -- a sale records every account its approval posts to (Receivable, VAT, COGS and Inventory, the two fees,
-/// and each line's Sales account), so whatever reverses or settles it later can use the same ones. Recorded once, at the
-/// approval, and only for a leg the sale posts.
+/// the round-off since phase 96, and each line's Sales account), so whatever reverses or settles it later can use the same
+/// ones. Recorded once, at the approval, and only for a leg the sale posts.
 /// </summary>
 public sealed class SaleFeeAccountTests
 {
@@ -27,8 +27,9 @@ public sealed class SaleFeeAccountTests
     }
 
     private static InvoicePostingAccounts Accounts(
-        int lines, Guid? serviceCharge = null, Guid? packaging = null, Guid? receivable = null, Guid? vat = null) => new(
-        receivable ?? Guid.NewGuid(), vat ?? Guid.NewGuid(), null, null, serviceCharge, packaging,
+        int lines, Guid? serviceCharge = null, Guid? packaging = null, Guid? receivable = null, Guid? vat = null,
+        Guid? rounding = null) => new(
+        receivable ?? Guid.NewGuid(), vat ?? Guid.NewGuid(), null, null, serviceCharge, packaging, rounding,
         [.. Enumerable.Range(0, lines).Select(_ => Guid.NewGuid())]);
 
     [Fact]
@@ -60,6 +61,20 @@ public sealed class SaleFeeAccountTests
         Assert.Null(sale.PackagingFeeAccountId);
         Assert.Null(sale.VatPayableAccountId);
         Assert.NotNull(sale.ReceivableAccountId);
+    }
+
+    [Fact]
+    public void A_rounded_sale_records_its_rounding_account_and_an_unrounded_one_none()
+    {
+        var rounding = Guid.NewGuid();
+        var rounded = Sale(PosTab.Retail, 0m, PackagingFee.None);
+        rounded.SetPosRoundOff(0.20m);
+        rounded.RecordPostingAccounts(Accounts(1, rounding: rounding));
+        Assert.Equal(rounding, rounded.RoundingAccountId);
+
+        var whole = Sale(PosTab.Retail, 0m, PackagingFee.None);
+        whole.RecordPostingAccounts(Accounts(1, rounding: Guid.NewGuid()));
+        Assert.Null(whole.RoundingAccountId);
     }
 
     [Fact]

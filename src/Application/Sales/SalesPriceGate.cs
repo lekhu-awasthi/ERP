@@ -1,6 +1,7 @@
 using ErpApp.Application.Catalog;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Application.Common.Security;
+using ErpApp.Application.Sales.Discounts;
 using ErpApp.Domain.Common;
 using Microsoft.EntityFrameworkCore;
 
@@ -23,6 +24,12 @@ namespace ErpApp.Application.Sales;
 /// round it. A clerk can therefore edit the quantity on a draft a manager priced, or convert a
 /// quotation the manager discounted, without being able to change either price.</para>
 ///
+/// <para><b>Phase 97 -- a discount scheme's own percent is carried too.</b> A line discounted at exactly the percent the
+/// schemes give its product here on the document's day, and a document discounted at exactly the slab percent its amount
+/// reaches, need no key: the scheme is the business's own price, set by whoever may manage schemes, and the form starts
+/// the line there (<see cref="DiscountSchemeRates"/>, one reader for both). Changing it, either way but to none, is an
+/// ordinary discount and needs the key (the user, 2026-10-21: "the scheme is the start").</para>
+///
 /// <para><b>Charging more by removing a discount needs no key</b>: anyone who may draft may charge the
 /// full price. A rate is gated in both directions, as at the till (phase 74 Decision C): a raised rate
 /// overcharges as invisibly as a cut undercharges. Discount first, then rate, as at the till.</para>
@@ -33,6 +40,15 @@ public static class SalesPriceGate
     /// <param name="BatchId">Phase 95 -- the batch an invoice line issues from: its own selling price is a rate the
     /// line keeps, beside the catalogue's.</param>
     public sealed record PricedLine(Guid ProductId, Guid? UnitId, decimal Rate, decimal DiscountPct, Guid? BatchId = null);
+
+    /// <summary>Phase 97 -- what the discount schemes are judged on: the document's day, and its amount before VAT and its
+    /// own discount (after each line's) in the base currency, which is what a slab names.</summary>
+    public sealed record SchemeBasis(DateOnly Date, decimal BillAmount)
+    {
+        public static SchemeBasis For(
+            DateOnly date, decimal exchangeRate, IEnumerable<(decimal Quantity, decimal Rate, decimal DiscountPct)> lines) =>
+            new(date, ExchangeRates.ToBase(lines.Sum(x => x.Quantity * x.Rate * (1 - x.DiscountPct / 100m)), exchangeRate));
+    }
 
     /// <param name="IsBaseCurrency">A document in another currency has no catalogue price to compare a
     /// rate with (the catalogue is in the base currency), so only its discount is judged.</param>
@@ -49,12 +65,18 @@ public static class SalesPriceGate
         IReadOnlyList<PricedLine> lines,
         decimal? carriedDiscountPct,
         IReadOnlyList<PricedLine> carriedLines,
+        SchemeBasis scheme,
         CancellationToken cancellationToken)
     {
-        var discounted = Uncarried(
-            [.. lines.Where(x => x.DiscountPct > 0m)], carriedLines, x => (x.ProductId, x.UnitId, x.DiscountPct));
+        var schemes = await DiscountSchemeRates.LoadAsync(
+            db, organizationId, locationId, scheme.Date, [.. lines.Select(x => x.ProductId)], cancellationToken);
 
-        if ((discountPct > 0m && discountPct != carriedDiscountPct) || discounted.Count > 0)
+        var discounted = Uncarried(
+            [.. lines.Where(x => x.DiscountPct > 0m && x.DiscountPct != schemes.ForProduct(x.ProductId))],
+            carriedLines, x => (x.ProductId, x.UnitId, x.DiscountPct));
+
+        if ((discountPct > 0m && discountPct != carriedDiscountPct && discountPct != schemes.ForBillAmount(scheme.BillAmount))
+            || discounted.Count > 0)
         {
             await EnsureAsync(db, organizationId, userId, PermissionKeys.InvoiceDiscount, locationId, cancellationToken);
         }

@@ -905,3 +905,57 @@ export interface SalesPricePowers {
    */
   atLocation: boolean;
 }
+
+/** Phase 97 -- a discount scheme (Configurations > Discount Schemes). */
+export type DiscountSchemeKind = 'ItemWise' | 'CategoryWise' | 'Slab';
+
+export const DISCOUNT_SCHEME_KINDS: ReadonlyArray<{ value: DiscountSchemeKind; label: string }> = [
+  { value: 'ItemWise', label: 'Item wise' },
+  { value: 'CategoryWise', label: 'Category wise' },
+  { value: 'Slab', label: 'Slab (bill amount)' },
+];
+
+/** One row: a product, a category, or the bill amount a slab starts at -- whichever the kind names. */
+export interface DiscountSchemeLine {
+  productId: string | null;
+  categoryId: string | null;
+  minimumAmount: number | null;
+  discountPct: number;
+}
+
+export interface DiscountScheme {
+  id: string;
+  code: string;
+  name: string;
+  kind: DiscountSchemeKind;
+  startDate: string;
+  endDate: string;
+  allLocations: boolean;
+  locationIds: string[];
+  isActive: boolean;
+  lines: DiscountSchemeLine[];
+}
+
+export interface DiscountSchemeRequest {
+  code: string;
+  name: string;
+  kind: DiscountSchemeKind;
+  startDate: string;
+  endDate: string;
+  allLocations: boolean;
+  locationIds: string[];
+  lines: DiscountSchemeLine[];
+  isActive?: boolean;
+}
+
+/** A bill of at least `minimumAmount` before VAT (in rupees) gets `discountPct`. */
+export interface SlabStep {
+  minimumAmount: number;
+  discountPct: number;
+}
+
+/** What the schemes give a sale at one location on one day: each asked-about product's percent, and the slab ladder. */
+export interface ApplicableDiscounts {
+  products: { productId: string; discountPct: number }[];
+  slabs: SlabStep[];
+}

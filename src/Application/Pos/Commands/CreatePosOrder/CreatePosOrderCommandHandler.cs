@@ -49,6 +49,8 @@ public sealed class CreatePosOrderCommandHandler(
 
         // A new order's lines and tickets ride in with it as one Added graph.
         order.Send(lines, [], currentUser.UserId);
+        // Phase 97 -- a new order starts at the slab its first food reaches.
+        await PosOrderSchemes.ApplySlabAsync(db, order, new Dictionary<Guid, decimal>(), cancellationToken);
         db.PosOrders.Add(order);
 
         try

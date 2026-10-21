@@ -56,6 +56,9 @@ public sealed class UpdatePosOrderDiscountCommandHandler(IAppDbContext db, ICurr
     {
         var (order, invoiced) = await PosOrderTerms.LoadForChangeAsync(
             db, request.OrganizationId, currentUser.UserId, request.OrderId, PermissionKeys.InvoiceTillDiscount,
+            async loaded => request.DiscountAmount is null && request.DiscountPct > 0m
+                && request.DiscountPct == (await PosOrderSchemes.LoadAsync(db, loaded, cancellationToken))
+                    .ForBillAmount(loaded.AmountBeforeOrderDiscount),
             cancellationToken);
 
         var (kind, value) = request.DiscountAmount is { } amount

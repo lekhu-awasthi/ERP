@@ -813,6 +813,12 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
     private static readonly Guid AdminInvoiceChangeRateId = Guid.Parse("00000000-0000-0000-0002-0000000001fb");
     private static readonly Guid MemberInvoiceChangeRateId = Guid.Parse("00000000-0000-0000-0002-0000000001fc");
 
+    // Phase 97 -- discount schemes (derived in PermissionKeys.DiscountSchemeView). View Admin+Member, Manage Admin-only.
+    private static readonly Guid AdminDiscountSchemeViewId = Guid.Parse("00000000-0000-0000-0002-0000000001fd");
+    private static readonly Guid MemberDiscountSchemeViewId = Guid.Parse("00000000-0000-0000-0002-0000000001fe");
+    private static readonly Guid AdminDiscountSchemeManageId = Guid.Parse("00000000-0000-0000-0002-0000000001ff");
+    private static readonly Guid MemberDiscountSchemeManageId = Guid.Parse("00000000-0000-0000-0002-000000000200");
+
     public void Configure(EntityTypeBuilder<RolePermission> builder)
     {
         builder.ToTable("RolePermissions", schema: "tenancy");
@@ -1434,6 +1440,10 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
             RolePermission.Create(AdminInvoiceDiscountId, Role.AdminId, PermissionKeys.InvoiceDiscount, true),
             RolePermission.Create(MemberInvoiceDiscountId, Role.MemberId, PermissionKeys.InvoiceDiscount, true),
             RolePermission.Create(AdminInvoiceChangeRateId, Role.AdminId, PermissionKeys.InvoiceChangeRate, true),
-            RolePermission.Create(MemberInvoiceChangeRateId, Role.MemberId, PermissionKeys.InvoiceChangeRate, true));
+            RolePermission.Create(MemberInvoiceChangeRateId, Role.MemberId, PermissionKeys.InvoiceChangeRate, true),
+            RolePermission.Create(AdminDiscountSchemeViewId, Role.AdminId, PermissionKeys.DiscountSchemeView, true),
+            RolePermission.Create(MemberDiscountSchemeViewId, Role.MemberId, PermissionKeys.DiscountSchemeView, true),
+            RolePermission.Create(AdminDiscountSchemeManageId, Role.AdminId, PermissionKeys.DiscountSchemeManage, true),
+            RolePermission.Create(MemberDiscountSchemeManageId, Role.MemberId, PermissionKeys.DiscountSchemeManage, false));
     }
 }

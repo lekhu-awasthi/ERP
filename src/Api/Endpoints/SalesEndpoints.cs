@@ -34,9 +34,11 @@ using ErpApp.Application.Sales.Queries.SalesMasterReport;
 using ErpApp.Application.Sales.Queries.GetSalesPricePowers;
 using ErpApp.Application.Sales.Queries.MigratedSalesRegister;
 using ErpApp.Application.Sales.Queries.SalesRegister;
+using ErpApp.Application.Sales.DiscountSchemes;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Sales;
 using MediatR;
+using Microsoft.AspNetCore.Mvc;
 
 namespace ErpApp.Api.Endpoints;
 
@@ -63,6 +65,46 @@ public static class SalesEndpoints
             var result = await sender.Send(new GetSalesPricePowersQuery(organizationId, documentType, locationId), ct);
             return Results.Ok(result);
         });
+
+        MapDiscountSchemeEndpoints(group);
+    }
+
+    /// <summary>Phase 97 -- the Discount Schemes settings screen, and what the schemes give a sales form.</summary>
+    private static void MapDiscountSchemeEndpoints(RouteGroupBuilder group)
+    {
+        group.MapGet("/sales/discount-schemes", async (Guid organizationId, ISender sender, CancellationToken ct) =>
+            Results.Ok(await sender.Send(new ListDiscountSchemesQuery(organizationId), ct)));
+
+        group.MapPost("/sales/discount-schemes", async (
+            Guid organizationId, DiscountSchemeRequest request, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new CreateDiscountSchemeCommand(
+                    organizationId, request.Code, request.Name, request.Kind ?? (DiscountSchemeKind)(-1), request.StartDate, request.EndDate,
+                    request.AllLocations, request.LocationIds ?? [], request.Lines ?? []), ct);
+            return Results.Created($"/api/organizations/{organizationId}/sales/discount-schemes/{result.Id}", result);
+        });
+
+        group.MapPut("/sales/discount-schemes/{id:guid}", async (
+            Guid organizationId, Guid id, DiscountSchemeRequest request, ISender sender, CancellationToken ct) =>
+            Results.Ok(await sender.Send(
+                new UpdateDiscountSchemeCommand(
+                    organizationId, id, request.Code, request.Name, request.Kind ?? (DiscountSchemeKind)(-1), request.StartDate, request.EndDate,
+                    request.AllLocations, request.LocationIds ?? [], request.Lines ?? [], request.IsActive ?? true), ct)));
+
+        group.MapDelete("/sales/discount-schemes/{id:guid}", async (
+            Guid organizationId, Guid id, ISender sender, CancellationToken ct) =>
+        {
+            await sender.Send(new DeleteDiscountSchemeCommand(organizationId, id), ct);
+            return Results.NoContent();
+        });
+
+        // The ids are a repeated query parameter: [FromQuery] is load-bearing (phase 38).
+        group.MapGet("/sales/discount-schemes/applicable", async (
+            Guid organizationId, DateOnly date, Guid? locationId, [FromQuery] Guid[]? productIds, ISender sender,
+            CancellationToken ct) =>
+            Results.Ok(await sender.Send(
+                new ListApplicableDiscountsQuery(organizationId, locationId, date, productIds ?? []), ct)));
     }
 
     private static void MapQuotationEndpoints(RouteGroupBuilder group)
@@ -448,6 +490,17 @@ public static class SalesEndpoints
             return ReportSpreadsheetExporter.ExportAnnexFiveReport(result, fromDate, toDate);
         });
     }
+
+    private sealed record DiscountSchemeRequest(
+        string Code,
+        string Name,
+        DiscountSchemeKind? Kind,
+        DateOnly StartDate,
+        DateOnly EndDate,
+        bool AllLocations,
+        IReadOnlyList<Guid>? LocationIds,
+        IReadOnlyList<DiscountSchemeLineDto>? Lines,
+        bool? IsActive);
 
     private sealed record QuotationRequest(
         Guid ContactId, DateOnly Date, DateOnly? ExpiryDate, string? Reference, IReadOnlyList<QuotationLineInput> Lines,

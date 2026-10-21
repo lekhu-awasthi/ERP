@@ -127,6 +127,8 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 93: batch integrity (an ERP issue names its batch, the till walks: `StockLineKind`; both notes carry and cap the batch nothing wrote; a walked issue's void and refund restock per batch from its own movements, `IssuedStockRestock`; the serial race a 409). Before letting an issue walk, or binding a native `<select>` — `docs/phase-93-status.md`
 - Phase 94: the Retail till's batch picker (a till line names its batch, the vendor's rule read live; `TillIssue` retired; the batches left at the till's warehouse, soonest expiry first; restaurant bills still walk; no batch price). Before a till line names what the cart has no box for, or reading a vendor figure — `docs/phase-94-status.md`
 - Phase 95: seven leftovers cleared in one session (focus kept app-wide, `FocusKeeper`; a batch on a restaurant order line; the scan indexed and the grid's location rule a set; a batch's own price and required expiry; serials printable by template; company tracking switches over each product's; a return's difference to its bill's account). Before deferring a flaw, moving focus, or reading a product's tracking flag — `docs/phase-95-status.md`
+- Phase 96: the carried questions answered (a till refund rounds into the account its sale rounded into, `Invoice.RoundingAccountId`; the vendor's print extras and allocation table dropped; the VAT points written as questions for a tax advisor). Before reversing into an account a setting chose — `docs/phase-96-status.md`
+- Phase 97: the tax advisor's answers (a domestic zero-rated sale its own VAT-return line, `Bucketed.ZeroRated`; the credit's carry and Annex 13 confirmed and pinned) + discount schemes (item, category, slab; one reader `DiscountSchemeRates` for forms, till and gates; the scheme is where a discount starts and keeping it needs no key). Before a promotion, an automatic price, or splitting a statutory figure by rate — `docs/phase-97-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -326,6 +328,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A share moved off a part-billed line is the quantity's part of what its bills left (frozen − billed share), all of it with the last of the food; prorating the whole line drifts a paisa (phase-77).
 - A till refund names its sale by `ReferrerType`/`ReferrerId`, not `AgainstInvoiceId`; "the note's invoice" joins on the coalesce of both (phase-77).
 - A refusal with a legal way round has its spec written: a discard with a share equals bill-and-refund, and a test holds them to the same bill (phase-82).
+- Confirming a figure is still choosing it: a setter that returns early on "unchanged" must still record that a person set it, or the next automatic rule moves it (`DiscountSetByHand`, phase-97).
 - A part priced apart from the whole keeps the order's share and the bill's own apart: price the whole less what bills not voided gave, never a counter on the order (phase-83).
 - …and a part's declined service charge is the same: store it on the line (`PartServiceChargeWaived`, rate 0) and price the whole less it, or the last guest pays it back (phase-91).
 - No vendor control means the workaround is the spec: a refund at another branch must leave what the same refund at home leaves, every figure, only where differs (phase-84).
@@ -600,28 +603,28 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A vendor figure can be a field its payload lacks: the till's *Balance: 0* beside every batch is a missing field drawn as zero. Read the response before the number (phase-94).
 - A fetch from a tab `erp-web-ssl` just opened fails *Failed to fetch* while the app redirects to `/login`; wait for `location.href` to settle, and delete the file only after a 200 (phase-94).
 - Fix a defect in the session that finds it and ask a product question in the session that raises it; carry only what someone else must settle, and report what a user notices first (phase-95).
+- Two VAT rates that both compute nothing (`NoVat`, `ZeroVat`) look alike to `VatAmount == 0`; a return line that must tell exempt from zero-rated reads the stored rate (phase-97).
+- A screen with fields and a Save button is not a feature until Save sends something: the vendor's Discount Schemes list is `data: []` and Save only navigates (phase-97).
 - `Locations.Count == 0 || Locations.Any(...)` is two subqueries per row (80,004 reads to count a grid); as a set it is one pass, but an `EXISTS` that stops early loses by it. Measure each reader (phase-95).
 - A floor on one column of a squeezed table moves the squeeze to its neighbour; floor every typed box in a `.table-responsive` table and measure all of them (phase-95).
 - A company switch over a product flag is read through one reader (`StockTrackingSwitches`) or it overrides nothing; census the flag's readers and backfill so existing tenants change nothing (phase-95).
 
 ## Current status
 
-**Phases 0-95 are complete. Next: not yet scheduled** (the user picks; candidates in `docs/roadmap.md`).
+**Phases 0-97 are complete. Next: not yet scheduled** (the user picks; candidates in `docs/roadmap.md`).
 Each phase's story is in its `docs/phase-N-status.md`, and finished planning entries are archived in
 `docs/roadmap-history.md`.
 
-**Phase 95 cleared the carried list** at the user's request (2026-10-20: "if you know the flaw why not fix that in same
-session"). Keyboard focus is kept on every screen; restaurant orders name their batch; the till's scan and grid are fast
-on 20,000 products; a batch carries its own price and expiry; serials can print on bills; company Batch/Serial Tracking
-switches override each product's; a purchase return's difference follows its bill's account.
+**Phase 97 built the tax advisor's answers and discount schemes** (2026-10-21). A 0% sale inside Nepal has its own
+line on the VAT return; the credit's carry and Annex 13 were already right and are now pinned. *Configurations >
+Discount Schemes* gives items, categories and bills a dated percent off, on the ERP's sales forms and at both tills.
 
-**Next:** not yet scheduled. What is still open is only what the user or a tax advisor must settle (phase 95 § 5):
-the VAT points in phases 89/90 § 5; the vendor differences in phases 79 and 88 § 5 (offered as droppable); whether a
-sale return's rounding should follow its invoice.
+**Next:** not yet scheduled. Open: whether exempt sales should limit the input VAT claimed (a question for the tax
+advisor, `phase-97-status.md` § 5), and free goods in a scheme (left out by the user's choice).
 
-Tests: Domain 1040, Application.UnitTests **1894**, Infrastructure.UnitTests 14,
-Api.IntegrationTests 79, Angular **928**. Everything was green at phase 95's close with Docker up.
-The bundle sits at **656.01 kB** against `build-budget.spec.ts`'s 680 kB; every POS screen is lazy.
+Tests: Domain **1055**, Application.UnitTests **1914**, Infrastructure.UnitTests 14,
+Api.IntegrationTests 79, Angular 935. Everything was green at phase 97's close with Docker up.
+The bundle sits at **656.17 kB** against `build-budget.spec.ts`'s 680 kB; every POS screen is lazy.
 
 - `Api.IntegrationTests` needs Docker Desktop running. Without it the Testcontainers-backed tests
   fail in their constructors with `DockerEndpointAuthConfig` before any assertion, which reads like

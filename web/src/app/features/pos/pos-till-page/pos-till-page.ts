@@ -1,4 +1,4 @@
-import { Component, ElementRef, Injector, afterNextRender, computed, inject, signal, viewChild } from '@angular/core';
+import { Component, ElementRef, Injector, afterNextRender, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
 import { extractErrorMessage, extractWarningKind } from '../../../core/auth/api-error';
@@ -172,8 +172,10 @@ export class PosTillPage {
     }
     // Phase 76 -- two keys, the vendor's two switches; the message names whichever is missing, or both.
     const lines = cart.lines();
-    const discounted = cart.discountPct() > 0 || cart.discountAmount() > 0
-      || lines.some((line) => line.discountPct > 0 || line.discountPerUnit > 0);
+    // Phase 97 -- a discount scheme's own figure is the business's price, which the server keeps without the key.
+    const discounted = (cart.discountPct() > 0 && cart.discountPct() !== cart.slabRate()) || cart.discountAmount() > 0
+      || lines.some((line) =>
+        (line.discountPct > 0 && line.discountPct !== cart.schemeRateOf(line.product.id)) || line.discountPerUnit > 0);
     const repriced = lines.some((line) => {
       const catalogue = line.product.units.find((unit) => unit.unitId === line.unitId)?.rate;
       // Phase 95 -- a priced batch's rate is the batch's price, not a changed one (the server keeps it the same way).
@@ -269,6 +271,27 @@ export class PosTillPage {
 
   constructor() {
     this.route.paramMap.subscribe((params) => this.load(params.get('locationId')!));
+
+    // Phase 97 -- the bill's discount follows the slab its amount reaches until the cashier sets it.
+    effect(() => {
+      const cart = this.cart();
+      if (!cart || !cart.billDiscountFollows()) return;
+      cart.amountBeforeBillDiscount();
+      cart.slabs();
+      untracked(() => cart.followSlab());
+    });
+  }
+
+  /** Phase 97 -- reads what the discount schemes give these products (and the bill's slabs) at this till today. A cashier
+   * who may not read them simply gets none: the sale is priced as before. */
+  private readSchemes(productIds: string[]): void {
+    const till = this.till();
+    const cart = this.cart();
+    if (!till || !cart) return;
+    this.posService.getTillDiscounts(this.organizationId, till.locationId, productIds).subscribe({
+      next: (discounts) => cart.setSchemes(discounts),
+      error: () => undefined,
+    });
   }
 
   // ---- Loading ----
@@ -288,6 +311,7 @@ export class PosTillPage {
             if (session) {
               this.loadProducts();
               this.focusSearch();
+              this.readSchemes([...new Set(this.cart()!.lines().map((line) => line.product.id))]);
             }
           },
           error: (err: unknown) => this.fail(err, 'Could not read your session at this till.'),
@@ -394,6 +418,8 @@ export class PosTillPage {
   protected addProduct(product: PosProduct): void {
     const cart = this.cart();
     if (!cart) return;
+    // Phase 97 -- the line starts at the scheme percent the till already knows, and moves when this answer arrives.
+    this.readSchemes([product.id]);
 
     // Phase 91 -- a serial-tracked product sells unit by unit: a scanned serial names the unit, and a tap opens the
     // line's picker so the cashier names it (the vendor's till asks the same, by scan or typing only).

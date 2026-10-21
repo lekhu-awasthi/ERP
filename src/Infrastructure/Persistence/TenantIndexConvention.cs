@@ -112,6 +112,10 @@ internal static class TenantIndexConvention
                 + "(AlertDefinitionId, OccurrenceDate, Recipient) unique so a send happens exactly "
                 + "once (phase 20e). Nothing ranges over it, and the row carries "
                 + "(OrganizationId, CreatedAt) for the audit list that does.",
+            ["DiscountScheme"] =
+                "Phase 97 -- StartDate and EndDate bound a promotion's validity; they are not when anything "
+                + "happened. A tenant keeps a handful of schemes, listed by code (its unique index), and the "
+                + "reader asks which cover one day, which no date-leading index narrows usefully.",
         };
 
     /// <summary>

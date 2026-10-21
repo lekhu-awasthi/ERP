@@ -550,3 +550,19 @@ beside a 200 from the same user, and create a fresh Organization per phase.
   .../{id}/layout` with `printSerialNumbers: true`; the PDF is `POST /print/Invoice/{id}` (a counted print). In SQL:
   `pos.PosOrderLines.BatchId`, `catalog.ProductBatches.SellingPrice`, `tenancy.TenantSettings.BatchTrackingEnabled`,
   `purchasing.PurchaseBills.InventoryAdjustmentAccountId`, `configuration.PrintingTemplates.PrintSerialNumbers`.
+- Phase 96. A sale's recorded rounding account is `sales.Invoices.RoundingAccountId` (NULL when not rounded, and before
+  phase 96); a refund's rounding is the `GlLines` row of its `CreditNote` entry on that account. Moving a location's round-off
+  is the whole `PUT /pos/locations/{id}/settings` body with a new `roundOffAccountId`. A Service product at 60 + 13% gives
+  3 × = 203.40, rounded to 203, with no stock to seed. Error bodies carry the message in **`title`**, not `detail`.
+- Phase 97. Discount schemes: `POST /sales/discount-schemes {code, name, kind: "ItemWise"|"CategoryWise"|"Slab", startDate,
+  endDate, allLocations, locationIds, lines: [{productId, categoryId, minimumAmount, discountPct}]}` (201; a row must
+  name exactly what its kind names, else a 400 naming `Lines`; a repeated code 409); `PUT .../{id}` adds `isActive`.
+  `GET /sales/discount-schemes/applicable?date=&locationId=&productIds=a&productIds=b` and
+  `GET /pos/tills/{locationId}/discounts?productIds=` answer `{products: [{productId, discountPct}], slabs:
+  [{minimumAmount, discountPct}]}`. `PUT /pos/locations/{id}/settings` needs a non-empty `denominations` list even with
+  cash verification off (a 400 naming `Denominations`), and `POST /pos/sessions` answers **200**, not 201. The scheme
+  key's 403-not-404 pair: `PUT /sales/discount-schemes/{nonexistent}` with a valid body is 404 as Admin and 403 naming
+  `Sales.DiscountScheme.Manage` from a role holding only `.View` (plus `Tenancy.Role.Manage` to move itself back).
+  In SQL: `sales.DiscountSchemes`, `sales.DiscountSchemeLines`, `sales.DiscountSchemeLocations`,
+  `pos.PosOrders.DiscountSetByHand`.
+

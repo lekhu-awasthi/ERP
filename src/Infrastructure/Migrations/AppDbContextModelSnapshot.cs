@@ -4282,6 +4282,10 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasColumnType("decimal(5,2)")
                         .HasDefaultValue(0m);
 
+                    b.Property<bool>("DiscountSetByHand")
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
                     b.Property<DateTimeOffset>("LastActivityAt")
                         .HasColumnType("datetimeoffset");
 
@@ -6066,6 +6070,118 @@ namespace ErpApp.Infrastructure.Migrations
                     b.ToTable("DeliveryNoteLines", "sales");
                 });
 
+            modelBuilder.Entity("ErpApp.Domain.Sales.DiscountScheme", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("AllLocations")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateOnly>("EndDate")
+                        .HasColumnType("date");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateOnly>("StartDate")
+                        .HasColumnType("date");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrganizationId", "Code")
+                        .IsUnique();
+
+                    b.ToTable("DiscountSchemes", "sales");
+                });
+
+            modelBuilder.Entity("ErpApp.Domain.Sales.DiscountSchemeLine", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("CategoryId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("DiscountPct")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<Guid>("DiscountSchemeId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal?>("MinimumAmount")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("ProductId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DiscountSchemeId");
+
+                    b.HasIndex("OrganizationId", "DiscountSchemeId");
+
+                    b.ToTable("DiscountSchemeLines", "sales");
+                });
+
+            modelBuilder.Entity("ErpApp.Domain.Sales.DiscountSchemeLocation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("BillingLocationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("DiscountSchemeId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BillingLocationId");
+
+                    b.HasIndex("DiscountSchemeId");
+
+                    b.HasIndex("OrganizationId", "DiscountSchemeId", "BillingLocationId")
+                        .IsUnique();
+
+                    b.ToTable("DiscountSchemeLocations", "sales");
+                });
+
             modelBuilder.Entity("ErpApp.Domain.Sales.Invoice", b =>
                 {
                     b.Property<Guid>("Id")
@@ -6186,6 +6302,9 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)")
                         .HasDefaultValue(0m);
+
+                    b.Property<Guid?>("RoundingAccountId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<byte[]>("RowVersion")
                         .IsConcurrencyToken()
@@ -10660,6 +10779,34 @@ namespace ErpApp.Infrastructure.Migrations
                             IsGranted = true,
                             PermissionKey = "Sales.Invoice.ChangeRate",
                             RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000001fd"),
+                            IsGranted = true,
+                            PermissionKey = "Sales.DiscountScheme.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000001fe"),
+                            IsGranted = true,
+                            PermissionKey = "Sales.DiscountScheme.View",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-0000000001ff"),
+                            IsGranted = true,
+                            PermissionKey = "Sales.DiscountScheme.Manage",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0002-000000000200"),
+                            IsGranted = false,
+                            PermissionKey = "Sales.DiscountScheme.Manage",
+                            RoleId = new Guid("00000000-0000-0000-0001-000000000002")
                         });
                 });
 
@@ -12680,6 +12827,30 @@ namespace ErpApp.Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("UnitId")
                         .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("ErpApp.Domain.Sales.DiscountSchemeLine", b =>
+                {
+                    b.HasOne("ErpApp.Domain.Sales.DiscountScheme", null)
+                        .WithMany()
+                        .HasForeignKey("DiscountSchemeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ErpApp.Domain.Sales.DiscountSchemeLocation", b =>
+                {
+                    b.HasOne("ErpApp.Domain.Tenancy.BillingLocation", null)
+                        .WithMany()
+                        .HasForeignKey("BillingLocationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ErpApp.Domain.Sales.DiscountScheme", null)
+                        .WithMany()
+                        .HasForeignKey("DiscountSchemeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("ErpApp.Domain.Sales.Invoice", b =>

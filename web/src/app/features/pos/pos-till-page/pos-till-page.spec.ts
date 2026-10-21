@@ -17,6 +17,7 @@ import {
   PosTill,
 } from '../../../core/pos/pos.models';
 import { PosService } from '../../../core/pos/pos.service';
+import { ApplicableDiscounts } from '../../../core/sales/sales.models';
 import { PosTillPage } from './pos-till-page';
 
 /**
@@ -101,6 +102,8 @@ describe('PosTillPage', () => {
       { batchNo: 'B93B', expiryDate: null, quantity: 3 },
     ];
     batchReads = 0;
+    /** Phase 97 -- what the discount schemes give at this till; none unless a test says. */
+    discounts: ApplicableDiscounts = { products: [], slabs: [] };
 
     constructor(
       private readonly current: PosTill,
@@ -123,6 +126,10 @@ describe('PosTillPage', () => {
     listProductSerials(_o: string, _l: string, _p: string, search?: string): Observable<string[]> {
       this.serialSearches.push(search);
       return of(search ? this.inStock.filter((x) => x.toLowerCase().includes(search.toLowerCase())) : this.inStock);
+    }
+
+    getTillDiscounts(): Observable<ApplicableDiscounts> {
+      return of(this.discounts);
     }
 
     listProductBatches(): Observable<PosProductBatch[]> {
@@ -499,6 +506,41 @@ describe('PosTillPage', () => {
     p.render();
 
     expect(p.service.sent[0]).toEqual(expect.objectContaining({ discountPct: 0, discountAmount: 10 }));
+  });
+
+  it('starts a line at its discount scheme and the bill at its slab, which a cashier without the key keeps (phase 97)', () => {
+    const p = page(till({ canDiscount: false }));
+    p.service.discounts = { products: [{ productId: 'momo', discountPct: 10 }], slabs: [{ minimumAmount: 300, discountPct: 5 }] };
+
+    p.tile('Chicken Momo');
+    p.tile('Chicken Momo');
+
+    // One line, grown by the second tap although it carries the scheme's 10%; 360 reaches the 300 slab.
+    expect(p.text()).not.toContain('Sales.Invoice.TillDiscount');
+    p.press('Pay (F9)');
+    p.tender('cash', '1000');
+    p.complete().click();
+    p.render();
+
+    expect(p.service.sent[0]).toEqual(expect.objectContaining({ discountPct: 5 }));
+    expect(p.service.sent[0].lines.map((x) => [x.productId, x.quantity, x.discountPct])).toEqual([['momo', 2, 10]]);
+  });
+
+  it('keeps the bill discount a cashier set, wherever the slab moves (phase 97)', () => {
+    const p = page();
+    p.service.discounts = { products: [], slabs: [{ minimumAmount: 100, discountPct: 5 }, { minimumAmount: 400, discountPct: 8 }] };
+
+    p.tile('Chicken Momo');
+    setField(p, '#pos-bill-discount', '2');
+    p.tile('Chicken Momo');
+    p.tile('Chicken Momo');
+
+    p.press('Pay (F9)');
+    p.tender('cash', '1000');
+    p.complete().click();
+    p.render();
+
+    expect(p.service.sent[0]).toEqual(expect.objectContaining({ discountPct: 2 }));
   });
 
   it('lets a cashier who may approve invoices give a bill discount', () => {
