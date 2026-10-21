@@ -242,6 +242,31 @@ public sealed class RecordedPostingAccountsTests
         await AssertUntouchedAsync(db, seed.OrganizationId, next);
     }
 
+    [Fact]
+    public async Task A_returns_price_to_cost_difference_goes_to_the_adjustment_account_its_bill_recorded()
+    {
+        // Phase 95 -- phase 87's Decision G reopened by the user (2026-10-20): the difference between a return's price
+        // (the bill's 100) and the cost the stock gives up (the oldest layers, 80) follows the bill too, not today's
+        // Inventory Adjustment default.
+        var db = TestAppDbContext.Create();
+        var seed = await InventoryReportSeed.CreateAsync(db);
+        var original = (await CurrentAsync(db, seed.OrganizationId)).Adjustment;
+        await InventoryReportSeed.PurchaseAsync(db, seed, Day, 10m, 80m, vatRate: VatRate.ThirteenPercentVat);
+        var away = await InventoryReportSeed.PurchaseAsync(db, seed, Day, 10m, 100m, vatRate: VatRate.ThirteenPercentVat);
+        var twin = await InventoryReportSeed.PurchaseAsync(db, seed, Day, 10m, 100m, vatRate: VatRate.ThirteenPercentVat);
+        var before = await InventoryReportSeed.DebitNoteAsync(db, seed, Day, 3m, 100m, twin.Id, vatRate: VatRate.ThirteenPercentVat);
+        Assert.Equal(-60m, (await PostedAsync(db, DocumentType.DebitNote, before.Id))[original]);
+
+        var next = await SwitchEveryDefaultAsync(db, seed.OrganizationId);
+        var after = await InventoryReportSeed.DebitNoteAsync(db, seed, Day, 3m, 100m, away.Id, vatRate: VatRate.ThirteenPercentVat);
+
+        Assert.Equal(
+            await PostedAsync(db, DocumentType.DebitNote, before.Id),
+            await PostedAsync(db, DocumentType.DebitNote, after.Id));
+        await AssertUntouchedAsync(db, seed.OrganizationId, next);
+        Assert.Equal(0m, await BalanceAsync(db, seed.OrganizationId, next.Adjustment));
+    }
+
     // ---- Payments ----------------------------------------------------------------------------------------
 
     private static async Task<Guid> CashAccountAsync(IAppDbContext db, Guid organizationId)

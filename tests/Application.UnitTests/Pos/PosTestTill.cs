@@ -117,6 +117,8 @@ internal sealed class PosTestTill
 
         var settings = await db.TenantSettings.SingleAsync(x => x.OrganizationId == organizationId);
         settings.SetPosDefaults(serviceCharge.Id, rounding.Id, overShort.Id, packaging.Id);
+        // Phase 95 -- the company's tracking switches on, so each product's own decides (the till's batch and serial tests).
+        settings.SetStockTracking(batchTrackingEnabled: true, serialTrackingEnabled: true);
 
         var location = BillingLocation.CreateHeadOffice(organizationId);
         // Phase 64 -- the same till as a Restaurant location, for the order tests.

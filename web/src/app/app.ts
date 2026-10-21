@@ -4,6 +4,7 @@ import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
 import { filter } from 'rxjs/operators';
 
 import { environment } from '../environments/environment';
+import { FocusKeeper } from './shared/a11y/focus-keeper';
 import { DatePreferenceService } from './shared/formatting/date-preference';
 import { HistoryService } from './shared/navigation/history.service';
 import { DateRangePicker } from './shared/platform/date-range-picker';
@@ -60,6 +61,8 @@ export class App implements OnInit {
   private readonly history = inject(HistoryService);
   private readonly datePreference = inject(DatePreferenceService);
   private readonly dateRange = inject(DateRangeService);
+  /** Phase 95 -- keeps a keyboard user's place when a Save button is disabled or a line is removed, app-wide. */
+  private readonly focusKeeper = inject(FocusKeeper);
 
   ngOnInit(): void {
     this.http.get<{ status: string }>(`${environment.apiBaseUrl}/health`).subscribe({
@@ -72,6 +75,7 @@ export class App implements OnInit {
       .subscribe((e) => this.onNavigated(e.urlAfterRedirects));
 
     this.history.start();
+    this.focusKeeper.start();
   }
 
   private onNavigated(url: string): void {

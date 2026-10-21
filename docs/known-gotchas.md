@@ -4766,3 +4766,19 @@ The vendor's till lists each batch with *Balance: 0*. The list is `GET item-batc
 ## A fetch from a tab the dev server has just opened can be cut off by the app's own redirect (phase 94)
 
 Right after `erp-web-ssl` starts, its tab is still loading and the app is redirecting to `/login`. A `fetch` of the cookie file from that tab failed with *TypeError: Failed to fetch*, three times, though the file was being served. The fetch was aborted by the navigation, not refused. Wait until `location.href` has settled, then read. Delete the file only after a 200 with a body that is not HTML: deleting it after the failure meant writing it again, and `ng serve` serves `public/` as it was at start-up (phase 71), so each retry cost a restart.
+
+## A finding with no owner is a flaw left in place (phase 95)
+
+Ninety phases each ended with a "left open" list, and the user could no longer tell what was being fixed. Some items were real defects found and carried (focus lost on 56 screens, an unindexed scan), some were questions only the user could answer, written down instead of asked. Fix a defect in the session that finds it; ask a product question in the session that raises it; carry only what someone else must settle, and say who. Report what a user will notice before the mechanism.
+
+## A per-row availability rule is two subqueries per row (phase 95)
+
+`Locations.Count == 0 || Locations.Any(l => l.LocationId == x)` (and its `!Any()` form) ran as a seek into `ProductLocations` per product: 80,004 reads on a one-row table to count one till's grid. "Not among the products restricted elsewhere" (`ProductLocationAvailability`) is one pass and an anti-join. But a query whose `EXISTS` stops at its first match (the category tabs) costs 10 reads the per-row way and 4,465 the set way: measure each reader before moving it.
+
+## A floor on one column moves the squeeze to its neighbour (phase 95)
+
+At 1,024 px a line table wider than its card squeezed the purchase bill's Rate box to 30 px; giving number boxes a minimum width moved the squeeze to the Item Batch text box beside it. The floor belongs on every typed box in a `.table-responsive` table, so the table outgrows the card and scrolls. Measure every box after the change, not the one you fixed.
+
+## A switch that overrides a flag is read in one place, or it overrides nothing (phase 95)
+
+The company's tracking switches override each product's `BatchTracking`/`SerialTracking`, and about twenty readers asked the product directly. Every rule now asks `StockTrackingSwitches`, and the two rule methods take it as a required argument so the compiler listed every caller. A switch added beside a flag owes a census of the flag's readers, and a backfill that keeps every existing tenant's behaviour.

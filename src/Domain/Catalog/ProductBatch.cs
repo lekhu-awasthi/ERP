@@ -44,6 +44,13 @@ public sealed class ProductBatch
 
     public DateOnly? ManufactureDate { get; private set; }
     public DateOnly? ExpiryDate { get; private set; }
+
+    /// <summary>Phase 95 -- what this batch sells for, per primary unit, typed as a product's Selling Price is (the
+    /// tenant's price basis decides whether it includes VAT). Picking the batch on a sale prices the line at it, as the
+    /// vendor's batch does (read live 2026-10-20: B93A 150, B93B 170). Required of a batch created since phase 95, and
+    /// null on an older one, whose lines keep the catalogue's price.</summary>
+    public decimal? SellingPrice { get; private set; }
+
     public DateTimeOffset CreatedAt { get; private set; }
 
     private ProductBatch()
@@ -55,7 +62,8 @@ public sealed class ProductBatch
         Guid productId,
         string batchNo,
         DateOnly? manufactureDate,
-        DateOnly? expiryDate)
+        DateOnly? expiryDate,
+        decimal? sellingPrice = null)
     {
         var trimmed = (batchNo ?? string.Empty).Trim();
 
@@ -71,6 +79,7 @@ public sealed class ProductBatch
         }
 
         EnsureDatesOrdered(manufactureDate, expiryDate);
+        EnsurePrice(sellingPrice);
 
         return new ProductBatch
         {
@@ -80,8 +89,26 @@ public sealed class ProductBatch
             BatchNo = trimmed,
             ManufactureDate = manufactureDate,
             ExpiryDate = expiryDate,
+            SellingPrice = sellingPrice,
             CreatedAt = DateTimeOffset.UtcNow,
         };
+    }
+
+    /// <summary>Phase 95 -- a later receipt may carry the price the first one did not (a batch created before the price
+    /// was asked for). Filling a blank is allowed; changing a price already set is not, for the reason
+    /// <see cref="FillMissingDates"/> gives: a new price is a new batch.</summary>
+    public void FillMissingPrice(decimal? sellingPrice)
+    {
+        EnsurePrice(sellingPrice);
+        SellingPrice ??= sellingPrice;
+    }
+
+    private static void EnsurePrice(decimal? sellingPrice)
+    {
+        if (sellingPrice is { } price && (price < 0m || decimal.Round(price, 4) != price))
+        {
+            throw new InvalidOperationException("A batch's selling price is zero or more, to at most four decimal places.");
+        }
     }
 
     /// <summary>

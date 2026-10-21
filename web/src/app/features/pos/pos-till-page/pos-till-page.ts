@@ -176,7 +176,8 @@ export class PosTillPage {
       || lines.some((line) => line.discountPct > 0 || line.discountPerUnit > 0);
     const repriced = lines.some((line) => {
       const catalogue = line.product.units.find((unit) => unit.unitId === line.unitId)?.rate;
-      return catalogue !== undefined && line.rate !== catalogue;
+      // Phase 95 -- a priced batch's rate is the batch's price, not a changed one (the server keeps it the same way).
+      return catalogue !== undefined && line.rate !== catalogue && line.rate !== cart.batchRateOf(line);
     });
     const missing = [
       ...(discounted && !till?.canDiscount ? ['a discount needs Sales.Invoice.TillDiscount'] : []),
@@ -463,7 +464,7 @@ export class PosTillPage {
   }
 
   protected onBatchPick(line: CartLine, batch: PosProductBatch): void {
-    this.cart()?.setBatch(line.key, batch.batchNo);
+    this.cart()?.setBatch(line.key, batch.batchNo, batch.rate ?? null);
     this.announce(`${line.product.name} from batch ${batch.batchNo}.`);
   }
 

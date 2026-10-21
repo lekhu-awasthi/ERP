@@ -11,4 +11,5 @@ public sealed record PurchaseBillPostingAccounts(
     Guid? TdsPayableAccountId,
     Guid? InventoryAccountId,
     Guid? LandedCostClearingAccountId,
-    IReadOnlyList<Guid> LineDebitAccountIds);
+    IReadOnlyList<Guid> LineDebitAccountIds,
+    Guid? InventoryAdjustmentAccountId = null);

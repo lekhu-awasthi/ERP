@@ -110,6 +110,7 @@ describe('ProductDetailPage — batch and serial tracking', () => {
     serialsRequested = 0;
 
     const catalog: Partial<CatalogService> = {
+      getStockTracking: () => of({ batchTrackingEnabled: true, serialTrackingEnabled: true }),
       getProduct: (): Observable<Product> => of(data),
       listProductCategories: (): Observable<ProductCategory[]> => of([category]),
       listUnitsOfMeasurement: (): Observable<UnitOfMeasurement[]> => of([pieceUnit]),

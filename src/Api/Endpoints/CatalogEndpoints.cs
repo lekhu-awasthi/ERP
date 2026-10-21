@@ -1,3 +1,4 @@
+using ErpApp.Application.Inventory.Queries.GetStockTrackingSwitches;
 using ErpApp.Application.Catalog.Commands.AddSecondaryUnit;
 using ErpApp.Application.Catalog.Commands.AddVariantAttributeOption;
 using ErpApp.Application.Catalog.Commands.CreateProductVariant;
@@ -140,9 +141,9 @@ public static class CatalogEndpoints
         // TenantSettings.SuggestSellingPriceMode + ProductPriceBasis. Mirrors the reference
         // product's own get_recent_selling_price call.
         group.MapGet("/products/{id:guid}/suggested-rate", async (
-            Guid organizationId, Guid id, Guid? unitId, ISender sender, CancellationToken ct) =>
+            Guid organizationId, Guid id, Guid? unitId, string? batchNo, ISender sender, CancellationToken ct) =>
         {
-            var result = await sender.Send(new SuggestProductRateQuery(organizationId, id, unitId), ct);
+            var result = await sender.Send(new SuggestProductRateQuery(organizationId, id, unitId, batchNo), ct);
             return Results.Ok(result);
         });
 
@@ -180,6 +181,11 @@ public static class CatalogEndpoints
         // Number, both read live on 2026-09-16 (unlike the two reports). Neither carries a key of
         // its own: both ride Catalog.Product.View, because a batch is created by approving a
         // Purchase Bill and there is no batch-management screen to gate.
+        // Phase 95 -- the company's tracking switches, for every form that decides whether a line shows a batch or a
+        // serial box: read under Catalog.Product.View, which those forms already need for their product list.
+        group.MapGet("/stock-tracking", async (Guid organizationId, ISender sender, CancellationToken ct) =>
+            Results.Ok(await sender.Send(new GetStockTrackingSwitchesQuery(organizationId), ct)));
+
         group.MapGet("/products/{id:guid}/batches", async (
             Guid organizationId, Guid id, Guid? warehouseId, string? search,
             ISender sender, CancellationToken ct) =>

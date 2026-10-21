@@ -5,7 +5,7 @@ import { concatMap, from, toArray } from 'rxjs';
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { Contact } from '../../../core/contacts/contacts.models';
 import { fromPaisa, toPaisa } from '../../../core/pos/pos-bill';
-import { POS_TAB_LABELS, PosDiscountKind, PosProduct } from '../../../core/pos/pos.models';
+import { POS_TAB_LABELS, PosDiscountKind, PosProduct, PosProductBatch } from '../../../core/pos/pos.models';
 import {
   KitchenTicket,
   POS_ORDER_TYPES,
@@ -17,6 +17,7 @@ import {
   PosRestaurantTable,
 } from '../../../core/pos/pos-restaurant.models';
 import { PosRestaurantService } from '../../../core/pos/pos-restaurant.service';
+import { PosService } from '../../../core/pos/pos.service';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
@@ -33,6 +34,9 @@ interface PendingItem {
   lineId: string | null;
   quantity: number;
   note: string;
+  /** Phase 95 -- a batch-tracked product names the batch it is served from before it can be sent. */
+  batchTracking?: boolean;
+  batchNo?: string | null;
 }
 
 /** The inline action panel open under a line or the order. */
@@ -94,6 +98,7 @@ export class PosOrderPage {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly restaurantService = inject(PosRestaurantService);
+  private readonly posService = inject(PosService);
   private readonly injector = inject(Injector);
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
@@ -191,6 +196,16 @@ export class PosOrderPage {
   });
 
   protected readonly pendingCount = computed(() => this.pending().reduce((sum, p) => sum + p.quantity, 0));
+
+  /** Phase 95 -- each batch-tracked product's batches in stock at this location's warehouse, read when it is added. */
+  protected readonly batchOptions = signal<Record<string, PosProductBatch[]>>({});
+  protected readonly batchError = signal<string | null>(null);
+
+  /** Phase 95 -- why the order cannot be sent yet: a batch-tracked item names no batch (the vendor asks the same). */
+  protected readonly batchRefusal = computed(() => {
+    const item = this.pending().find((x) => x.kind === 'new' && x.batchTracking && !x.batchNo);
+    return item ? `${item.productName} is batch-tracked: choose the batch it is served from.` : null;
+  });
 
   /** A Delivery goes to a named customer, so it cannot be sent without one. */
   protected readonly needsCustomer = computed(() => this.isNew() && this.newType() === 'Delivery' && !this.customer());
@@ -302,12 +317,50 @@ export class PosOrderPage {
   protected addProduct(product: PosProduct): void {
     if (!this.isOpen()) return;
     this.noticeMessage.set(null);
+    // Phase 95 -- a batch-tracked item grows only one still waiting for its batch: a chosen batch is that batch's.
+    const tracked = product.batchTracking === true;
+    let added: PendingItem | null = null;
     this.pending.update((items) => {
-      const same = items.find((x) => x.kind === 'new' && x.productId === product.id && x.note === '');
-      return same
-        ? items.map((x) => (x === same ? { ...x, quantity: x.quantity + 1 } : x))
-        : [...items, { key: this.nextKey++, kind: 'new', productId: product.id, productName: product.name, lineId: null, quantity: 1, note: '' }];
+      const same = items.find(
+        (x) => x.kind === 'new' && x.productId === product.id && x.note === '' && (!tracked || !x.batchNo));
+      if (same) return items.map((x) => (x === same ? { ...x, quantity: x.quantity + 1 } : x));
+      added = {
+        key: this.nextKey++, kind: 'new', productId: product.id, productName: product.name, lineId: null, quantity: 1,
+        note: '', batchTracking: tracked, batchNo: null,
+      };
+      return [...items, added];
     });
+    if (tracked) this.loadBatches(product.id, added);
+  }
+
+  private loadBatches(productId: string, focusOn: PendingItem | null): void {
+    const restaurant = this.restaurant();
+    if (!restaurant) return;
+    this.batchError.set(null);
+    this.posService.listProductBatches(this.organizationId, restaurant.locationId, productId).subscribe({
+      next: (batches) => {
+        this.batchOptions.update((all) => ({ ...all, [productId]: batches }));
+        // A radio group takes focus on one of its own (phase 40): the new item's first batch.
+        if (focusOn) this.focusById(this.batchRadioId(focusOn, 0));
+      },
+      error: (err: unknown) => this.batchError.set(extractErrorMessage(err) ?? 'Could not read the batches in stock.'),
+    });
+  }
+
+  protected batchesOf(item: PendingItem): PosProductBatch[] {
+    return this.batchOptions()[item.productId] ?? [];
+  }
+
+  protected batchRadioId(item: PendingItem, index: number): string {
+    return `pos-order-batch-${item.key}-${index}`;
+  }
+
+  protected chooseBatch(key: number, batchNo: string): void {
+    this.pending.update((items) => items.map((x) => (x.key === key ? { ...x, batchNo } : x)));
+  }
+
+  private focusById(id: string): void {
+    afterNextRender(() => document.getElementById(id)?.focus(), { injector: this.injector });
   }
 
   /** One more of a line already sent: the same line, so it keeps its note and its kitchen. */
@@ -352,14 +405,17 @@ export class PosOrderPage {
   protected send(): void {
     const restaurant = this.restaurant();
     const items = this.pending();
-    if (!restaurant || items.length === 0 || this.busy() || this.needsCustomer()) return;
+    if (!restaurant || items.length === 0 || this.busy() || this.needsCustomer() || this.batchRefusal()) return;
 
     this.busy.set(true);
     this.errorMessage.set(null);
 
     const newItems = items
       .filter((x) => x.kind === 'new')
-      .map((x) => ({ productId: x.productId, quantity: x.quantity, unitId: null, note: x.note.trim() || null }));
+      .map((x) => ({
+        productId: x.productId, quantity: x.quantity, unitId: null, note: x.note.trim() || null,
+        batchNo: x.batchTracking ? (x.batchNo ?? null) : null,
+      }));
     const moreOf = items.filter((x) => x.kind === 'more').map((x) => ({ lineId: x.lineId!, quantity: x.quantity }));
 
     const order = this.order();

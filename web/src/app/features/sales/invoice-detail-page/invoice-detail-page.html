@@ -353,6 +353,7 @@
                         maxlength="100"
                         [value]="line.batchNo"
                         (input)="onBatchNoChange(line.key, $event)"
+                        (change)="onBatchNoCommit(line.key)"
                       />
                       <!-- One physical unit per serial, so a line of quantity five names five.
                            Comma-separated, and a scanner's Enter ends each one; the server refuses a count

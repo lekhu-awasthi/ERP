@@ -438,4 +438,29 @@ describe('PosCart batches (phase 94)', () => {
     expect(cart.lines()[0].batchNo).toBe('B1');
     expect(cart.unbatchedLine()).toBeNull();
   });
+
+  it('prices a line at its batch\'s own price, in whichever unit it is sold (phase 95)', () => {
+    const jar: PosProduct = {
+      ...honey,
+      units: [
+        { unitId: 'jar', shortName: 'jar', conversionRate: 1, rate: 150 },
+        { unitId: 'box', shortName: 'box', conversionRate: 6, rate: 880 },
+      ],
+    };
+    const cart = new PosCart(till(), ORG, 'ses-1', new MemoryStorage());
+    const key = cart.add(jar)!.key;
+
+    cart.setBatch(key, 'B4', 170);
+    expect(cart.lines()[0].rate).toBe(170);
+    expect(cart.batchRateOf(cart.lines()[0])).toBe(170);
+
+    // A box of six is six jars at the batch's price, not the box's catalogue price.
+    cart.setUnit(key, 'box');
+    expect(cart.lines()[0].rate).toBe(1020);
+
+    // A batch with no price of its own leaves the unit's catalogue price.
+    cart.setBatch(key, 'B1', null);
+    expect(cart.lines()[0].rate).toBe(880);
+    expect(cart.batchRateOf(cart.lines()[0])).toBeNull();
+  });
 });

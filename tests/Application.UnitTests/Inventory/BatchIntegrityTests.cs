@@ -1,9 +1,15 @@
+using ErpApp.Application.Catalog;
 using ErpApp.Application.Catalog.Commands.CreateProduct;
+using ErpApp.Application.Catalog.Queries.SuggestProductRate;
 using ErpApp.Application.Common.Exceptions;
+using ErpApp.Application.Common.Security;
 using ErpApp.Application.Inventory;
 using ErpApp.Application.Inventory.Stock;
+using ErpApp.Application.Pos.Commands.CreatePosOrderTransfer;
 using ErpApp.Application.Pos.Commands.CreatePosSale;
+using ErpApp.Application.Pos.Commands.UpdatePosOrderTakeAway;
 using ErpApp.Application.Pos.Queries.ListPosProductBatches;
+using ErpApp.Application.Pos.Queries.ListPosProducts;
 using ErpApp.Application.Pos.Restaurant;
 using ErpApp.Application.Purchasing;
 using ErpApp.Application.Purchasing.Commands.ApproveDebitNote;
@@ -39,7 +45,8 @@ namespace ErpApp.Application.UnitTests.Inventory;
 /// Phase 93 -- batch integrity (phase-93-status.md Decisions A-C), the batch half of phase 92's serials:
 /// <list type="bullet">
 /// <item>an ERP issue names its batch, as the vendor requires (read live 2026-10-15); phase 94 -- and so does a Retail
-/// till sale, while a restaurant bill, whose order line carries no batch, still walks;</item>
+/// till sale; phase 95 -- and a restaurant order's item, its bills issuing from it (only a line ordered before then
+/// still walks);</item>
 /// <item>a void, or a till refund, of a line that walked its batches puts each batch back, read from the sale's own
 /// movements, where phase 51 put the whole quantity back into no batch;</item>
 /// <item>a debit note names its batch (written by nothing since phase 51), prefilled from its bill and, converted, one
@@ -58,10 +65,10 @@ public class BatchIntegrityTests
 
     /// <param name="restaurant">Phase 94 -- a restaurant till, whose bills still walk the batches: the one sale left
     /// that does, now that the Retail till names its batch.</param>
-    private static async Task<Shop> CreateShopAsync(bool restaurant = false)
+    private static async Task<Shop> CreateShopAsync(bool restaurant = false, string[]? keys = null)
     {
         var dining = restaurant ? await PosTestRestaurant.CreateAsync() : null;
-        var till = dining?.Till ?? await PosTestTill.CreateAsync();
+        var till = dining?.Till ?? await PosTestTill.CreateAsync(keys);
         var db = till.Db;
         till.Location.Update(till.Location.Code, till.Location.Name, till.Location.Address, till.Seed.WarehouseId, true);
 
@@ -78,8 +85,12 @@ public class BatchIntegrityTests
         return new Shop(till, item.Id, bill, session.Id, dining);
     }
 
-    private static PurchaseBillLineInput BillLine(Guid productId, string batchNo, decimal quantity, decimal rate) =>
-        new(productId, quantity, rate, VatRate.ThirteenPercentVat, ExpenditureClassification.Others, BatchNo: batchNo);
+    /// <summary>Phase 95 -- a new batch carries an expiry and a selling price; the catalogue's own 100, so no figure in
+    /// the older tests moves.</summary>
+    private static PurchaseBillLineInput BillLine(
+        Guid productId, string batchNo, decimal quantity, decimal rate, decimal batchPrice = 100m) =>
+        new(productId, quantity, rate, VatRate.ThirteenPercentVat, ExpenditureClassification.Others, BatchNo: batchNo,
+            ExpiryDate: PosTestTill.Today.AddDays(365), BatchSellingPrice: batchPrice);
 
     private static async Task<Guid> ReceiveAsync(PosTestTill till, params PurchaseBillLineInput[] lines)
     {
@@ -117,12 +128,28 @@ public class BatchIntegrityTests
             [new PosSaleLineInput(shop.ItemId, quantity, 100m, BatchNo: batchNo)],
             [shop.Till.Cash(113m * quantity)]);
 
-    /// <summary>Phase 94 -- a take-away order of the item billed whole: a sale whose line names no batch, so it walks
-    /// them oldest-first.</summary>
+    private static PosOrderItemInput Item(Shop shop, decimal quantity, string? batchNo) =>
+        new(shop.ItemId, quantity, null, null, batchNo);
+
+    private static async Task<Guid> BillOrderAsync(Shop shop, Guid orderId)
+    {
+        var restaurant = shop.Restaurant!;
+        var preview = await restaurant.PreviewAsync(orderId, PosOrderSplit.Whole);
+        var bill = await restaurant.BillAsync(
+            shop.SessionId, orderId, PosOrderSplit.Whole, [shop.Till.Cash(preview.Total)]);
+        return bill.Id;
+    }
+
+    /// <summary>A take-away order of the item billed whole, its line made to name no batch: an order taken before phase
+    /// 95 gave order lines one, which walks the batches oldest-first. Reached through the change tracker, never by
+    /// weakening the rule (phase 31).</summary>
     private static async Task<Guid> BillWalkedOrderAsync(Shop shop, decimal quantity)
     {
         var restaurant = shop.Restaurant!;
-        var order = await restaurant.OpenAsync(PosTab.TakeAway, [new PosOrderItemInput(shop.ItemId, quantity, null, null)]);
+        var order = await restaurant.OpenAsync(PosTab.TakeAway, [Item(shop, quantity, "B1")]);
+        var line = await shop.Till.Db.PosOrderLines.SingleAsync(x => x.PosOrderId == order.Id);
+        ((DbContext)shop.Till.Db).Entry(line).Property(x => x.BatchId).CurrentValue = null;
+        await shop.Till.Db.SaveChangesAsync();
         var preview = await restaurant.PreviewAsync(order.Id, PosOrderSplit.Whole);
         var bill = await restaurant.BillAsync(
             shop.SessionId, order.Id, PosOrderSplit.Whole, [shop.Till.Cash(preview.Total)]);
@@ -214,11 +241,53 @@ public class BatchIntegrityTests
     }
 
     [Fact]
-    public async Task A_restaurant_bill_still_walks_its_batches_oldest_first()
+    public async Task A_restaurant_order_names_its_batch_and_its_bill_takes_only_that_batch()
     {
         var shop = await CreateShopAsync(restaurant: true);
 
-        // Decision B: an order line carries no batch, so its bill walks, as phase 93 left the till.
+        // Phase 95 -- the vendor's order screen asks for the batch when the item is ordered (read live 2026-10-20).
+        var blank = await Assert.ThrowsAsync<ValidationException>(
+            () => shop.Restaurant!.OpenAsync(PosTab.TakeAway, [Item(shop, 2m, null)]));
+        Assert.Contains("'P93 Item' is batch-tracked, so a line issuing it must name a batch.", blank.Message);
+        Assert.Contains(blank.Errors, e => e.PropertyName.StartsWith("Items", StringComparison.Ordinal));
+
+        var order = await shop.Restaurant!.OpenAsync(PosTab.TakeAway, [Item(shop, 2m, "B2")]);
+        Assert.Equal("B2", order.Lines.Single().BatchNo);
+
+        await BillOrderAsync(shop, order.Id);
+        Assert.Equal(new Dictionary<string, decimal> { ["B1"] = 5m, ["B2"] = 3m }, await OnShelfAsync(shop));
+    }
+
+    [Fact]
+    public async Task A_parcel_and_a_transfer_keep_their_batch_and_bill_from_it()
+    {
+        var shop = await CreateShopAsync(restaurant: true);
+        var restaurant = shop.Restaurant!;
+        var order = await restaurant.SeatAsync(restaurant.T1, [Item(shop, 3m, "B2")]);
+        var line = order.Lines.Single();
+
+        var parcelled = await new UpdatePosOrderTakeAwayCommandHandler(shop.Till.Db, restaurant.CurrentUser()).Handle(
+            new UpdatePosOrderTakeAwayCommand(shop.Till.OrganizationId, order.Id, line.Id, 1m), CancellationToken.None);
+        Assert.Equal(["B2", "B2"], parcelled.Lines.Select(x => x.BatchNo));
+
+        var moved = await new CreatePosOrderTransferCommandHandler(
+                shop.Till.Db, shop.Till.Seed.NumberGenerator, restaurant.CurrentUser())
+            .Handle(
+                new CreatePosOrderTransferCommand(
+                    shop.Till.OrganizationId, order.Id, restaurant.T2, [new PosOrderLineQuantityInput(line.Id, 1m)]),
+                CancellationToken.None);
+        Assert.Equal("B2", moved.Target.Lines.Single().BatchNo);
+
+        await BillOrderAsync(shop, order.Id);
+        await BillOrderAsync(shop, moved.Target.Id);
+        Assert.Equal(new Dictionary<string, decimal> { ["B1"] = 5m, ["B2"] = 2m }, await OnShelfAsync(shop));
+    }
+
+    [Fact]
+    public async Task A_restaurant_line_ordered_before_the_phase_still_walks_its_batches_oldest_first()
+    {
+        var shop = await CreateShopAsync(restaurant: true);
+
         await BillWalkedOrderAsync(shop, 6m);
         Assert.Equal(new Dictionary<string, decimal> { ["B2"] = 4m }, await OnShelfAsync(shop));
     }
@@ -241,9 +310,130 @@ public class BatchIntegrityTests
         var listed = await TillBatchesAsync(shop);
         Assert.Equal([("B3", 4m), ("B2", 3m)], listed.Select(x => (x.BatchNo, x.Quantity)).ToArray());
         Assert.Equal(PosTestTill.Today.AddDays(10), listed[0].ExpiryDate);
-        Assert.Null(listed[1].ExpiryDate);
+        Assert.Equal(PosTestTill.Today.AddDays(365), listed[1].ExpiryDate);
 
         Assert.Equal(["B2"], (await TillBatchesAsync(shop, "2")).Select(x => x.BatchNo));
+    }
+
+    private static async Task SwitchAsync(Shop shop, bool batch, bool serial)
+    {
+        var settings = await shop.Till.Db.TenantSettings.SingleAsync(x => x.OrganizationId == shop.Till.OrganizationId);
+        settings.SetStockTracking(batch, serial);
+        await shop.Till.Db.SaveChangesAsync();
+    }
+
+    [Fact]
+    public async Task The_company_switch_off_overrides_the_products_own_and_on_restores_it()
+    {
+        var shop = await CreateShopAsync();
+        await SwitchAsync(shop, batch: false, serial: true);
+
+        // Phase 95 -- the user's rule (2026-10-20): the company's switch off overrides the product's own. The invoice
+        // line needs no batch, and walks the shelf as any untracked product's does.
+        await InvoiceAsync(shop, SaleLine(shop, 2m, null));
+        Assert.Equal(new Dictionary<string, decimal> { ["B1"] = 3m, ["B2"] = 5m }, await OnShelfAsync(shop));
+
+        var named = await Assert.ThrowsAsync<ValidationException>(() => InvoiceAsync(shop, SaleLine(shop, 1m, "B2")));
+        Assert.Contains("'P93 Item' is not batch-tracked, so a line for it cannot name a batch.", named.Message);
+
+        // The till sells it untracked too: no picker to open, nothing to pick.
+        var grid = await new ListPosProductsQueryHandler(shop.Till.Db).Handle(
+            new ListPosProductsQuery(shop.Till.OrganizationId, shop.Till.Location.Id), CancellationToken.None);
+        Assert.False(grid.Items.Single(x => x.Id == shop.ItemId).BatchTracking);
+        Assert.Empty(await TillBatchesAsync(shop));
+
+        // The product keeps its own flag, so switching the company back on restores the rule.
+        Assert.True((await shop.Till.Db.Products.SingleAsync(x => x.Id == shop.ItemId)).BatchTracking);
+        await SwitchAsync(shop, batch: true, serial: true);
+        var blank = await Assert.ThrowsAsync<ValidationException>(() => InvoiceAsync(shop, SaleLine(shop, 1m, null)));
+        Assert.Contains("a line issuing it must name a batch", blank.Message);
+    }
+
+    [Fact]
+    public async Task A_product_cannot_be_switched_on_to_track_what_the_company_has_switched_off()
+    {
+        var shop = await CreateShopAsync();
+        await SwitchAsync(shop, batch: false, serial: false);
+        var db = shop.Till.Db;
+        var unit = await db.Products.Where(x => x.Id == shop.ItemId).Select(x => x.PrimaryUnitId).SingleAsync();
+
+        var refused = await Assert.ThrowsAsync<ValidationException>(() =>
+            new CreateProductCommandHandler(db, shop.Till.Seed.NumberGenerator).Handle(
+                new CreateProductCommand(
+                    shop.Till.OrganizationId, ProductType.Goods, "P95 Honey", shop.Till.Seed.CategoryId, unit, null, true,
+                    100m, 100m, VatRate.ThirteenPercentVat, 0, true, BatchTracking: true, SerialTracking: true),
+                CancellationToken.None));
+        Assert.Equal(["BatchTracking", "SerialTracking"], refused.Errors.Select(e => e.PropertyName));
+        Assert.Contains("Switch it on under Configurations > General first.", refused.Message);
+
+        // A product already tracking keeps its flag through an edit that sends it back unchanged.
+        var existing = await db.Products.SingleAsync(x => x.Id == shop.ItemId);
+        await ProductTrackingGuard.EnsureAllowedAsync(
+            db, shop.Till.OrganizationId, batchTracking: true, serialTracking: false, existing, CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task A_new_batch_needs_an_expiry_and_a_selling_price_and_an_existing_one_neither()
+    {
+        var shop = await CreateShopAsync();
+
+        // Phase 95 -- the vendor's New Batch form requires both (read live 2026-10-15).
+        var noExpiry = await Assert.ThrowsAsync<ValidationException>(() =>
+            ReceiveAsync(shop.Till, BillLine(shop.ItemId, "B9", 1m, 90m) with { ExpiryDate = null }));
+        Assert.Contains("Batch 'B9' is new, so it needs an expiry date and a selling price.", noExpiry.Message);
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            ReceiveAsync(shop.Till, BillLine(shop.ItemId, "B9", 1m, 90m) with { BatchSellingPrice = null }));
+
+        // More of a batch already received names only its number.
+        await ReceiveAsync(shop.Till, new PurchaseBillLineInput(
+            shop.ItemId, 1m, 100m, VatRate.ThirteenPercentVat, ExpenditureClassification.Others, BatchNo: "B1"));
+        Assert.Equal(6m, (await OnShelfAsync(shop))["B1"]);
+    }
+
+    [Fact]
+    public async Task Picking_a_batch_prices_the_line_at_its_own_price_which_no_price_key_is_needed_for()
+    {
+        // A cashier who may not change a price at the till.
+        var shop = await CreateShopAsync(keys: [.. PosTestTill.CashierKeys.Where(x => x != PermissionKeys.InvoiceTillChangeRate)]);
+        await ReceiveAsync(shop.Till, BillLine(shop.ItemId, "B4", 4m, 120m, batchPrice: 150m));
+
+        // The till's list says what picking it sells at.
+        Assert.Equal(150m, (await TillBatchesAsync(shop)).Single(x => x.BatchNo == "B4").Rate);
+
+        await shop.Till.SellAsync(
+            shop.SessionId, [new PosSaleLineInput(shop.ItemId, 1m, 150m, BatchNo: "B4")], [shop.Till.Cash(170m)]);
+        await Assert.ThrowsAsync<ForbiddenException>(() => shop.Till.SellAsync(
+            shop.SessionId, [new PosSaleLineInput(shop.ItemId, 1m, 160m, BatchNo: "B4")], [shop.Till.Cash(181m)]));
+
+        // The ERP's gate keeps it too, for a clerk without Sales.Invoice.ChangeRate.
+        var db = shop.Till.Db;
+        var clerk = new FakeCurrentUserService(Guid.NewGuid());
+        Task<CreateInvoiceResult> Draft(decimal rate) => new CreateInvoiceCommandHandler(db, clerk).Handle(
+            new CreateInvoiceCommand(
+                shop.Till.OrganizationId, shop.Till.Seed.CustomerId, shop.WarehouseId, PosTestTill.Today, null,
+                [new InvoiceLineInput(shop.ItemId, 1m, rate, VatRate.ThirteenPercentVat, BatchNo: "B4")]),
+            CancellationToken.None);
+        await Draft(150m);
+        await Assert.ThrowsAsync<ForbiddenException>(() => Draft(160m));
+
+        // What the invoice form suggests once the batch is named: the same figure the gate keeps (phase 81's one reader).
+        var suggested = await new SuggestProductRateQueryHandler(db).Handle(
+            new SuggestProductRateQuery(shop.Till.OrganizationId, shop.ItemId, null, "B4"), CancellationToken.None);
+        Assert.Equal((150m, ProductRateSource.BatchSellingPrice), (suggested.Rate, suggested.Source));
+        var plain = await new SuggestProductRateQueryHandler(db).Handle(
+            new SuggestProductRateQuery(shop.Till.OrganizationId, shop.ItemId), CancellationToken.None);
+        Assert.NotEqual(ProductRateSource.BatchSellingPrice, plain.Source);
+    }
+
+    [Fact]
+    public async Task A_restaurant_item_is_priced_at_its_batchs_own_price()
+    {
+        var shop = await CreateShopAsync(restaurant: true);
+        await ReceiveAsync(shop.Till, BillLine(shop.ItemId, "B4", 4m, 120m, batchPrice: 150m));
+
+        var order = await shop.Restaurant!.OpenAsync(PosTab.TakeAway, [Item(shop, 1m, "B4"), Item(shop, 1m, "B1")]);
+
+        Assert.Equal([150m, 100m], order.Lines.OrderBy(x => x.BatchNo).Select(x => x.Rate).Reverse());
     }
 
     [Fact]

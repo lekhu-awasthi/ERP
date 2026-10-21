@@ -209,10 +209,13 @@ public sealed class ApproveDebitNoteCommandHandler(
             // difference at all and must not start demanding an account that every such return has
             // managed without. Nothing is saved until the end of this handler, so the rule's 409 on a
             // missing account still unwinds everything above it.
-            var adjustmentAccountId = await db.TenantSettings
-                .Where(x => x.OrganizationId == request.OrganizationId)
-                .Select(x => x.DefaultInventoryAdjustmentAccountId)
-                .SingleOrDefaultAsync(cancellationToken);
+            // Phase 95 -- the account the returned bill recorded, as every other leg of this note uses its bill's; a
+            // standalone note, or a bill approved before phase 95, uses today's default.
+            var adjustmentAccountId = sourcePurchaseBill?.InventoryAdjustmentAccountId
+                ?? await db.TenantSettings
+                    .Where(x => x.OrganizationId == request.OrganizationId)
+                    .Select(x => x.DefaultInventoryAdjustmentAccountId)
+                    .SingleOrDefaultAsync(cancellationToken);
 
             postingInput = postingInput with
             {

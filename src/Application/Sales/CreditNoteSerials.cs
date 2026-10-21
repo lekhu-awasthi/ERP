@@ -37,10 +37,12 @@ internal static class CreditNoteSerials
     {
         var organizationId = creditNote.OrganizationId;
         var productIds = creditNote.Lines.Select(x => x.ProductId).Distinct().ToList();
+        // Phase 95 -- serial-tracked as the company's switch lets it be: off overrides the product's own.
+        var serialOn = (await StockTrackingSwitches.LoadAsync(db, organizationId, cancellationToken)).Serial;
         var products = await db.Products
             .AsNoTracking()
             .Where(x => x.OrganizationId == organizationId && productIds.Contains(x.Id))
-            .Select(x => new { x.Id, x.Name, x.Type, x.SerialTracking })
+            .Select(x => new { x.Id, x.Name, x.Type, SerialTracking = serialOn && x.SerialTracking })
             .ToDictionaryAsync(x => x.Id, cancellationToken);
 
         var returnsGoods = creditNote.IsConversionFromInvoice;

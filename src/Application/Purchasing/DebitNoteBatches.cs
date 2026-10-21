@@ -30,7 +30,9 @@ internal static class DebitNoteBatches
     {
         var organizationId = debitNote.OrganizationId;
         var productIds = debitNote.Lines.Where(x => x.BatchId is null).Select(x => x.ProductId).Distinct().ToList();
-        if (productIds.Count > 0)
+        // Phase 95 -- the company's Batch Tracking switch off: no product is batch-tracked, so none must name a batch.
+        var batchOn = (await StockTrackingSwitches.LoadAsync(db, organizationId, cancellationToken)).Batch;
+        if (batchOn && productIds.Count > 0)
         {
             var tracked = await db.Products
                 .Where(x => x.OrganizationId == organizationId && productIds.Contains(x.Id)

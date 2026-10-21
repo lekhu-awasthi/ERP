@@ -54,7 +54,10 @@ public sealed record PosOrderLineDto(
     decimal OrderDiscountShare = 0m,
     // Phase 83 -- what the line's bills not voided gave off it of their own (a discount on one guest's part),
     // already taken off the money above.
-    decimal PartDiscount = 0m);
+    decimal PartDiscount = 0m,
+    // Phase 95 -- the batch a batch-tracked item is served from; null when the product is not batch-tracked, or on a
+    // line ordered before the phase (its bills walk the batches).
+    string? BatchNo = null);
 
 public sealed record KitchenTicketLineDto(
     Guid OrderLineId, int LineNo, string ProductName, string? UnitName, decimal Quantity, string? Note,
@@ -209,6 +212,14 @@ internal static class PosOrderView
                 .Where(x => x.OrganizationId == organizationId && counterpartIds.Contains(x.Id))
                 .ToDictionaryAsync(x => x.Id, x => x.Code, cancellationToken);
 
+        var batchIds = orders.SelectMany(o => o.Lines).Where(x => x.BatchId != null).Select(x => x.BatchId!.Value)
+            .Distinct().ToList();
+        var batchNos = batchIds.Count == 0
+            ? []
+            : await db.ProductBatches
+                .Where(x => x.OrganizationId == organizationId && batchIds.Contains(x.Id))
+                .ToDictionaryAsync(x => x.Id, x => x.BatchNo, cancellationToken);
+
         var billing = await PosOrderBilling.LoadManyAsync(
             db, organizationId, [.. orders.Select(o => o.Id)], cancellationToken);
 
@@ -241,7 +252,8 @@ internal static class PosOrderView
                         figures.Total,
                         line.IsTakeAway, line.ParcelledFromLineId, q.MovedIn, q.MovedOut,
                         line.DiscountPct, PosLineArithmetic.RoundMoney(q.Net * line.Rate),
-                        line.DiscountPerUnit, order.DiscountShareOf(line), partDiscount);
+                        line.DiscountPerUnit, order.DiscountShareOf(line), partDiscount,
+                        line.BatchId is { } batchId ? batchNos.GetValueOrDefault(batchId) : null);
                 })
                 .ToList();
 

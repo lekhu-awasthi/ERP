@@ -41,6 +41,11 @@ public sealed class UpdateProductCommandHandler(IAppDbContext db)
 
         await AccountingValidation.EnsureAccountsExistAsync(db, request.OrganizationId, accountIds, cancellationToken);
 
+        // Phase 95 -- the company's switch decides first (Configurations > General): a product cannot be set to track
+        // what the company has switched off, as the vendor's form hides the product switch until the company's is on.
+        await ProductTrackingGuard.EnsureAllowedAsync(
+            db, request.OrganizationId, request.BatchTracking, request.SerialTracking, product, cancellationToken);
+
         product.Update(
             request.Name,
             request.CategoryId,

@@ -34,7 +34,9 @@ public class GeneralSettingsAndSubscriptionTests
                 InventoryTrackingMode.PhysicalMovement,
                 BalanceAction.DoNothing,
                 BalanceAction.Reject,
-                BalanceAction.DoNothing),
+                BalanceAction.DoNothing,
+                BatchTrackingEnabled: true,
+                SerialTrackingEnabled: false),
             CancellationToken.None);
 
         var read = await new GetGeneralSettingsQueryHandler(db).Handle(
@@ -46,6 +48,7 @@ public class GeneralSettingsAndSubscriptionTests
         Assert.Equal(BalanceAction.DoNothing, read.NegativeCashBalanceAction);
         Assert.Equal(BalanceAction.Reject, read.NegativeStockBalanceAction);
         Assert.Equal(BalanceAction.DoNothing, read.CreditLimitExceedsAction);
+        Assert.Equal((true, false), (read.BatchTrackingEnabled, read.SerialTrackingEnabled));
     }
 
     /// <summary>

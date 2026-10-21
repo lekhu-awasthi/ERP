@@ -286,6 +286,14 @@ public sealed class TenantSettings
     /// </summary>
     public bool LocationWiseReportPermission { get; private set; }
 
+    /// <summary>Phase 95 -- the company's Batch Tracking switch (Configurations &gt; General, as the vendor's is). Off
+    /// overrides every product's own <c>BatchTracking</c>: no line asks for, or may carry, a batch. On lets each product
+    /// decide. A new company starts with it off, as the vendor's does.</summary>
+    public bool BatchTrackingEnabled { get; private set; }
+
+    /// <summary>Phase 95 -- the same for serial numbers.</summary>
+    public bool SerialTrackingEnabled { get; private set; }
+
     private TenantSettings()
     {
     }
@@ -393,5 +401,13 @@ public sealed class TenantSettings
     {
         LocationScopeMode = locationScopeMode;
         LocationWiseReportPermission = locationWiseReportPermission;
+    }
+
+    /// <summary>Phase 95 -- the two tracking switches. Their own mutator, not two more parameters on
+    /// <see cref="UpdateSettings"/>: a caller that never heard of them must not be able to switch tracking off.</summary>
+    public void SetStockTracking(bool batchTrackingEnabled, bool serialTrackingEnabled)
+    {
+        BatchTrackingEnabled = batchTrackingEnabled;
+        SerialTrackingEnabled = serialTrackingEnabled;
     }
 }

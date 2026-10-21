@@ -222,5 +222,7 @@ public sealed record PrintableSectionDto(
 /// names the template element that hides the column; null for a column no template may hide.</summary>
 public sealed record PrintableColumnDto(string Header, float Width, bool AlignRight = false, PrintElement? Element = null);
 
-/// <summary>Cells are positional and must match the section's column count.</summary>
-public sealed record PrintableRowDto(IReadOnlyList<string> Cells);
+/// <summary>Cells are positional and must match the section's column count. Phase 95 -- <paramref name="SerialNumbers"/>
+/// are a bill line's units; <c>PrintTemplateApplier</c> writes them under the first cell when the template prints them,
+/// and drops them otherwise, so no renderer ever sees the list.</summary>
+public sealed record PrintableRowDto(IReadOnlyList<string> Cells, IReadOnlyList<string>? SerialNumbers = null);

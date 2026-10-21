@@ -204,6 +204,12 @@ public sealed class PosOrderLineConfiguration : IEntityTypeConfiguration<PosOrde
             .WithMany()
             .HasForeignKey(x => x.KitchenStationId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        // Phase 95 -- the batch a batch-tracked item is served from, as an invoice line names one.
+        builder.HasOne<ProductBatch>()
+            .WithMany()
+            .HasForeignKey(x => x.BatchId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }
 

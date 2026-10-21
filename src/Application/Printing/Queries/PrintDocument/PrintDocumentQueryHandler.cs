@@ -2,9 +2,11 @@ using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Formatting;
 using ErpApp.Application.Common.Locations;
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Application.Inventory.Stock;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Configuration;
 using ErpApp.Domain.Contacts;
+using ErpApp.Domain.Inventory;
 using ErpApp.Domain.Sales;
 using ErpApp.Domain.Tenancy;
 using MediatR;
@@ -169,6 +171,10 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
             x => x.Id == request.DocumentId && x.OrganizationId == request.OrganizationId, ct)
             ?? throw new NotFoundException("Invoice not found.");
 
+        // Phase 95 -- each line's units, which the template prints or drops.
+        var serials = await LineStockAllocator.LoadSerialsAsync(
+            db, request.OrganizationId, DocumentLineParentType.InvoiceLine, [.. document.Lines.Select(l => l.Id)], ct);
+
         var lines = document.Lines
             .Select(l => new ProductLine(l.ProductId, l.Quantity, l.Rate, l.DiscountPct, l.Amount, l.VatAmount, l.UnitId)
             {
@@ -177,6 +183,7 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
                 DiscountPerUnit = l.DiscountPerUnit,
                 PartDiscountAmount = l.PartDiscountAmount,
                 PartServiceChargeWaived = l.PartServiceChargeWaived,
+                SerialNumbers = serials.GetValueOrDefault(l.Id),
             })
             .ToList();
 
@@ -214,6 +221,10 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
             x => x.Id == request.DocumentId && x.OrganizationId == request.OrganizationId, ct)
             ?? throw new NotFoundException("Credit note not found.");
 
+        // Phase 95 -- the units it brings back, which the template prints or drops.
+        var serials = await LineStockAllocator.LoadSerialsAsync(
+            db, request.OrganizationId, DocumentLineParentType.CreditNoteLine, [.. document.Lines.Select(l => l.Id)], ct);
+
         // Phase 63 -- a till refund's service charge and round-off print as the sale's do (both zero on
         // an ERP note).
         var lines = document.Lines
@@ -222,6 +233,7 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
                 ServiceChargeAmount = l.ServiceChargeAmount,
                 PackagingFeeAmount = l.PackagingFeeAmount,
                 DiscountPerUnit = l.DiscountPerUnit,
+                SerialNumbers = serials.GetValueOrDefault(l.Id),
             })
             .ToList();
 
@@ -907,6 +919,9 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
 
         public decimal PartServiceChargeWaived { get; init; }
 
+        /// <summary>Phase 95 -- an Invoice's or a Credit Note's units, printed when the template says so.</summary>
+        public IReadOnlyList<string>? SerialNumbers { get; init; }
+
         public decimal LineTotal => Amount + ServiceChargeAmount + PackagingFeeAmount + VatAmount;
     }
 
@@ -986,15 +1001,17 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
             new(
                 "Items",
                 columns,
-                lines.Select(l => new PrintableRowDto(Cells(
-                    products.GetValueOrDefault(l.ProductId)?.Label ?? "(unknown product)",
-                    products.GetValueOrDefault(l.ProductId)?.HsCode ?? string.Empty,
-                    Quantity(l.Quantity),
-                    UnitName(l),
-                    Money(l.Rate),
-                    Discount(l),
-                    Money(l.VatAmount),
-                    Money(l.LineTotal)))).ToList(),
+                lines.Select(l => new PrintableRowDto(
+                    Cells(
+                        products.GetValueOrDefault(l.ProductId)?.Label ?? "(unknown product)",
+                        products.GetValueOrDefault(l.ProductId)?.HsCode ?? string.Empty,
+                        Quantity(l.Quantity),
+                        UnitName(l),
+                        Money(l.Rate),
+                        Discount(l),
+                        Money(l.VatAmount),
+                        Money(l.LineTotal)),
+                    l.SerialNumbers)).ToList(),
                 new PrintableRowDto(Cells(
                     "Total", string.Empty, oneUnit ? Quantity(lines.Sum(l => l.Quantity)) : string.Empty,
                     oneUnit && lines.Count > 0 ? UnitName(lines[0]) : string.Empty, string.Empty, string.Empty,

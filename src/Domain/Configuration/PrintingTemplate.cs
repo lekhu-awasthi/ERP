@@ -49,6 +49,11 @@ public sealed class PrintingTemplate : ITenantLookupEntity
     /// <summary>Phase 73 -- narrower margins and tighter spacing, so a short document fits half a page.</summary>
     public bool CompactMargins { get; private set; }
 
+    /// <summary>Phase 95 -- whether a bill printed with this template names each line's serial numbers under its
+    /// product (an Invoice's or a Credit Note's; the till's receipt reads its location's Invoice template). Off unless a
+    /// company switches it on: no statute asks a bill for them, and a warranty does (the user, 2026-10-20).</summary>
+    public bool PrintSerialNumbers { get; private set; }
+
     private PrintingTemplate()
     {
     }
@@ -146,9 +151,13 @@ public sealed class PrintingTemplate : ITenantLookupEntity
         CompactMargins = compactMargins;
     }
 
+    /// <summary>Phase 95 -- its own mutator, not another parameter on <see cref="UpdateLayout"/>: a caller that never
+    /// heard of it cannot change it.</summary>
+    public void SetPrintSerialNumbers(bool printSerialNumbers) => PrintSerialNumbers = printSerialNumbers;
+
     /// <summary>What the print handler reads.</summary>
     public PrintingTemplateSettings Settings =>
-        new(Name, Layout, HiddenElements, PrintedCustomFieldIds, FooterText, CompactMargins);
+        new(Name, Layout, HiddenElements, PrintedCustomFieldIds, FooterText, CompactMargins, PrintSerialNumbers);
 
     public void MarkAsDefault() => IsDefault = true;
 
@@ -163,7 +172,8 @@ public sealed record PrintingTemplateSettings(
     IReadOnlyList<PrintElement> HiddenElements,
     IReadOnlyList<Guid> PrintedCustomFieldIds,
     string? FooterText,
-    bool CompactMargins)
+    bool CompactMargins,
+    bool PrintSerialNumbers = false)
 {
     /// <summary>No template at all: what every document printed before phase 73.</summary>
     public static PrintingTemplateSettings Default { get; } = new("Default", PrintLayout.Standard, [], [], null, false);

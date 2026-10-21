@@ -6,7 +6,7 @@ Guiding rule for phase sizing: each phase ends with something *runnable and demo
 
 ---
 
-## Completed phases (0–94)
+## Completed phases (0–95)
 
 One line each; phase *N*'s full story is `docs/phase-N-status.md`. The verbose index as it stood on
 2026-09-28 is archived verbatim in `roadmap-history.md` ("Completed-phases index, verbose form").
@@ -80,6 +80,7 @@ One line each; phase *N*'s full story is `docs/phase-N-status.md`. The verbose i
 | 92 | Serial integrity: a debit note names the units it sends back (`DebitNoteSerials`; the template offers the bill's units still on the shelf, a standalone note any unit there), voiding an invoice, a debit note or a transfer restocks each unit under its serial, receiving a unit already in stock is a 400 on the draft and a 409 from the ledger (`SerialStock`), the till's scan across two products names each one's own unit, and the debit-note form gains the warehouse phase 43 required and no screen sent |
 | 93 | Batch integrity: an ERP invoice or debit-note line of a batch-tracked product names its batch, as the vendor requires (`StockLineKind`; the till still walks); both notes carry the batch phase 51 gave them and nothing wrote, prefilled by their templates (`DebitNoteBatches`: a converted note's from its bill; `CreditNoteBatches`: a converted note's from what the invoice issued, capped per batch); a void or till refund of a walked issue goes back into the batches it took, read from the document's own movements (`IssuedStockRestock`); over-long serial or batch numbers are 400s on all ten line commands, and two saves putting one serial in stock at once a 409; every native select binds per option (the credit note's showed the walk-in on every converted note), guarded by `select-binding-sweep-guard.spec.ts` |
 | 94 | The Retail till's batch picker: a till line of a batch-tracked product names its batch, as the vendor's till requires (read live; `StockLineKind.TillIssue` retired, a till sale is an `Issue`); `GET /pos/tills/{loc}/products/{id}/batches` lists the batches left at the till's warehouse with their expiry, soonest first; the till opens a batch line on a radio picker and refuses payment until each names one; restaurant bills still walk, and a batch has no price of its own |
+| 95 | Seven leftovers cleared in one session at the user's request: focus kept app-wide after a failed Save or a removed line (`FocusKeeper`); a batch on a restaurant order line; the till's scan indexed (11,189 → 50 reads) and its grid's location rule made a set (85,606 → 5,413); a batch's own selling price and required expiry, which every price gate keeps; serials printable on the bill and receipt (a template switch, off by default); company Batch/Serial Tracking switches overriding each product's; a return's price-to-cost difference to its bill's recorded account; line-table boxes kept readable at 1,024 px |
 
 ---
 
@@ -281,8 +282,9 @@ phase 86.
 payments); an ERP return's own page names its warehouse since phase 89.
 
 **Carried from phase 87** (§ 5 there): the payment GL preview and the Allocate picker were done in phase 88; documents
-approved before phase 87 recorded nothing and keep today's rule; a debit note's Inventory Adjustment, Rounding, the
-stock catch-up and journal-voucher allocations stay today's.
+approved before phase 87 recorded nothing and keep today's rule. A debit note's Inventory Adjustment follows its bill
+since phase 95 (debit notes post no rounding); the stock catch-up and journal-voucher allocations stay today's (a
+correction made now, and an author's choice of account).
 
 **Carried from phase 88** (§ 5 there): the vendor's per-row *This Allocation* table (a layout choice, not asked
 for); a foreign-currency allocation on the vendor is unread. `OutstandingDocumentReader`'s settlement queries were
@@ -297,26 +299,26 @@ independent of history).
 Annex 13's opening and closing balance stay phase 8e's approximation; a tax advisor's word on the annex's before-VAT
 basis.
 
-**Carried from phase 91** (§ 5 there): the tenant-level switch for batch and serial tracking (the vendor's
-Configurations > General); a serial printed on the receipt and the PDF (the vendor's printed receipt unread); serials
-on a debit note were done in phase 92; the till's batch picker in phase 94 (the vendor's tenant switch was read in
-phase 93's § 0).
+**Carried from phase 91** (§ 5 there): all done (serials on a debit note in phase 92, the till's batch picker in
+phase 94, the tenant switches and a serial on the printed bill in phase 95).
 
 **Carried from phase 92** (§ 5 there): all four were done in phase 93 (the walked void, both notes' batch, the
 length 400s, the race's 409).
 
-**Carried from phase 93** (§ 5 there): focus falls to `<body>` after a failed Save and after *Remove line* on the line forms (an app-wide
-pass); the vendor's batch expiry and price (required there, a product question, declined for now in phase 94's
-Decision C); a partial refund of a walked sale returns into the oldest-taken batch (now a restaurant bill only). The
-till's batch picker was done in phase 94.
+**Carried from phase 93** (§ 5 there): the till's batch picker was done in phase 94; focus after a failed Save or
+*Remove line* and the batch price and expiry in phase 95. A partial refund of a sale that walked its batches (now only
+one from before phase 94/95) still returns into the oldest-taken batch: no record says which units came back.
 
-**Carried from phase 94** (§ 5 there): a batch on a restaurant order line (the vendor asks for it at order time; it
-touches kitchen tickets, parcels, transfers, discards and part bills); the vendor's batch price and expiry.
+**Carried from phase 94** (§ 5 there): both done in phase 95.
+
+**Carried from phase 95** (§ 5 there): only what is not ours to settle -- a tax advisor's word (phases 89/90), and the
+differences from the vendor nobody asked for (phases 79 and 88 § 5), offered to the user as droppable on 2026-10-20.
+Whether a sale return's rounding should follow its invoice is asked, not assumed.
 
 **Carried from phase 62** (§ 5 there):
 
 - Serial-tracked products at the till were done in phase 91.
-- **The barcode lookup is unindexed**; measure it on `tools/scale` before indexing.
+- The barcode lookup was measured and indexed in phase 95 (11,189 → 50 logical reads on 20,001 products).
 
 **Outside this sequence, each with a start condition:**
 

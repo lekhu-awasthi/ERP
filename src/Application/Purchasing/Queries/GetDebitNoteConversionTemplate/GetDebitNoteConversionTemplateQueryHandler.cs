@@ -108,6 +108,9 @@ public sealed class GetDebitNoteConversionTemplateQueryHandler(IAppDbContext db)
             throw new ConflictException("This purchase bill has already been fully debited.");
         }
 
+        // Phase 95 -- a company switch that is off: the note names no batch or serial of that kind, so none is offered.
+        var switches = await StockTrackingSwitches.LoadAsync(db, request.OrganizationId, cancellationToken);
+
         return new DebitNoteConversionTemplateDto(
             purchaseBill.ContactId,
             DateOnly.FromDateTime(DateTime.UtcNow),
@@ -116,7 +119,11 @@ public sealed class GetDebitNoteConversionTemplateQueryHandler(IAppDbContext db)
             DocumentType.PurchaseBill,
             purchaseBill.Id,
             purchaseBill.DiscountPct,
-            lines,
+            [.. lines.Select(l => l with
+            {
+                BatchNo = switches.Batch ? l.BatchNo : null,
+                SerialNumbers = switches.Serial ? l.SerialNumbers : [],
+            })],
             purchaseBill.LocationId,
             purchaseBill.WarehouseId,
             purchaseBill.CurrencyCode,

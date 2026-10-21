@@ -31,4 +31,7 @@ public sealed record GeneralSettingsDto(
     InventoryTrackingMode InventoryTrackingMode,
     BalanceAction NegativeCashBalanceAction,
     BalanceAction NegativeStockBalanceAction,
-    BalanceAction CreditLimitExceedsAction);
+    BalanceAction CreditLimitExceedsAction,
+    // Phase 95 -- the company's tracking switches; off overrides every product's own.
+    bool BatchTrackingEnabled,
+    bool SerialTrackingEnabled);

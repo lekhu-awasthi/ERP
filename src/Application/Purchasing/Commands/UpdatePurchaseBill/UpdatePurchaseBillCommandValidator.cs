@@ -30,6 +30,11 @@ public sealed class UpdatePurchaseBillCommandValidator : AbstractValidator<Updat
             line.RuleFor(x => x.ExpenditureClassification).IsInEnum();
             line.RuleFor(x => x.DiscountPct).InclusiveBetween(0, 100);
             line.BatchNoRule(x => x.BatchNo);
+            // Phase 95 -- a new batch's price: zero or more, at the product price's own scale.
+            line.RuleFor(x => x.BatchSellingPrice)
+                .GreaterThanOrEqualTo(0m)
+                .Must(x => x is null || decimal.Round(x.Value, 4) == x.Value)
+                .WithMessage("A batch's selling price has at most four decimal places.");
             line.SerialNumberRules(x => x.SerialNumbers);
         });
 

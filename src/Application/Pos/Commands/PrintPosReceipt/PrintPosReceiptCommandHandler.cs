@@ -1,8 +1,11 @@
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Application.Common.Security;
+using ErpApp.Application.Inventory.Stock;
+using ErpApp.Application.Printing;
 using ErpApp.Domain.Catalog;
 using ErpApp.Domain.Common;
+using ErpApp.Domain.Inventory;
 using ErpApp.Domain.Sales;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -102,6 +105,14 @@ public sealed class PrintPosReceiptCommandHandler(IAppDbContext db, ICurrentUser
             .Where(x => x.OrganizationId == invoice.OrganizationId && modeIds.Contains(x.Id))
             .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
 
+        // Phase 95 -- the serials print where the location's Invoice template says so, as on the PDF.
+        var template = await PrintingTemplateResolver.ResolveAsync(
+            db, invoice.OrganizationId, DocumentType.Invoice, invoice.LocationId, cancellationToken);
+        var serials = template?.PrintSerialNumbers == true
+            ? await LineStockAllocator.LoadSerialsAsync(
+                db, invoice.OrganizationId, DocumentLineParentType.InvoiceLine, [.. invoice.Lines.Select(x => x.Id)], cancellationToken)
+            : new Dictionary<Guid, List<string>>();
+
         var lines = invoice.Lines
             .Select(x =>
             {
@@ -119,7 +130,8 @@ public sealed class PrintPosReceiptCommandHandler(IAppDbContext db, ICurrentUser
                     x.VatRate,
                     x.VatAmount,
                     x.LineTotal,
-                    x.DiscountPerUnit);
+                    x.DiscountPerUnit,
+                    serials.GetValueOrDefault(x.Id));
             })
             .ToList();
 

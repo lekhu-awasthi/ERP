@@ -88,7 +88,8 @@ public sealed class CreateInvoiceCommandHandler(IAppDbContext db, ICurrentUserSe
         await SalesPriceGate.EnsureMayPriceAsync(
             db, request.OrganizationId, currentUser.UserId, invoice.LocationId, SalesPriceGate.IsBase(invoice.CurrencyCode),
             request.DiscountPct,
-            [.. request.Lines.Select((x, i) => new SalesPriceGate.PricedLine(x.ProductId, units[i].UnitId, x.Rate, x.DiscountPct))],
+            [.. request.Lines.Select((x, i) => new SalesPriceGate.PricedLine(
+                x.ProductId, units[i].UnitId, x.Rate, x.DiscountPct, allocations[i]))],
             quotation?.DiscountPct,
             quotation is null
                 ? []

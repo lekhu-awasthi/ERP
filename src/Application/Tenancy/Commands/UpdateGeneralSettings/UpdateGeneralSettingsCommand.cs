@@ -1,6 +1,7 @@
 using ErpApp.Application.Common.Security;
 using ErpApp.Application.Tenancy.Queries.GetGeneralSettings;
 using ErpApp.Domain.Tenancy;
+using FluentValidation;
 using MediatR;
 
 namespace ErpApp.Application.Tenancy.Commands.UpdateGeneralSettings;
@@ -33,8 +34,22 @@ public sealed record UpdateGeneralSettingsCommand(
     InventoryTrackingMode InventoryTrackingMode,
     BalanceAction NegativeCashBalanceAction,
     BalanceAction NegativeStockBalanceAction,
-    BalanceAction CreditLimitExceedsAction)
+    BalanceAction CreditLimitExceedsAction,
+    bool? BatchTrackingEnabled,
+    bool? SerialTrackingEnabled)
     : IRequest<GeneralSettingsDto>, IRequirePermission, IOrganizationScoped
 {
     public string PermissionKey => PermissionKeys.GeneralSettingsManage;
+}
+
+/// <summary>Phase 95 -- the two tracking switches are required: a body that leaves one out is a 400 naming it, never
+/// read as "off", which would stop every product being tracked (phase 72's rule that a required field must not
+/// default).</summary>
+public sealed class UpdateGeneralSettingsCommandValidator : AbstractValidator<UpdateGeneralSettingsCommand>
+{
+    public UpdateGeneralSettingsCommandValidator()
+    {
+        RuleFor(x => x.BatchTrackingEnabled).NotNull();
+        RuleFor(x => x.SerialTrackingEnabled).NotNull();
+    }
 }

@@ -357,7 +357,7 @@ export interface GenerateProductVariantsResult {
 export interface SuggestedProductRate {
   rate: number;
   vatRate: VatRate;
-  source: 'ProductSellingPrice' | 'RecentSale';
+  source: 'ProductSellingPrice' | 'RecentSale' | 'BatchSellingPrice';
 }
 
 /**
@@ -377,6 +377,10 @@ export interface ProductBatchTabRow {
   unitName: string;
   warehouseId: string | null;
   warehouseName: string | null;
+  /** Phase 95 -- the batch's own selling price as typed, and the rate it gives a primary-unit line exclusive of VAT;
+   * null on a batch created before batches carried a price. */
+  sellingPrice?: number | null;
+  rate?: number | null;
 }
 
 /**
@@ -389,4 +393,10 @@ export interface ProductSerialTabRow {
   warehouseId: string;
   warehouseName: string;
   createdAt: string;
+}
+
+/** Phase 95 -- the company's tracking switches (Configurations > General): off overrides every product's own. */
+export interface StockTrackingSwitches {
+  batchTrackingEnabled: boolean;
+  serialTrackingEnabled: boolean;
 }

@@ -15,10 +15,12 @@ import {
   ProductType,
   UnitOfMeasurement,
   VatRate,
+  StockTrackingSwitches,
 } from '../../../core/catalog/catalog.models';
 import { AccountingService } from '../../../core/accounting/accounting.service';
 import { Account } from '../../../core/accounting/accounting.models';
 import { BillingLocationStore } from '../../../shared/locations/billing-location-store';
+import { AmountPipe } from '../../../shared/formatting/amount-pipe';
 import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
 
@@ -28,7 +30,7 @@ import { StatusBanner } from '../../../shared/a11y/status-banner';
  * this subscribes to route.paramMap instead of reading route.snapshot once). */
 @Component({
   selector: 'app-product-detail-page',
-  imports: [ReactiveFormsModule, RouterLink, ProductVariantPanelComponent, StatusBanner, NepaliDatePipe],
+  imports: [ReactiveFormsModule, RouterLink, ProductVariantPanelComponent, StatusBanner, NepaliDatePipe, AmountPipe],
   templateUrl: './product-detail-page.html',
 })
 export class ProductDetailPage {
@@ -176,6 +178,9 @@ export class ProductDetailPage {
   protected readonly batchRows = signal<ProductBatchTabRow[]>([]);
   protected readonly serialRows = signal<ProductSerialTabRow[]>([]);
 
+  /** Phase 95 -- the company's switches (off until read, so nothing is offered that the server would refuse). */
+  protected readonly tracking = signal<StockTrackingSwitches>({ batchTrackingEnabled: false, serialTrackingEnabled: false });
+
   protected readonly canTrackStockDimensions = computed(
     () => this.productType() === 'Goods' && this.tracksInventory(),
   );
@@ -202,6 +207,10 @@ export class ProductDetailPage {
     });
     this.catalogService.listUnitsOfMeasurement(this.organizationId).subscribe({
       next: (units) => this.units.set(units),
+    });
+    // Phase 95 -- the company's tracking switches decide which product switches are offered.
+    this.catalogService.getStockTracking(this.organizationId).subscribe({
+      next: (switches) => this.tracking.set(switches),
     });
     this.accountingService.listAllAccounts(this.organizationId).subscribe({
       next: (accounts) => this.accounts.set(accounts),

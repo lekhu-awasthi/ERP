@@ -1,3 +1,4 @@
+using ErpApp.Application.Inventory.Stock;
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Filtering;
 using ErpApp.Application.Common.Persistence;
@@ -60,6 +61,9 @@ public sealed class ListPosProductSerialsQueryHandler(IAppDbContext db)
             .Select(x => (bool?)x.SerialTracking)
             .SingleOrDefaultAsync(cancellationToken)
             ?? throw new NotFoundException("Product not found.");
+
+        // Phase 95 -- the company's switch off overrides the product's own: nothing to pick.
+        tracked = tracked && (await StockTrackingSwitches.LoadAsync(db, request.OrganizationId, cancellationToken)).Serial;
 
         // A till with no warehouse sells nothing that keeps stock (PosSaleCompletion.ResolveWarehouseAsync's 409), and
         // an untracked product has no serials: both are an empty list, not an error, so the picker says so.

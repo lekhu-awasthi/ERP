@@ -23,6 +23,7 @@ public sealed class UpdateGeneralSettingsCommandHandler(IAppDbContext db)
             request.NegativeCashBalanceAction,
             request.NegativeStockBalanceAction,
             request.CreditLimitExceedsAction);
+        settings.SetStockTracking(request.BatchTrackingEnabled!.Value, request.SerialTrackingEnabled!.Value);
 
         await db.SaveChangesAsync(cancellationToken);
 
@@ -32,6 +33,8 @@ public sealed class UpdateGeneralSettingsCommandHandler(IAppDbContext db)
             settings.InventoryTrackingMode,
             settings.NegativeCashBalanceAction,
             settings.NegativeStockBalanceAction,
-            settings.CreditLimitExceedsAction);
+            settings.CreditLimitExceedsAction,
+            settings.BatchTrackingEnabled,
+            settings.SerialTrackingEnabled);
     }
 }

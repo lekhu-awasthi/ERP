@@ -50,7 +50,9 @@ public sealed class ListProductsQueryHandler(IAppDbContext db)
         // empty-set-means-everywhere rule is the whole reason for the first disjunct.
         if (request.LocationId is { } locationId)
         {
-            query = query.Where(x => x.Locations.Count == 0 || x.Locations.Any(l => l.LocationId == locationId));
+            // Phase 95 -- as a set computed once, not a seek per product (ProductLocationAvailability).
+            var restrictedAway = ProductLocationAvailability.RestrictedAwayFrom(db, locationId);
+            query = query.Where(x => !restrictedAway.Contains(x.Id));
         }
 
         // Phase 34b (NFR-6.1) -- the list search. A separate composed `.Where()`, never folded

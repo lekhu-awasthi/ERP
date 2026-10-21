@@ -41,12 +41,31 @@ public static class PrintTemplateApplier
             Terms = Hides(PrintElement.Terms) ? null : dto.Terms,
             AmountInWords = Hides(PrintElement.AmountInWords) ? null : dto.AmountInWords,
             ShowSignatureLine = !Hides(PrintElement.SignatureLine),
-            Sections = dto.Sections.Select(section => WithoutHiddenColumns(section, Hides)).ToList(),
+            Sections = dto.Sections
+                .Select(section => WithoutHiddenColumns(WithSerials(section, template.PrintSerialNumbers), Hides))
+                .ToList(),
             Layout = template.Layout,
             CompactMargins = template.CompactMargins,
             FooterText = template.FooterText,
             PrintingTemplateName = template.Name,
         };
+    }
+
+    /// <summary>Phase 95 -- a line's serial numbers, as a second line under its product when the template prints them
+    /// ("SN: a, b"); every layout prints the first cell as written, so none of them changes.</summary>
+    private static PrintableSectionDto WithSerials(PrintableSectionDto section, bool print)
+    {
+        if (section.Rows.All(row => row.SerialNumbers is null))
+        {
+            return section;
+        }
+
+        PrintableRowDto Apply(PrintableRowDto row) =>
+            print && row.SerialNumbers is { Count: > 0 } serials && row.Cells.Count > 0
+                ? new PrintableRowDto([$"{row.Cells[0]}\nSN: {string.Join(", ", serials)}", .. row.Cells.Skip(1)])
+                : new PrintableRowDto(row.Cells);
+
+        return section with { Rows = section.Rows.Select(Apply).ToList() };
     }
 
     private static PrintableSectionDto WithoutHiddenColumns(PrintableSectionDto section, Func<PrintElement, bool> hides)

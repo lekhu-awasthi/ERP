@@ -24,10 +24,16 @@ public sealed class UpdatePrintingTemplateLayoutCommandHandler(IAppDbContext db)
             db, request.OrganizationId, template.DocumentType, request.Layout!.Value, hidden, customFields, cancellationToken);
 
         template.UpdateLayout(request.Layout!.Value, hidden, customFields, request.FooterText, request.CompactMargins!.Value);
+        // Phase 95 -- left out of the body, it keeps what it was; never read as "off".
+        if (request.PrintSerialNumbers is { } printSerialNumbers)
+        {
+            template.SetPrintSerialNumbers(printSerialNumbers);
+        }
+
         await db.SaveChangesAsync(cancellationToken);
 
         return new PrintingTemplateLayoutResult(
             template.Id, template.Layout, template.HiddenElements, template.PrintedCustomFieldIds, template.FooterText,
-            template.CompactMargins);
+            template.CompactMargins, template.PrintSerialNumbers);
     }
 }

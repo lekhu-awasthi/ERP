@@ -30,7 +30,7 @@ public sealed class PreviewPrintingTemplateQueryHandler(IAppDbContext db, IFileS
         var organization = await db.Organizations.SingleAsync(x => x.Id == request.OrganizationId, cancellationToken);
         var settings = new PrintingTemplateSettings(
             "Preview", request.Layout!.Value, hidden, customFieldIds, request.FooterText?.Trim() is { Length: > 0 } footer ? footer : null,
-            request.CompactMargins!.Value);
+            request.CompactMargins!.Value, request.PrintSerialNumbers ?? false);
 
         var offered = PrintElements.For(type);
         var taxDocument = PrintElements.IsTaxDocument(type);
@@ -47,6 +47,15 @@ public sealed class PreviewPrintingTemplateQueryHandler(IAppDbContext db, IFileS
             .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
 
         var (sections, summary, total) = SampleBody(type, settings.Shows(PrintElement.ItemCode));
+
+        // Phase 95 -- a sample unit on the first line of a bill, so the editor shows what the switch prints.
+        if (type is DocumentType.Invoice or DocumentType.CreditNote)
+        {
+            sections = [.. sections.Select(s => s.Rows.Count == 0 || s.Title != "Items" ? s : s with
+            {
+                Rows = [s.Rows[0] with { SerialNumbers = ["IMEI-0001", "IMEI-0002"] }, .. s.Rows.Skip(1)],
+            })];
+        }
         var hasParty = offered.Contains(PrintElement.PartyAddress);
 
         // Phase 75 -- a sample location line on the same rule a real print follows: only for an organization with

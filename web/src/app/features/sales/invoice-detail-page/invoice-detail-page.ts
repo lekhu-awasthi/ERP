@@ -550,7 +550,9 @@ export class InvoiceDetailPage {
     // Phase 81 -- the unit's rate as the server suggests it: its own price through the tenant's price
     // basis, or its last sale in that unit. The raw unit price was VAT-inclusive on an inclusive tenant,
     // and is now what the ERP's price gate would refuse as a changed rate.
-    this.catalogService.suggestProductRate(this.organizationId, productId, option.unitId).subscribe({
+    // Phase 95 -- and the line's batch, whose own price follows the unit.
+    const batchNo = this.lines().find((l) => l.key === key)?.batchNo;
+    this.catalogService.suggestProductRate(this.organizationId, productId, option.unitId, batchNo).subscribe({
       next: (suggestion) => this.updateLine(key, { rate: suggestion.rate }),
       error: () => undefined,
     });
@@ -871,6 +873,22 @@ Approve anyway?`)) {
    *  handler, never derived in a `computed()` over a form value (zoneless, phase 17). */
   protected onBatchNoChange(key: number, event: Event): void {
     this.updateLine(key, { batchNo: (event.target as HTMLInputElement).value });
+  }
+
+  /** Phase 95 -- once a batch is named (the box's change, not each keystroke), a batch with its own selling price
+   * prices the line at it, from the server's suggestion the price gate keeps as unchanged. A batch without one leaves
+   * the rate alone. */
+  protected onBatchNoCommit(key: number): void {
+    const line = this.lines().find((l) => l.key === key);
+    if (!line?.productId || !line.batchNo.trim()) return;
+    this.catalogService
+      .suggestProductRate(this.organizationId, line.productId, line.unitId || undefined, line.batchNo)
+      .subscribe({
+        next: (suggestion) => {
+          if (suggestion.source === 'BatchSellingPrice') this.updateLine(key, { rate: suggestion.rate });
+        },
+        error: () => undefined,
+      });
   }
 
   /** Phase 51 -- the serial list, kept as raw text and parsed at submit time by `parseSerials`. */

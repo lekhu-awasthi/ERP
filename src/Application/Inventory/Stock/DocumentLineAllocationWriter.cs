@@ -39,7 +39,8 @@ public static class DocumentLineAllocationWriter
         string? BatchNo,
         DateOnly? ManufactureDate,
         DateOnly? ExpiryDate,
-        IReadOnlyList<string>? SerialNumbers);
+        IReadOnlyList<string>? SerialNumbers,
+        decimal? BatchSellingPrice = null);
 
     /// <summary>
     /// Validates every line against its product's flags and resolves (or mints) the batches.
@@ -68,6 +69,7 @@ public static class DocumentLineAllocationWriter
             .ToDictionaryAsync(x => x.Id, cancellationToken);
 
         var failures = new List<ValidationFailure>();
+        var switches = await StockTrackingSwitches.LoadAsync(db, organizationId, cancellationToken);
 
         for (var i = 0; i < lines.Count; i++)
         {
@@ -83,18 +85,18 @@ public static class DocumentLineAllocationWriter
             var serials = line.SerialNumbers ?? [];
 
             var message = StockTrackingRules.ValidateLineAllocation(
-                product, line.BatchNo is null ? null : Guid.Empty, serials, kind);
+                product, line.BatchNo is null ? null : Guid.Empty, serials, kind, switches);
 
             // ValidateLineAllocation takes an id it cannot have yet, so "is a batch named" is
             // expressed as a sentinel above. The one branch that sentinel gets wrong is the
             // batch-tracked line with a blank number, which reads as "named" only if BatchNo is
             // non-null -- and a blank string is not a name.
-            if (product.BatchTracking && string.IsNullOrWhiteSpace(line.BatchNo))
+            if (switches.TracksBatches(product) && string.IsNullOrWhiteSpace(line.BatchNo))
             {
                 message = StockTrackingRules.BatchRequiredMessage(product.Name, kind);
             }
 
-            message ??= StockTrackingRules.ValidateSerialCount(product, line.Quantity, serials.Count);
+            message ??= StockTrackingRules.ValidateSerialCount(product, line.Quantity, serials.Count, switches);
 
             if (message is not null)
             {
@@ -138,6 +140,7 @@ public static class DocumentLineAllocationWriter
             .ToDictionaryAsync(x => x.Id, cancellationToken);
 
         var failures = new List<ValidationFailure>();
+        var switches = await StockTrackingSwitches.LoadAsync(db, organizationId, cancellationToken);
         for (var i = 0; i < lines.Count; i++)
         {
             if (!products.TryGetValue(lines[i].ProductId, out var product))
@@ -146,7 +149,7 @@ public static class DocumentLineAllocationWriter
             }
 
             var named = !string.IsNullOrWhiteSpace(lines[i].BatchNo);
-            var message = (named, product.BatchTracking, movesStock) switch
+            var message = (named, switches.TracksBatches(product), movesStock) switch
             {
                 (true, false, _) => $"'{product.Name}' is not batch-tracked, so a line for it cannot name a batch.",
                 (true, true, false) => $"Line {i + 1}: this note returns no goods, so it names no batch.",
@@ -211,8 +214,21 @@ public static class DocumentLineAllocationWriter
                     ]);
                 }
 
+                // Phase 95 -- a new batch carries its expiry and its selling price, as the vendor's New Batch form
+                // requires (read live 2026-10-15): picking the batch on a sale prices the line at it.
+                if (line.ExpiryDate is null || line.BatchSellingPrice is null)
+                {
+                    throw new ValidationException(
+                    [
+                        new ValidationFailure(
+                            $"Lines[{i}]",
+                            $"Batch '{batchNo}' is new, so it needs an expiry date and a selling price."),
+                    ]);
+                }
+
                 batch = ProductBatch.Create(
-                    organizationId, line.ProductId, batchNo, line.ManufactureDate, line.ExpiryDate);
+                    organizationId, line.ProductId, batchNo, line.ManufactureDate, line.ExpiryDate,
+                    line.BatchSellingPrice);
                 db.ProductBatches.Add(batch);
             }
             else if (isReceipt)
@@ -220,8 +236,9 @@ public static class DocumentLineAllocationWriter
                 // A later receipt of the same batch may carry dates the first one did not -- the
                 // goods arrive, the paperwork follows. Filling a blank is allowed; changing a date
                 // already set is refused inside the aggregate, because the batch is attached to
-                // layers that were costed and reported under it.
+                // layers that were costed and reported under it. Phase 95 -- the price likewise.
                 batch.FillMissingDates(line.ManufactureDate, line.ExpiryDate);
+                batch.FillMissingPrice(line.BatchSellingPrice);
             }
 
             resolved[i] = batch.Id;

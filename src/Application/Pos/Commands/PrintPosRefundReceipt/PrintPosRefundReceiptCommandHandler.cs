@@ -1,9 +1,12 @@
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Application.Common.Security;
+using ErpApp.Application.Inventory.Stock;
 using ErpApp.Application.Pos.Commands.PrintPosReceipt;
+using ErpApp.Application.Printing;
 using ErpApp.Domain.Catalog;
 using ErpApp.Domain.Common;
+using ErpApp.Domain.Inventory;
 using ErpApp.Domain.Sales;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -107,6 +110,14 @@ public sealed class PrintPosRefundReceiptCommandHandler(IAppDbContext db, ICurre
             .Where(x => x.OrganizationId == note.OrganizationId && modeIds.Contains(x.Id))
             .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
 
+        // Phase 95 -- the serials print where the location's CreditNote template says so, as on the PDF.
+        var template = await PrintingTemplateResolver.ResolveAsync(
+            db, note.OrganizationId, DocumentType.CreditNote, note.LocationId, cancellationToken);
+        var serials = template?.PrintSerialNumbers == true
+            ? await LineStockAllocator.LoadSerialsAsync(
+                db, note.OrganizationId, DocumentLineParentType.CreditNoteLine, [.. note.Lines.Select(x => x.Id)], cancellationToken)
+            : new Dictionary<Guid, List<string>>();
+
         var lines = note.Lines
             .Select(x =>
             {
@@ -124,7 +135,8 @@ public sealed class PrintPosRefundReceiptCommandHandler(IAppDbContext db, ICurre
                     x.VatRate,
                     x.VatAmount,
                     x.LineTotal,
-                    x.DiscountPerUnit);
+                    x.DiscountPerUnit,
+                    serials.GetValueOrDefault(x.Id));
             })
             .ToList();
 

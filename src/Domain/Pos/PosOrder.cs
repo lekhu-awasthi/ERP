@@ -26,7 +26,8 @@ public sealed record PosOrderNewLine(
     decimal ServiceChargeRate,
     PackagingFee PackagingFee,
     string? Note,
-    Guid? KitchenStationId);
+    Guid? KitchenStationId,
+    Guid? BatchId = null);
 
 /// <summary>A quantity against one existing line: more of it (a send), served, or discarded.</summary>
 public sealed record PosOrderLineQuantity(Guid LineId, decimal Quantity);
@@ -1447,6 +1448,11 @@ public sealed class PosOrderLine
     /// <summary>Where this line's tickets go: the product's station when first sent; null is Default.</summary>
     public Guid? KitchenStationId { get; private set; }
 
+    /// <summary>Phase 95 -- the batch a batch-tracked dish or drink is served from, named when it is ordered (the
+    /// vendor's order screen asks, read live 2026-10-20). Its bills issue from it; null on a line ordered before the
+    /// phase, which walks the batches oldest-first as every restaurant bill did.</summary>
+    public Guid? BatchId { get; private set; }
+
     /// <summary>How much has left the kitchen for the table. The one quantity stored on a line.</summary>
     public decimal ServedQuantity { get; private set; }
 
@@ -1496,6 +1502,7 @@ public sealed class PosOrderLine
             PackagingFeeValue = row.PackagingFee.Value,
             Note = note,
             KitchenStationId = row.KitchenStationId,
+            BatchId = row.BatchId,
         };
     }
 
@@ -1522,6 +1529,7 @@ public sealed class PosOrderLine
             DiscountPerUnit = source.DiscountPerUnit,
             Note = source.Note,
             KitchenStationId = source.KitchenStationId,
+            BatchId = source.BatchId,
             IsTakeAway = isTakeAway,
             ParcelledFromLineId = parcelledFromLineId,
         };
@@ -1539,6 +1547,7 @@ public sealed class PosOrderLine
         && DiscountPerUnit == other.DiscountPerUnit
         && Note == other.Note
         && KitchenStationId == other.KitchenStationId
+        && BatchId == other.BatchId
         && IsTakeAway == other.IsTakeAway;
 
     // Phase 72 -- a line's money is priced by its order (PosOrder.FiguresOf), which alone knows the order's

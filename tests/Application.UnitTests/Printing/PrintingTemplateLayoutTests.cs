@@ -439,6 +439,29 @@ public class PrintingTemplateLayoutTests
 
     // ---- Helpers --------------------------------------------------------------------------------------
 
+    [Fact]
+    public void Applier_writes_a_lines_serials_under_its_product_only_when_the_template_prints_them()
+    {
+        // Phase 95 -- off unless a company asks; then "SN: ..." under the product, in the cell every layout prints.
+        var dto = SampleDto(DocumentType.Invoice);
+        dto = dto with
+        {
+            Sections = [dto.Sections[0] with
+            {
+                Rows = [dto.Sections[0].Rows[0] with { SerialNumbers = ["IMEI-1", "IMEI-2"] }],
+            }],
+        };
+
+        var plain = PrintTemplateApplier.Apply(dto, Settings(hidden: []));
+        Assert.Equal("Widget", plain.Sections[0].Rows[0].Cells[0]);
+        Assert.Null(plain.Sections[0].Rows[0].SerialNumbers);
+
+        var printed = PrintTemplateApplier.Apply(dto, Settings(hidden: [PrintElement.Unit]) with { PrintSerialNumbers = true });
+        Assert.Equal("Widget\nSN: IMEI-1, IMEI-2", printed.Sections[0].Rows[0].Cells[0]);
+        Assert.Equal(["Widget\nSN: IMEI-1, IMEI-2", "2", "100.00"], printed.Sections[0].Rows[0].Cells.Take(3));
+        Assert.Null(printed.Sections[0].Rows[0].SerialNumbers);
+    }
+
     private static PrintingTemplateSettings Settings(
         IReadOnlyList<PrintElement> hidden, PrintLayout layout = PrintLayout.Standard, string? footer = null, bool compact = false) =>
         new("Test", layout, hidden, [], footer, compact);

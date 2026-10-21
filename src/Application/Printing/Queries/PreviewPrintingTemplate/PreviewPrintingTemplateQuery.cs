@@ -24,7 +24,8 @@ public sealed record PreviewPrintingTemplateQuery(
     IReadOnlyList<PrintElement>? HiddenElements,
     IReadOnlyList<Guid>? PrintedCustomFieldIds,
     string? FooterText,
-    bool? CompactMargins)
+    bool? CompactMargins,
+    bool? PrintSerialNumbers = null)
     : IRequest<PrintableDocumentDto>, IRequirePermission, IOrganizationScoped
 {
     public string PermissionKey => PermissionKeys.PrintingTemplateView;

@@ -41,6 +41,7 @@ import {
   VariantAttribute,
   VariantCombinationInput,
   SuggestedProductRate,
+  StockTrackingSwitches,
 } from './catalog.models';
 
 @Injectable({ providedIn: 'root' })
@@ -309,6 +310,13 @@ export class CatalogService {
     );
   }
 
+  /** Phase 95 -- the company's tracking switches, read under the product key every line form already holds. */
+  getStockTracking(organizationId: string): Observable<StockTrackingSwitches> {
+    return this.http.get<StockTrackingSwitches>(`${this.baseUrl(organizationId)}/stock-tracking`, {
+      withCredentials: true,
+    });
+  }
+
   /** Phase 51 -- the Serial Number tab. Shows what is in stock; the report is where Issued lives. */
   listProductSerials(
     organizationId: string,
@@ -337,8 +345,12 @@ export class CatalogService {
    * `get_recent_selling_price` call at line-picker time.
    */
   /** Phase 81 -- `unitId` asks for the rate in that unit; omitted, the product's primary unit. */
-  suggestProductRate(organizationId: string, productId: string, unitId?: string): Observable<SuggestedProductRate> {
+  suggestProductRate(
+    organizationId: string, productId: string, unitId?: string, batchNo?: string,
+  ): Observable<SuggestedProductRate> {
     const params: Record<string, string> = unitId ? { unitId } : {};
+    // Phase 95 -- a batch with its own price suggests that.
+    if (batchNo?.trim()) params['batchNo'] = batchNo.trim();
     return this.http.get<SuggestedProductRate>(
       `${this.baseUrl(organizationId)}/products/${productId}/suggested-rate`,
       { params, withCredentials: true },

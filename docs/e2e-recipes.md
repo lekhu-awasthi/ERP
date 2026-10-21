@@ -539,3 +539,14 @@ beside a 200 from the same user, and create a fresh Organization per phase.
   nothing written (`POST /pos/invoices` lines carry `batch_id`, `batch_no`, `batch_expiry`). Read the cookie file only
   once the new `erp-web-ssl` tab's `location.href` has settled (a fetch during its redirect fails), and delete it after
   a 200.
+- Phase 95. A **new** organization has both tracking switches off: `GET /stock-tracking` (under `Catalog.Product.View`)
+  says so, and a batch-tracked `POST /products` is a 400 naming `BatchTracking`. Turn them on with `PUT /general-settings`
+  sending the whole GET body plus `batchTrackingEnabled`/`serialTrackingEnabled` (both required: one left out is a 400).
+  A bill line naming a new batch needs `expiryDate` and `batchSellingPrice` (400 `Lines[i]` otherwise). The till's
+  batch list and `GET /products/{id}/suggested-rate?batchNo=` carry the batch's `rate`. Restaurant order items take
+  `batchNo` (400 `Items[i]` without one on a batch product); a second location is `POST /billing-locations {code, name,
+  address, warehouseId}` (201) with `posRestaurant: true` and `multipleLocations: true` on the organization. A template's
+  serials: `POST /configuration/printing-templates {name, documentType}` (201), `PUT .../{id}/default` (**204**), `PUT
+  .../{id}/layout` with `printSerialNumbers: true`; the PDF is `POST /print/Invoice/{id}` (a counted print). In SQL:
+  `pos.PosOrderLines.BatchId`, `catalog.ProductBatches.SellingPrice`, `tenancy.TenantSettings.BatchTrackingEnabled`,
+  `purchasing.PurchaseBills.InventoryAdjustmentAccountId`, `configuration.PrintingTemplates.PrintSerialNumbers`.

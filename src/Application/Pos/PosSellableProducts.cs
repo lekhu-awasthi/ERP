@@ -1,3 +1,4 @@
+using ErpApp.Application.Inventory.Stock;
 using ErpApp.Application.Catalog;
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Filtering;
@@ -41,17 +42,22 @@ internal static class PosSellableProducts
         bool excludeSerialTracked = false)
     {
         var basis = await PriceBasisAsync(db, organizationId, cancellationToken);
+        // Phase 95 -- a company switch that is off overrides every product's own: the till treats it as untracked.
+        var switches = await StockTrackingSwitches.LoadAsync(db, organizationId, cancellationToken);
 
         // Each condition its own composed .Where(): an expression tree does not short-circuit, so a
         // null-guarded term inside one predicate hands EF a null to translate (phase 33).
+        var restrictedAway = ProductLocationAvailability.RestrictedAwayFrom(db, locationId);
         var query = db.Products
             .AsNoTracking()
             .Include(x => x.SecondaryUnits)
             .Where(x => x.OrganizationId == organizationId)
             .Where(x => x.AvailableForSale && x.IsActive && !x.HasVariants)
-            .Where(x => x.Locations.Count == 0 || x.Locations.Any(l => l.LocationId == locationId));
+            // Phase 95 -- as a set the database computes once (ProductLocationAvailability): per product, the page
+            // count read 84,465 pages on a 20,001-product tenant.
+            .Where(x => !restrictedAway.Contains(x.Id));
 
-        if (excludeSerialTracked)
+        if (excludeSerialTracked && switches.Serial)
         {
             query = query.Where(x => !x.SerialTracking);
         }
@@ -73,7 +79,7 @@ internal static class PosSellableProducts
 
             // Phase 91 -- a code no product carries may be a serial in stock here. Read through the ledger as a
             // subquery: the phase-51 index is filtered to in-stock serial layers, so this reads that set and no more.
-            if (serialWarehouseId is { } warehouseId && !await byCode.AnyAsync(cancellationToken))
+            if (serialWarehouseId is { } warehouseId && switches.Serial && !await byCode.AnyAsync(cancellationToken))
             {
                 var bySerial = query.Where(x => x.SerialTracking && db.StockLedgerEntries.Any(l =>
                     l.OrganizationId == organizationId && l.ProductId == x.Id && l.WarehouseId == warehouseId
@@ -142,7 +148,7 @@ internal static class PosSellableProducts
 
                 return new PosProductDto(
                     p.Id, p.Code, p.Name, p.CategoryId, p.Type, p.VatRate, rate, p.ServiceChargeApplicable,
-                    p.PackagingFeeApplicable, p.BatchTracking, p.SerialTracking, p.Barcode, units,
+                    p.PackagingFeeApplicable, switches.TracksBatches(p), switches.TracksSerials(p), p.Barcode, units,
                     scannedSerials.GetValueOrDefault(p.Id));
             })
             .ToList();

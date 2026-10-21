@@ -43,6 +43,21 @@ public sealed class SuggestProductRateQueryHandler(IAppDbContext db)
         var catalogueRate = ProductPrices.CatalogueRate(product, unitId, settings.ProductPriceBasis)
             ?? throw new NotFoundException("This product is not sold in that unit.");
 
+        // Phase 95 -- a batch with its own price is what picking it sells at, before any recent sale.
+        if (!string.IsNullOrWhiteSpace(request.BatchNo))
+        {
+            var batchNo = request.BatchNo.Trim();
+            var batchPrice = await db.ProductBatches
+                .AsNoTracking()
+                .Where(x => x.OrganizationId == request.OrganizationId && x.ProductId == product.Id && x.BatchNo == batchNo)
+                .Select(x => x.SellingPrice)
+                .FirstOrDefaultAsync(cancellationToken);
+            if (ProductPrices.BatchRate(product, unitId, settings.ProductPriceBasis, batchPrice) is { } batchRate)
+            {
+                return new SuggestedProductRateDto(batchRate, product.VatRate, ProductRateSource.BatchSellingPrice);
+            }
+        }
+
         if (settings.SuggestSellingPriceMode == SuggestSellingPriceMode.RecentSellingPrice
             && await ProductRateReferences.RecentRateAsync(
                 db, request.OrganizationId, request.ProductId, unitId, cancellationToken) is { } rate)

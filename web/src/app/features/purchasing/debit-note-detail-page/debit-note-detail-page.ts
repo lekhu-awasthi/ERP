@@ -10,7 +10,7 @@ import { DocumentType } from '../../../core/sales/sales.models';
 import { ContactsService } from '../../../core/contacts/contacts.service';
 import { Contact } from '../../../core/contacts/contacts.models';
 import { CatalogService } from '../../../core/catalog/catalog.service';
-import { Product, VatRate } from '../../../core/catalog/catalog.models';
+import { Product, StockTrackingSwitches, VatRate } from '../../../core/catalog/catalog.models';
 import { AccountingService } from '../../../core/accounting/accounting.service';
 import { Account } from '../../../core/accounting/accounting.models';
 import { ConfigurationService } from '../../../core/configuration/configuration.service';
@@ -122,6 +122,8 @@ export class DebitNoteDetailPage {
   protected readonly debitNote = signal<DebitNoteDetail | null>(null);
   protected readonly suppliers = signal<Contact[]>([]);
   protected readonly products = signal<Product[]>([]);
+  /** Phase 95 -- the company's tracking switches; off until read, so no box is offered the server would refuse. */
+  protected readonly tracking = signal<StockTrackingSwitches>({ batchTrackingEnabled: false, serialTrackingEnabled: false });
   protected readonly accounts = signal<Account[]>([]);
   protected readonly tdsTypes = signal<TdsType[]>([]);
   protected readonly isNew = signal(false);
@@ -198,6 +200,8 @@ export class DebitNoteDetailPage {
     // Phase 36 -- the picker lists the products available at THIS document's billing location,
     // and re-reads when the header location changes. See shared/catalog/location-aware-products.
     locationAwareProducts(this.organizationId, this.locationId, this.products);
+    // Phase 95 -- the company's tracking switches decide whether a line offers a batch or serial box at all.
+    this.catalogService.getStockTracking(this.organizationId).subscribe({ next: (s) => this.tracking.set(s) });
     this.accountingService.listAllAccounts(this.organizationId).subscribe({ next: (a) => this.accounts.set(a) });
     this.configurationService.listTdsTypes(this.organizationId).subscribe({ next: (t) => this.tdsTypes.set(t) });
     this.organizationsService.listWarehouses(this.organizationId).subscribe({
@@ -505,12 +509,13 @@ export class DebitNoteDetailPage {
 
   /** Phase 93 -- whether a line's product is batch-tracked, so its row offers the batch control. */
   protected isBatchTracked(productId: string): boolean {
-    return this.products().find((p) => p.id === productId)?.batchTracking === true;
+    // Phase 95 -- and the company's Batch Tracking switch is on: off overrides the product's own.
+    return this.tracking().batchTrackingEnabled && this.products().find((p) => p.id === productId)?.batchTracking === true;
   }
 
   /** Phase 92 -- whether a line's product is serial-tracked, so its row offers the serial control. */
   protected isSerialTracked(productId: string): boolean {
-    return this.products().find((p) => p.id === productId)?.serialTracking === true;
+    return this.tracking().serialTrackingEnabled && this.products().find((p) => p.id === productId)?.serialTracking === true;
   }
 
   private updateLine(key: number, patch: Partial<Omit<EditableLine, 'key'>>): void {

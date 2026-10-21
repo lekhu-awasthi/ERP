@@ -13,7 +13,7 @@ public sealed class ListProductBatchesQueryHandler(IAppDbContext db)
     {
         var product = await db.Products
             .Where(x => x.Id == request.ProductId && x.OrganizationId == request.OrganizationId)
-            .Select(x => new { x.Id, x.PrimaryUnitId })
+            .Select(x => new { x.Id, x.PrimaryUnitId, x.VatRate })
             .SingleOrDefaultAsync(cancellationToken)
             ?? throw new NotFoundException("Product not found.");
 
@@ -37,7 +37,7 @@ public sealed class ListProductBatchesQueryHandler(IAppDbContext db)
         }
 
         var rows = await batches
-            .Select(x => new { x.Id, x.BatchNo, x.ManufactureDate, x.ExpiryDate })
+            .Select(x => new { x.Id, x.BatchNo, x.ManufactureDate, x.ExpiryDate, x.SellingPrice })
             .ToListAsync(cancellationToken);
 
         if (rows.Count == 0)
@@ -67,6 +67,12 @@ public sealed class ListProductBatchesQueryHandler(IAppDbContext db)
             .GroupBy(x => x.BatchId)
             .ToDictionary(g => g.Key, g => g.Sum(x => x.QuantityRemaining));
 
+        // No settings row reads as exclusive of VAT, as everywhere else.
+        var basis = await db.TenantSettings
+            .Where(x => x.OrganizationId == request.OrganizationId)
+            .Select(x => (Domain.Tenancy.ProductPriceBasis?)x.ProductPriceBasis)
+            .SingleOrDefaultAsync(cancellationToken) ?? Domain.Tenancy.ProductPriceBasis.ExclusiveOfVat;
+
         var warehouseName = request.WarehouseId is null
             ? null
             : await db.Warehouses
@@ -78,7 +84,9 @@ public sealed class ListProductBatchesQueryHandler(IAppDbContext db)
             .Select(x => new ProductBatchTabRowDto(
                 x.Id, x.BatchNo, x.ManufactureDate, x.ExpiryDate,
                 byBatch.GetValueOrDefault(x.Id), unitName,
-                request.WarehouseId, warehouseName))
+                request.WarehouseId, warehouseName,
+                x.SellingPrice,
+                x.SellingPrice is { } price ? ProductPrices.ToExclusiveRate(price, product.VatRate, basis) : null))
             .OrderBy(x => x.ExpiryDate ?? DateOnly.MaxValue)
             .ThenBy(x => x.BatchNo, StringComparer.Ordinal)
             .ToList();

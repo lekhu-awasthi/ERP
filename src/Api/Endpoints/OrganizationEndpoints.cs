@@ -357,7 +357,9 @@ public static class OrganizationEndpoints
                     request.InventoryTrackingMode,
                     request.NegativeCashBalanceAction,
                     request.NegativeStockBalanceAction,
-                    request.CreditLimitExceedsAction),
+                    request.CreditLimitExceedsAction,
+                    request.BatchTrackingEnabled,
+                    request.SerialTrackingEnabled),
                 ct);
             return Results.Ok(result);
         });
@@ -518,7 +520,9 @@ public static class OrganizationEndpoints
         InventoryTrackingMode InventoryTrackingMode,
         BalanceAction NegativeCashBalanceAction,
         BalanceAction NegativeStockBalanceAction,
-        BalanceAction CreditLimitExceedsAction);
+        BalanceAction CreditLimitExceedsAction,
+        bool? BatchTrackingEnabled,
+        bool? SerialTrackingEnabled);
 
     private sealed record CreateWarehouseRequest(string Name);
 

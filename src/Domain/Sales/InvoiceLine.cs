@@ -268,7 +268,7 @@ public sealed class InvoiceLine
         Guid invoiceId, Guid posOrderLineId, Guid productId, decimal quantity, decimal rate, VatRate vatRate,
         decimal discountPerUnit, decimal discountPct, decimal billDiscountShare, decimal partDiscountShare, Guid? unitId,
         decimal conversionFactor, decimal serviceChargeRate, PackagingFee packagingFee, PosLineArithmetic.Figures figures,
-        decimal partServiceChargeWaived = 0m)
+        decimal partServiceChargeWaived = 0m, Guid? batchId = null)
     {
         foreach (var value in figures.Parts.Append(billDiscountShare).Append(partDiscountShare).Append(partServiceChargeWaived))
         {
@@ -312,6 +312,8 @@ public sealed class InvoiceLine
             PackagingFeeAmount = figures.PackagingFeeAmount,
             VatAmount = figures.VatAmount,
             PosOrderLineId = posOrderLineId,
+            // Phase 95 -- the order line's batch, so the bill issues from it rather than walking.
+            BatchId = batchId,
         };
     }
 

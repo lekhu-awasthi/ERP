@@ -81,6 +81,11 @@ public sealed class ApprovePurchaseBillCommandHandler(
 
         // Phase 87 -- every account the entry below posts to, kept on the bill: a debit note returning it reverses into
         // these, and a payment allocated to it settles out of its Payable, whatever the settings say by then.
+        // Phase 95 -- and the account a return's price-to-cost difference goes to, read as the defaults stand now.
+        var inventoryAdjustmentAccountId = await db.TenantSettings
+            .Where(x => x.OrganizationId == request.OrganizationId)
+            .Select(x => x.DefaultInventoryAdjustmentAccountId)
+            .SingleOrDefaultAsync(cancellationToken);
         purchaseBill.RecordPostingAccounts(new PurchaseBillPostingAccounts(
             postingInput.AccountsPayableAccountId,
             postingInput.VatReceivableAccountId == Guid.Empty ? null : postingInput.VatReceivableAccountId,
@@ -89,7 +94,8 @@ public sealed class ApprovePurchaseBillCommandHandler(
                 ? postingInput.InventoryAccountId
                 : null,
             postingInput.LandedCostClearingAccountId,
-            [.. postingInput.Lines.Select(x => x.DebitAccountId)]));
+            [.. postingInput.Lines.Select(x => x.DebitAccountId)],
+            inventoryAdjustmentAccountId));
         purchaseBill.Approve(currentUser.UserId, code);
 
         var productIds = purchaseBill.Lines.Select(x => x.ProductId).Distinct().ToList();

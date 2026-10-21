@@ -356,7 +356,24 @@
                         maxlength="100"
                         [value]="line.batchNo"
                         (input)="onBatchNoChange(line.key, $event)"
+                        (focus)="loadBatchesOf(line.productId)"
                       />
+                      @if (isNewBatch(line)) {
+                        <!-- Phase 95 -- a batch this bill creates carries its expiry and its own selling price, as the
+                             vendor's New Batch form requires; picking it on a sale prices the line at it. -->
+                        <div class="small fw-semibold mt-1">New batch {{ line.batchNo.trim() }}</div>
+                        <label class="form-label small mb-0" [for]="'bill-batch-expiry-' + line.key">Expiry date</label>
+                        <app-bs-date-input [inputId]="'bill-batch-expiry-' + line.key"
+                          [inputClass]="'form-control form-control-sm'"
+                          [value]="line.expiryDate"
+                          (valueChange)="onBatchExpiryChange(line.key, $event)"
+                        />
+                        <label class="form-label small mb-0 mt-1" [for]="'bill-batch-price-' + line.key">Selling price</label>
+                        <input class="form-control form-control-sm" type="number" min="0" step="0.01"
+                          [id]="'bill-batch-price-' + line.key"
+                          [value]="line.batchPriceText"
+                          (input)="onBatchPriceChange(line.key, $event)" />
+                      }
                       <!-- One physical unit per serial, so a line of quantity five names five.
                            Comma-separated, and a scanner's Enter ends each one; the server refuses a count
                            that does not match the quantity, and names the line. -->

@@ -1,3 +1,5 @@
+using ErpApp.Application.Catalog;
+using ErpApp.Application.Inventory.Stock;
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Filtering;
 using ErpApp.Application.Common.Persistence;
@@ -38,8 +40,9 @@ public sealed record ListPosProductBatchesQuery(
 }
 
 /// <summary>One batch in stock at the till's warehouse; <paramref name="Quantity"/> is in the product's primary
-/// unit.</summary>
-public sealed record PosProductBatchDto(string BatchNo, DateOnly? ExpiryDate, decimal Quantity);
+/// unit. Phase 95 -- <paramref name="Rate"/> is the batch's own selling price as a rate per primary unit, exclusive of
+/// VAT (<c>ProductPrices.BatchRate</c>), which picking it prices the line at; null on a batch with no price.</summary>
+public sealed record PosProductBatchDto(string BatchNo, DateOnly? ExpiryDate, decimal Quantity, decimal? Rate = null);
 
 public sealed class ListPosProductBatchesQueryValidator : AbstractValidator<ListPosProductBatchesQuery>
 {
@@ -60,11 +63,15 @@ public sealed class ListPosProductBatchesQueryHandler(IAppDbContext db)
     {
         var till = await PosTill.LoadAsync(db, request.OrganizationId, request.LocationId, cancellationToken);
 
-        var tracked = await db.Products
-            .Where(x => x.OrganizationId == request.OrganizationId && x.Id == request.ProductId)
-            .Select(x => (bool?)x.BatchTracking)
-            .SingleOrDefaultAsync(cancellationToken)
+        var product = await db.Products
+            .AsNoTracking()
+            .Include(x => x.SecondaryUnits)
+            .SingleOrDefaultAsync(x => x.OrganizationId == request.OrganizationId && x.Id == request.ProductId, cancellationToken)
             ?? throw new NotFoundException("Product not found.");
+        var tracked = product.BatchTracking;
+
+        // Phase 95 -- the company's switch off overrides the product's own: nothing to pick.
+        tracked = tracked && (await StockTrackingSwitches.LoadAsync(db, request.OrganizationId, cancellationToken)).Batch;
 
         // As the serial list: a till with no warehouse sells nothing that keeps stock, and an untracked product has no
         // batches. Both are an empty list, so the picker says there is nothing to choose.
@@ -108,15 +115,17 @@ public sealed class ListPosProductBatchesQueryHandler(IAppDbContext db)
         var heldIds = held.Keys.ToList();
         var rows = await batches
             .Where(x => heldIds.Contains(x.Id))
-            .Select(x => new { x.Id, x.BatchNo, x.ExpiryDate })
+            .Select(x => new { x.Id, x.BatchNo, x.ExpiryDate, x.SellingPrice })
             .ToListAsync(cancellationToken);
+        var basis = await PosSellableProducts.PriceBasisAsync(db, request.OrganizationId, cancellationToken);
 
         return rows
             .OrderBy(x => x.ExpiryDate ?? DateOnly.MaxValue)
             .ThenBy(x => held[x.Id].First)
             .ThenBy(x => x.BatchNo, StringComparer.Ordinal)
             .Take(ListPosProductBatchesQuery.MaxBatches)
-            .Select(x => new PosProductBatchDto(x.BatchNo, x.ExpiryDate, held[x.Id].Quantity))
+            .Select(x => new PosProductBatchDto(
+                x.BatchNo, x.ExpiryDate, held[x.Id].Quantity, ProductPrices.BatchRate(product, null, basis, x.SellingPrice)))
             .ToList();
     }
 }

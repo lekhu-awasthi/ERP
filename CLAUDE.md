@@ -126,6 +126,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 92: serial integrity (`DebitNoteSerials`; voids of an invoice, debit note and transfer restock each unit under its serial; `SerialStock` refuses a unit received twice, 400 at the draft and 409 in the ledger; the debit note's missing warehouse). Before any path that puts stock back, or a required header field — `docs/phase-92-status.md`
 - Phase 93: batch integrity (an ERP issue names its batch, the till walks: `StockLineKind`; both notes carry and cap the batch nothing wrote; a walked issue's void and refund restock per batch from its own movements, `IssuedStockRestock`; the serial race a 409). Before letting an issue walk, or binding a native `<select>` — `docs/phase-93-status.md`
 - Phase 94: the Retail till's batch picker (a till line names its batch, the vendor's rule read live; `TillIssue` retired; the batches left at the till's warehouse, soonest expiry first; restaurant bills still walk; no batch price). Before a till line names what the cart has no box for, or reading a vendor figure — `docs/phase-94-status.md`
+- Phase 95: seven leftovers cleared in one session (focus kept app-wide, `FocusKeeper`; a batch on a restaurant order line; the scan indexed and the grid's location rule a set; a batch's own price and required expiry; serials printable by template; company tracking switches over each product's; a return's difference to its bill's account). Before deferring a flaw, moving focus, or reading a product's tracking flag — `docs/phase-95-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -598,28 +599,29 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A focus spec passes without the fix if the opener already focused the target, since `.click()` moves no focus: focus the control, assert it, then press it (phase-85).
 - A vendor figure can be a field its payload lacks: the till's *Balance: 0* beside every batch is a missing field drawn as zero. Read the response before the number (phase-94).
 - A fetch from a tab `erp-web-ssl` just opened fails *Failed to fetch* while the app redirects to `/login`; wait for `location.href` to settle, and delete the file only after a 200 (phase-94).
+- Fix a defect in the session that finds it and ask a product question in the session that raises it; carry only what someone else must settle, and report what a user notices first (phase-95).
+- `Locations.Count == 0 || Locations.Any(...)` is two subqueries per row (80,004 reads to count a grid); as a set it is one pass, but an `EXISTS` that stops early loses by it. Measure each reader (phase-95).
+- A floor on one column of a squeezed table moves the squeeze to its neighbour; floor every typed box in a `.table-responsive` table and measure all of them (phase-95).
+- A company switch over a product flag is read through one reader (`StockTrackingSwitches`) or it overrides nothing; census the flag's readers and backfill so existing tenants change nothing (phase-95).
 
 ## Current status
 
-**Phases 0-94 are complete. Next: not yet scheduled** (the user picks; candidates in `docs/roadmap.md`).
+**Phases 0-95 are complete. Next: not yet scheduled** (the user picks; candidates in `docs/roadmap.md`).
 Each phase's story is in its `docs/phase-N-status.md`, and finished planning entries are archived in
 `docs/roadmap-history.md`.
 
-**Phase 94 gave the Retail till its batch picker.**
+**Phase 95 cleared the carried list** at the user's request (2026-10-20: "if you know the flaw why not fix that in same
+session"). Keyboard focus is kept on every screen; restaurant orders name their batch; the till's scan and grid are fast
+on 20,000 products; a batch carries its own price and expiry; serials can print on bills; company Batch/Serial Tracking
+switches override each product's; a purchase return's difference follows its bill's account.
 
-- A till line of a batch-tracked product names its batch, as the vendor's till requires (read live); phase 93's
-  `StockLineKind.TillIssue` is retired. The till opens such a line on a radio group of the batches its warehouse holds
-  (`GET /pos/tills/{loc}/products/{id}/batches`, soonest expiry first) and refuses payment until each names one.
-- Restaurant bills still walk (a batch on an order line is its own phase), and a batch has no price of its own. No
-  migration, no new keys.
+**Next:** not yet scheduled. What is still open is only what the user or a tax advisor must settle (phase 95 § 5):
+the VAT points in phases 89/90 § 5; the vendor differences in phases 79 and 88 § 5 (offered as droppable); whether a
+sale return's rounding should follow its invoice.
 
-**Next:** not yet scheduled. Candidates: phase 94 § 5 (a batch on a restaurant order line; the vendor's batch price and
-expiry), phase 93 § 5 (focus after a failed Save or *Remove line*), phase 91 § 5 (a serial on the printed bill),
-phase 79 § 5, phase 88 § 5, phase 87 § 5 / Decision G, phase 62 § 5's barcode index.
-
-Tests: Domain 1040, Application.UnitTests **1884**, Infrastructure.UnitTests 14,
-Api.IntegrationTests 79, Angular **912**. Everything was green at phase 94's close with Docker up.
-The bundle sits at **653.05 kB** against `build-budget.spec.ts`'s 680 kB; every POS screen is lazy.
+Tests: Domain 1040, Application.UnitTests **1894**, Infrastructure.UnitTests 14,
+Api.IntegrationTests 79, Angular **928**. Everything was green at phase 95's close with Docker up.
+The bundle sits at **656.01 kB** against `build-budget.spec.ts`'s 680 kB; every POS screen is lazy.
 
 - `Api.IntegrationTests` needs Docker Desktop running. Without it the Testcontainers-backed tests
   fail in their constructors with `DockerEndpointAuthConfig` before any assertion, which reads like

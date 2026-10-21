@@ -1,6 +1,7 @@
 using ErpApp.Application.Catalog;
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Common.Persistence;
+using ErpApp.Application.Inventory.Stock;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Pos;
 using FluentValidation;
@@ -9,8 +10,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ErpApp.Application.Pos.Restaurant;
 
-/// <summary>An item a waiter adds: what, how many, in which unit, and a note for the kitchen. No rate.</summary>
-public sealed record PosOrderItemInput(Guid ProductId, decimal Quantity, Guid? UnitId, string? Note);
+/// <summary>An item a waiter adds: what, how many, in which unit, and a note for the kitchen. No rate. Phase 95 --
+/// and the batch it is served from, for a batch-tracked product (a 400 naming the item without one).</summary>
+public sealed record PosOrderItemInput(Guid ProductId, decimal Quantity, Guid? UnitId, string? Note, string? BatchNo = null);
 
 /// <summary>More of a line already on the order.</summary>
 public sealed record PosOrderLineQuantityInput(Guid LineId, decimal Quantity);
@@ -72,8 +74,10 @@ internal static class PosOrderPricing
 
         // Phase 91 Decision C -- a kitchen ticket, a split and a transfer have nowhere to name a unit's serial, so a
         // serial-tracked product sells at a Retail till, where the cart names each one.
+        // Phase 95 -- as the company's switch lets it be: off overrides the product's own.
+        var switches = await StockTrackingSwitches.LoadAsync(db, organizationId, cancellationToken);
         var serialised = products.Values
-            .Where(p => p.SerialTracking)
+            .Where(p => switches.TracksSerials(p))
             .Select(p => p.Name)
             .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
             .ToList();
@@ -85,11 +89,41 @@ internal static class PosOrderPricing
                 + "cannot name which unit a guest was given. Sell it at a Retail till, which names each serial.");
         }
 
+        // Phase 95 -- a batch-tracked item names the batch it is served from, as the vendor's order screen requires
+        // and the Retail till's line does (phase 94): resolved as an issue's, so a blank or unknown batch is a 400.
+        IReadOnlyList<Guid?> batches;
+        try
+        {
+            batches = await DocumentLineAllocationWriter.ResolveBatchesAsync(
+                db, organizationId,
+                [.. items.Select(x => new DocumentLineAllocationWriter.LineAllocationInput(
+                    x.ProductId, x.Quantity, x.BatchNo, null, null, null))],
+                StockLineKind.Issue, cancellationToken);
+        }
+        catch (ValidationException ex)
+        {
+            // The writer names a document's lines; an order's request names its items.
+            throw new ValidationException(ex.Errors.Select(e => new ValidationFailure(
+                e.PropertyName.StartsWith("Lines", StringComparison.Ordinal) ? field + e.PropertyName[5..] : e.PropertyName,
+                e.ErrorMessage)));
+        }
+
         var basis = await PosSellableProducts.PriceBasisAsync(db, organizationId, cancellationToken);
         var lines = new List<PosOrderNewLine>();
 
-        foreach (var item in items)
+        // Phase 95 -- an item served from a batch with its own price is priced at it, as picking it on the vendor's
+        // order screen does; the rate is frozen on the order line like any other.
+        var batchIds = batches.Where(x => x is not null).Select(x => x!.Value).Distinct().ToList();
+        var batchPrices = batchIds.Count == 0
+            ? []
+            : await db.ProductBatches
+                .AsNoTracking()
+                .Where(x => x.OrganizationId == organizationId && batchIds.Contains(x.Id))
+                .ToDictionaryAsync(x => x.Id, x => x.SellingPrice, cancellationToken);
+
+        for (var i = 0; i < items.Count; i++)
         {
+            var item = items[i];
             var product = products[item.ProductId];
 
             // The primary unit, or one of the product's own secondary units, priced at that unit's price
@@ -112,12 +146,16 @@ internal static class PosOrderPricing
                 unitId,
                 factor,
                 item.Quantity,
-                ProductPrices.CatalogueRate(product, unitId, basis)!.Value,
+                (batches[i] is { } batchId
+                    ? ProductPrices.BatchRate(product, unitId, basis, batchPrices.GetValueOrDefault(batchId))
+                    : null)
+                    ?? ProductPrices.CatalogueRate(product, unitId, basis)!.Value,
                 product.VatRate,
                 PosServiceCharge.RateFor(till.Settings, product.ServiceChargeApplicable, orderType),
                 PosPackagingFee.For(till.Settings, product.PackagingFeeApplicable, orderType),
                 item.Note,
-                product.KitchenStationId));
+                product.KitchenStationId,
+                batches[i]));
         }
 
         return lines;

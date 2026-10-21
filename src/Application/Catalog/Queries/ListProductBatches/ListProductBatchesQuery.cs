@@ -38,4 +38,9 @@ public sealed record ProductBatchTabRowDto(
     /// <summary>Set when the tab is filtered to one warehouse, so the row can say where the
     /// quantity is. Null when the quantity is the batch's total across every warehouse.</summary>
     Guid? WarehouseId,
-    string? WarehouseName);
+    string? WarehouseName,
+    /// <summary>Phase 95 -- the batch's own selling price as typed (per primary unit, in the tenant's price basis), and
+    /// the rate it gives a line in the primary unit, exclusive of VAT (<c>ProductPrices.BatchRate</c>). Null on a batch
+    /// created before batches carried a price.</summary>
+    decimal? SellingPrice = null,
+    decimal? Rate = null);

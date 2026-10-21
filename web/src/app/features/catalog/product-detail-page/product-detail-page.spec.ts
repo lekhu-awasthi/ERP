@@ -106,6 +106,7 @@ describe('ProductDetailPage — secondary units', () => {
     updated = [];
 
     const catalog: Partial<CatalogService> = {
+      getStockTracking: () => of({ batchTrackingEnabled: true, serialTrackingEnabled: true }),
       getProduct: (): Observable<Product> => of(data),
       listProductCategories: (): Observable<ProductCategory[]> => of([category]),
       listUnitsOfMeasurement: (): Observable<UnitOfMeasurement[]> => of([pieceUnit, boxUnit, cartonUnit]),

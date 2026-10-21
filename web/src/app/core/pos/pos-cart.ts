@@ -45,6 +45,9 @@ export interface CartLine {
   /** Phase 94 -- the batch a batch-tracked line is sold from, chosen from those in stock at the till; null until it is
    * chosen, which the server refuses as the vendor's till does. */
   batchNo?: string | null;
+  /** Phase 95 -- the chosen batch's own price per primary unit, exclusive of VAT; null when it has none. The line's
+   * rate in any unit is this times the unit's conversion, and that rate is the batch's price, not a changed one. */
+  batchRate?: number | null;
 }
 
 /** Phase 91 -- a serial-tracked line whose serials do not yet match its quantity. */
@@ -269,11 +272,21 @@ export class PosCart {
    * Phase 94 -- names the batch a batch-tracked line is sold from. Lines of one batch are never merged here: the picker
    * is a radio group a keyboard arrows through, and a line that vanished under the cursor would drop its focus.
    */
-  setBatch(key: number, batchNo: string): void {
+  setBatch(key: number, batchNo: string, batchRate: number | null = null): void {
     const line = this.lines().find((x) => x.key === key);
     const batch = batchNo.trim();
     if (!line?.product.batchTracking || !batch) return;
-    this.update(key, { batchNo: batch });
+    // Phase 95 -- a batch with its own price prices the line at it, as picking one on the vendor's till does; one
+    // without keeps the unit's catalogue price.
+    const unit = line.product.units.find((u) => u.unitId === line.unitId);
+    const rate = batchRate !== null && unit ? roundRate(batchRate * unit.conversionRate) : (unit?.rate ?? line.rate);
+    this.update(key, { batchNo: batch, batchRate, rate });
+  }
+
+  /** Phase 95 -- the rate a line's batch gives it in its own unit, or null when the batch has no price of its own. */
+  batchRateOf(line: CartLine): number | null {
+    const unit = line.product.units.find((u) => u.unitId === line.unitId);
+    return line.batchRate != null && unit ? roundRate(line.batchRate * unit.conversionRate) : null;
   }
 
   setQuantity(key: number, quantity: number): void {
@@ -302,7 +315,9 @@ export class PosCart {
       return;
     }
 
-    this.update(key, { unitId: unit.unitId, rate: unit.rate });
+    // Phase 95 -- a line on a priced batch keeps the batch's price, in the new unit.
+    const rate = line.batchRate != null ? roundRate(line.batchRate * unit.conversionRate) : unit.rate;
+    this.update(key, { unitId: unit.unitId, rate });
   }
 
   setRate(key: number, rate: number): void {
@@ -597,6 +612,11 @@ function toCartProduct(product: PosProduct | CartProduct): CartProduct {
     serialTracking: product.serialTracking === true,
     batchTracking: product.batchTracking === true,
   };
+}
+
+/** Phase 95 -- a rate in paisa, as the server's catalogue rates are (2 dp). */
+function roundRate(value: number): number {
+  return Math.round(value * 100) / 100;
 }
 
 /** Phase 74 -- an amount a till takes: zero or more, in whole paisa (the server's `PosCashAmount`). */

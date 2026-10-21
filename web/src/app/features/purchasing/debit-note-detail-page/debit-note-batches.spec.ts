@@ -66,7 +66,7 @@ describe('DebitNoteDetailPage — batch', () => {
     } as DebitNoteDetail;
   }
 
-  function page() {
+  function page(batchTrackingEnabled = true) {
     const sent: DebitNoteRequest[] = [];
     const purchasingService = {
       getDebitNote: () => of(draft()),
@@ -84,7 +84,7 @@ describe('DebitNoteDetailPage — batch', () => {
         provideRouter([]),
         { provide: PurchasingService, useValue: purchasingService },
         { provide: ContactsService, useValue: { listAllContacts: () => of([]) } },
-        { provide: CatalogService, useValue: { listAllProducts: () => of(products), listUnitsOfMeasurement: () => of([]) } },
+        { provide: CatalogService, useValue: { listAllProducts: () => of(products), listUnitsOfMeasurement: () => of([]), getStockTracking: () => of({ batchTrackingEnabled, serialTrackingEnabled: true }) } },
         { provide: AccountingService, useValue: { listAllAccounts: () => of([]) } },
         {
           provide: OrganizationsService,
@@ -164,5 +164,11 @@ describe('DebitNoteDetailPage — batch', () => {
 
     expect(sent.length).toBe(1);
     expect(sent[0].lines.map((l) => l.batchNo)).toEqual(['B1', null]);
+  });
+
+  it('offers no batch box while the company has Batch Tracking switched off (phase 95)', () => {
+    const { el } = page(false);
+
+    expect(el.querySelectorAll('input[aria-label^="Batch returned of"]').length).toBe(0);
   });
 });

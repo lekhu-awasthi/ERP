@@ -752,4 +752,25 @@ describe('PosTillPage', () => {
     expect(p.text()).toContain('Batch not chosen yet');
     expect(p.service.batchReads).toBe(2);
   });
+
+  it('sells at a picked batch\'s own price without the price key, and calls no other price changed (phase 95)', () => {
+    const p = page(till({ canChangeRate: false }));
+    p.service.gridExtra = [honey];
+    p.service.batches = [{ batchNo: 'B4', expiryDate: null, quantity: 3, rate: 170 }];
+    p.press('All');
+    p.tile('P94 Honey');
+
+    const radio = p.element.querySelector<HTMLInputElement>('input[type="radio"][id^="pos-batch-"]')!;
+    expect(radio.labels?.[0]?.textContent).toContain('170.00');
+    radio.checked = true;
+    radio.dispatchEvent(new Event('change', { bubbles: true }));
+    p.render();
+
+    expect(p.text()).not.toContain('Sales.Invoice.TillChangeRate');
+    p.press('Pay (F9)');
+    p.tender('cash', '200');
+    p.complete().click();
+    p.render();
+    expect(p.service.sent[0].lines[0]).toEqual(expect.objectContaining({ batchNo: 'B4', rate: 170 }));
+  });
 });

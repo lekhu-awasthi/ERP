@@ -5,7 +5,7 @@ import { ActivatedRoute, Router, convertToParamMap, provideRouter } from '@angul
 import { Observable, of } from 'rxjs';
 
 import { PagedResult } from '../../../core/common/paged-result';
-import { PosDiscountKind, PosProduct } from '../../../core/pos/pos.models';
+import { PosDiscountKind, PosProduct, PosProductBatch } from '../../../core/pos/pos.models';
 import {
   CreatePosOrderRequest,
   KitchenTicket,
@@ -19,6 +19,7 @@ import {
   PosRestaurant,
 } from '../../../core/pos/pos-restaurant.models';
 import { PosRestaurantService } from '../../../core/pos/pos-restaurant.service';
+import { PosService } from '../../../core/pos/pos.service';
 import { PosOrderPage } from './pos-order-page';
 
 /**
@@ -35,6 +36,12 @@ describe('PosOrderPage', () => {
     units: [{ unitId: 'plate', shortName: 'plt', conversionRate: 1, rate: 200 }],
   };
   const coke: PosProduct = { ...momo, id: 'coke', code: 'P0003', name: 'Coke 250ml', rate: 60, serviceChargeApplicable: false , packagingFeeApplicable: true};
+  // Phase 95 -- a batch-tracked bottle: the order names the batch it is served from.
+  const wine: PosProduct = { ...coke, id: 'wine', code: 'P0095', name: 'House Wine', type: 'Goods', rate: 900, batchTracking: true };
+  const wineBatches: PosProductBatch[] = [
+    { batchNo: 'W1', expiryDate: '2027-01-31', quantity: 4 },
+    { batchNo: 'W2', expiryDate: null, quantity: 6 },
+  ];
 
   const restaurant = (overrides: Partial<PosRestaurant> = {}): PosRestaurant => ({
     locationId, locationCode: '1002', locationName: 'POS Restaurant', availableTabs: ['DineIn', 'TakeAway', 'Delivery'],
@@ -84,7 +91,7 @@ describe('PosOrderPage', () => {
 
   function page(options: {
     orderId?: string; query?: Record<string, string>; restaurant?: PosRestaurant; order?: PosOrder; preview?: PosOrderBillPreview;
-    discarded?: PosOrder;
+    discarded?: PosOrder; products?: PosProduct[];
   } = {}) {
     const created: CreatePosOrderRequest[] = [];
     const added: { newItems: PosOrderItemInput[]; moreOf: PosOrderLineQuantityInput[] }[] = [];
@@ -99,7 +106,7 @@ describe('PosOrderPage', () => {
       getRestaurant: (): Observable<PosRestaurant> => of(options.restaurant ?? restaurant()),
       getOrder: (): Observable<PosOrder> => of(options.order ?? order()),
       listProducts: (): Observable<PagedResult<PosProduct>> =>
-        of({ items: [momo, coke], page: 1, pageSize: 48, totalCount: 2 }),
+        of({ items: options.products ?? [momo, coke], page: 1, pageSize: 48, totalCount: (options.products ?? [momo, coke]).length }),
       createOrder: (_o: string, request: CreatePosOrderRequest): Observable<PosOrder> => {
         created.push(request);
         return of(order());
@@ -169,6 +176,7 @@ describe('PosOrderPage', () => {
         provideHttpClientTesting(),
         provideRouter([]),
         { provide: PosRestaurantService, useValue: service },
+        { provide: PosService, useValue: { listProductBatches: (): Observable<PosProductBatch[]> => of(wineBatches) } },
         {
           provide: ActivatedRoute,
           useValue: {
@@ -238,12 +246,44 @@ describe('PosOrderPage', () => {
     expect(p.created).toEqual([{
       locationId, orderType: 'DineIn', tableId: 't1', covers: 3, contactId: null,
       items: [
-        { productId: 'momo', quantity: 2, unitId: null, note: null },
-        { productId: 'coke', quantity: 1, unitId: null, note: null },
+        { productId: 'momo', quantity: 2, unitId: null, note: null, batchNo: null },
+        { productId: 'coke', quantity: 1, unitId: null, note: null, batchNo: null },
       ],
     }]);
     expect(p.navigate).toHaveBeenCalledWith(['/organizations', organizationId, 'pos', 'orders', 'ord-1'], { replaceUrl: true });
     expect(p.text()).toContain('Sent to the kitchen: Kitchen, Default (ticket ORD0001-1).');
+  });
+
+  it('asks a batch-tracked item for its batch before it is sent, and sends the one chosen (phase 95)', () => {
+    const p = page({ products: [momo, wine] });
+
+    p.press('House Wine');
+    const radios = () => [...p.element.querySelectorAll<HTMLInputElement>('input[type="radio"][id^="pos-order-batch-"]')];
+    expect(radios().map((x) => x.labels?.[0]?.textContent?.replace(/\s+/g, ' ').trim().split(' · ')[0])).toEqual(['W1', 'W2']);
+    expect(radios()[0].labels?.[0]?.textContent).toContain('4 left');
+    expect(document.activeElement).toBe(radios()[0]);
+    expect(p.text()).toContain('House Wine is batch-tracked: choose the batch it is served from.');
+    const send = [...p.element.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent?.includes('Send to Kitchen'))!;
+    expect(send.disabled).toBe(true);
+
+    radios()[1].checked = true;
+    radios()[1].dispatchEvent(new Event('change'));
+    TestBed.tick();
+    expect(p.text()).not.toContain('is batch-tracked: choose');
+
+    // A second tap is a new item waiting for its own batch: the chosen one is W2's.
+    p.press('House Wine');
+    expect(p.text()).toContain('House Wine is batch-tracked: choose the batch it is served from.');
+    const second = radios().filter((x) => x.name !== radios()[1].name);
+    second[0].checked = true;
+    second[0].dispatchEvent(new Event('change'));
+    TestBed.tick();
+
+    p.press('Send to Kitchen');
+    expect(p.created[0].items).toEqual([
+      { productId: 'wine', quantity: 1, unitId: null, note: null, batchNo: 'W2' },
+      { productId: 'wine', quantity: 1, unitId: null, note: null, batchNo: 'W1' },
+    ]);
   });
 
   it('sends one more of a sent line as more of that line, not a new one', () => {

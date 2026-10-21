@@ -43,6 +43,8 @@ describe('GeneralSettingsPage', () => {
       negativeCashBalanceAction: 'Reject',
       negativeStockBalanceAction: 'Warn',
       creditLimitExceedsAction: 'Warn',
+      batchTrackingEnabled: true,
+      serialTrackingEnabled: false,
       ...overrides,
     });
 
@@ -112,7 +114,29 @@ describe('GeneralSettingsPage', () => {
       negativeCashBalanceAction: 'DoNothing',
       negativeStockBalanceAction: 'Reject',
       creditLimitExceedsAction: 'Reject',
+      batchTrackingEnabled: true,
+      serialTrackingEnabled: false,
     });
+  });
+
+  it('switches the company tracking, warning before Save what switching one off does (phase 95)', () => {
+    const { radio, save, service, fixture, text } = page();
+
+    expect(radio('general-batch-tracking').checked).toBe(true);
+    expect(radio('general-serial-tracking').checked).toBe(false);
+    expect(text()).not.toContain('Switching Batch Tracking off');
+
+    radio('general-batch-tracking').click();
+    radio('general-serial-tracking').click();
+    fixture.detectChanges();
+
+    expect(text()).toContain('Switching Batch Tracking off: stock bought or returned while it is off is recorded in no batch');
+    expect(radio('general-batch-tracking').getAttribute('aria-describedby')).toBe('general-batch-off');
+    // Switching on warns of nothing.
+    expect(text()).not.toContain('Switching Serial No Tracking off');
+
+    save();
+    expect([service.saved?.batchTrackingEnabled, service.saved?.serialTrackingEnabled]).toEqual([false, true]);
   });
 
   /**

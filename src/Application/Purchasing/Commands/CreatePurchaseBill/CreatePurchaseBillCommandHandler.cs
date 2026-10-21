@@ -94,7 +94,8 @@ public sealed class CreatePurchaseBillCommandHandler(IAppDbContext db)
         var allocations = await DocumentLineAllocationWriter.ResolveBatchesAsync(
             db, request.OrganizationId,
             request.Lines.Select(x => new DocumentLineAllocationWriter.LineAllocationInput(
-                x.ProductId, x.Quantity, x.BatchNo, x.ManufactureDate, x.ExpiryDate, x.SerialNumbers)).ToList(),
+                x.ProductId, x.Quantity, x.BatchNo, x.ManufactureDate, x.ExpiryDate, x.SerialNumbers,
+                x.BatchSellingPrice)).ToList(),
             StockLineKind.Receipt, cancellationToken);
 
         // Phase 52 -- the catalogue is read here and never again: ResolveAsync turns the unit

@@ -180,6 +180,47 @@
       </div>
     </div>
 
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-body p-4">
+        <!-- Phase 95 -- the vendor's Batch and Serial No Tracking switches, on this page as theirs are. -->
+        <h5 class="fw-bold mb-1">Batch and Serial No Tracking</h5>
+        <p class="text-muted small mb-3">
+          While a switch is off, no product is tracked that way, whatever its own setting: documents and the counter do
+          not ask for a batch or serial number. Each product keeps its own setting, so switching back on restores it.
+        </p>
+        <div class="form-check form-switch mb-2">
+          <input class="form-check-input" type="checkbox" role="switch" id="general-batch-tracking"
+            [checked]="batchTrackingEnabled()" (change)="setBatchTracking($event)"
+            [attr.aria-describedby]="switchingOff('batch') ? 'general-batch-off' : null" />
+          <label class="form-check-label" for="general-batch-tracking">
+            <span class="fw-semibold">Batch Tracking</span>
+            <span class="d-block text-muted small">Products can be set to record the batch each line moves.</span>
+          </label>
+        </div>
+        @if (switchingOff('batch')) {
+          <p class="small fw-bold mb-2" id="general-batch-off">
+            Switching Batch Tracking off: stock bought or returned while it is off is recorded in no batch, and cannot
+            be given one later.
+          </p>
+        }
+        <div class="form-check form-switch mb-2">
+          <input class="form-check-input" type="checkbox" role="switch" id="general-serial-tracking"
+            [checked]="serialTrackingEnabled()" (change)="setSerialTracking($event)"
+            [attr.aria-describedby]="switchingOff('serial') ? 'general-serial-off' : null" />
+          <label class="form-check-label" for="general-serial-tracking">
+            <span class="fw-semibold">Serial No Tracking</span>
+            <span class="d-block text-muted small">Products can be set to record the serial number of each unit.</span>
+          </label>
+        </div>
+        @if (switchingOff('serial')) {
+          <p class="small fw-bold mb-0" id="general-serial-off">
+            Switching Serial No Tracking off: units bought or returned while it is off carry no serial number, and
+            cannot be given one later.
+          </p>
+        }
+      </div>
+    </div>
+
     <button class="btn btn-primary fw-bold" type="button" [disabled]="saving()" (click)="save()">
       {{ saving() ? 'Saving...' : 'Save settings' }}
     </button>

@@ -1,0 +1,10 @@
+path,status,statements,avg_logical_reads,avg_cpu_ms,avg_elapsed_ms,median_wall_ms
+scan.barcode,200,4,50,2.4,2.7,78
+scan.code,200,4,50,1.8,1.8,47
+scan.miss,200,2,18,.9,.9,29
+till.grid,200,3,5413,39.6,45.0,96
+till.search,200,1,4463,255.6,255.7,306
+products.list,200,3,591,8.4,43.6,43
+products.search,200,1,452,170.6,170.6,215
+products.picker,200,3,794,14.6,16.8,48
+till.open,200,1,10,.5,.6,332

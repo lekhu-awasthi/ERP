@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using ErpApp.Domain.Catalog;
 using ErpApp.Domain.Common;
 using ErpApp.Domain.Pos;
 using FluentValidation;
@@ -48,6 +49,8 @@ public static class PosOrderValidationRules
             item.RuleFor(x => x.ProductId).NotEmpty();
             item.RuleFor(x => x.Quantity).PosOrderQuantity();
             item.RuleFor(x => x.Note).MaximumLength(PosOrder.MaxNoteLength);
+            // Phase 95 -- the batch an item is served from: a 400 naming the field, not a database error.
+            item.RuleFor(x => x.BatchNo).MaximumLength(ProductBatch.BatchNoMaxLength);
         });
     }
 

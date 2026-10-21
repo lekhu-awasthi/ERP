@@ -92,6 +92,8 @@ export class PrintingTemplateLayoutEditor implements OnInit, AfterViewInit, OnDe
   protected readonly printedCustomFieldIds = signal<readonly string[]>([]);
   protected readonly footerText = signal('');
   protected readonly compactMargins = signal(false);
+  /** Phase 95 -- whether this bill's template prints each line's serial numbers. */
+  protected readonly printSerialNumbers = signal(false);
 
   protected readonly saving = signal(false);
   protected readonly previewing = signal(false);
@@ -152,6 +154,7 @@ export class PrintingTemplateLayoutEditor implements OnInit, AfterViewInit, OnDe
     this.printedCustomFieldIds.set(template.printedCustomFieldIds ?? []);
     this.footerText.set(template.footerText ?? '');
     this.compactMargins.set(template.compactMargins ?? false);
+    this.printSerialNumbers.set(template.printSerialNumbers ?? false);
   }
 
   /** The editor opens above the list, away from the row's Layout button that opened it, so focus moves to its
@@ -203,6 +206,14 @@ export class PrintingTemplateLayoutEditor implements OnInit, AfterViewInit, OnDe
 
   protected onCompact(event: Event): void {
     this.compactMargins.set((event.target as HTMLInputElement).checked);
+  }
+
+  /** Phase 95 -- an Invoice's and a Credit Note's lines name their serials; no other type sells or returns units. */
+  protected readonly printsSerials = computed(() =>
+    this.template().documentType === 'Invoice' || this.template().documentType === 'CreditNote');
+
+  protected onPrintSerials(event: Event): void {
+    this.printSerialNumbers.set((event.target as HTMLInputElement).checked);
   }
 
   protected save(): void {
@@ -271,6 +282,7 @@ export class PrintingTemplateLayoutEditor implements OnInit, AfterViewInit, OnDe
       printedCustomFieldIds: [...this.printedCustomFieldIds()],
       footerText: footer.length > 0 ? footer : null,
       compactMargins: this.compactMargins(),
+      printSerialNumbers: this.printsSerials() ? this.printSerialNumbers() : null,
     };
   }
 

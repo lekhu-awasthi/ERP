@@ -2,10 +2,11 @@ using ErpApp.Application.Catalog.Commands.CreateProduct;
 using ErpApp.Application.Common.Exceptions;
 using ErpApp.Application.Inventory.Stock;
 using ErpApp.Application.Pos.Commands.CreatePosSale;
+using ErpApp.Application.Pos.Commands.PrintPosReceipt;
 using ErpApp.Application.Pos.Queries.GetPosRefundableSale;
 using ErpApp.Application.Pos.Queries.ListPosOrderProducts;
-using ErpApp.Application.Pos.Queries.ListPosProducts;
 using ErpApp.Application.Pos.Queries.ListPosProductSerials;
+using ErpApp.Application.Pos.Queries.ListPosProducts;
 using ErpApp.Application.Pos.Restaurant;
 using ErpApp.Application.Purchasing;
 using ErpApp.Application.Purchasing.Commands.ApprovePurchaseBill;
@@ -25,6 +26,7 @@ using ErpApp.Application.Sales.Stock;
 using ErpApp.Application.UnitTests.TestSupport;
 using ErpApp.Domain.Catalog;
 using ErpApp.Domain.Common;
+using ErpApp.Domain.Configuration;
 using ErpApp.Domain.Inventory;
 using ErpApp.Domain.Purchasing;
 using FluentValidation;
@@ -91,6 +93,26 @@ public class PosSerialTests
             .Where(x => x.InvoiceId == invoiceId && x.ProductId == shop.PhoneId)
             .Select(x => x.Id)
             .SingleAsync();
+
+    [Fact]
+    public async Task The_receipt_names_the_units_sold_once_the_locations_invoice_template_prints_serials()
+    {
+        var shop = await CreateShopAsync();
+        var sale = await SellPhonesAsync(shop, "IMEI-2");
+
+        Task<PosReceiptDto> PrintAsync() => new PrintPosReceiptCommandHandler(shop.Till.Db, shop.Till.CurrentUser())
+            .Handle(new PrintPosReceiptCommand(shop.Till.OrganizationId, sale.Id), CancellationToken.None);
+
+        // Phase 95 -- off unless asked: no template, or one that does not print them, names none.
+        Assert.Null((await PrintAsync()).Lines.Single().SerialNumbers);
+
+        var template = PrintingTemplate.Create(shop.Till.OrganizationId, "Shop bill", DocumentType.Invoice, isDefault: true);
+        template.SetPrintSerialNumbers(true);
+        shop.Till.Db.PrintingTemplates.Add(template);
+        await shop.Till.Db.SaveChangesAsync();
+
+        Assert.Equal(["IMEI-2"], (await PrintAsync()).Lines.Single().SerialNumbers);
+    }
 
     [Fact]
     public async Task The_picker_lists_the_units_in_stock_here_oldest_first_and_a_sale_takes_the_one_named()

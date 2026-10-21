@@ -54,6 +54,13 @@ public sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
 
         builder.HasIndex(x => new { x.OrganizationId, x.Code }).IsUnique();
 
+        // Phase 95 -- measured (phase 62 § 5): a till's scan matches barcode, code or SKU exactly, and with only Code
+        // indexed the OR read every product. On 20,001 products a scan cost 11,189 logical reads and ~115 ms of CPU;
+        // with these two, 58 reads and ~2 ms, the product list and searches unchanged or better
+        // (tools/scale/probe-phase95-*.csv). Not unique, for the reason above.
+        builder.HasIndex(x => new { x.OrganizationId, x.Barcode });
+        builder.HasIndex(x => new { x.OrganizationId, x.Sku });
+
         // The duplicate guard that makes matrix generation idempotent. Filtered so it applies only
         // to variant children -- without the filter every ordinary product (CombinationKey null)
         // would collide, because SQL Server's unique indexes treat NULLs as equal to each other.

@@ -29,6 +29,12 @@ public sealed class CreateProductCommandHandler(IAppDbContext db, IDocumentNumbe
             throw new NotFoundException("Primary unit of measurement not found.");
         }
 
+
+        // Phase 95 -- the company's switch decides first (Configurations > General): a product cannot be set to track
+        // what the company has switched off, as the vendor's form hides the product switch until the company's is on.
+        await ProductTrackingGuard.EnsureAllowedAsync(
+            db, request.OrganizationId, request.BatchTracking, request.SerialTracking, null, cancellationToken);
+
         var code = await numberGenerator.GetNextNumberAsync(request.OrganizationId, DocumentType.Product, cancellationToken);
 
         var product = Product.Create(

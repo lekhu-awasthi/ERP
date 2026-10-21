@@ -192,7 +192,7 @@
                                 <input class="form-check-input" type="radio" [name]="'pos-batch-' + line.key" [id]="batchRadioId(line, bi)"
                                   [checked]="batch.batchNo === line.batchNo" (change)="onBatchPick(line, batch)" />
                                 <label class="form-check-label small" [for]="batchRadioId(line, bi)">{{ batch.batchNo }}
-                                  &middot; {{ batch.quantity }} {{ line.product.units[0].shortName }} left@if (batch.expiryDate) { &middot; expires {{ batch.expiryDate | nepaliDate }}}</label>
+                                  &middot; {{ batch.quantity }} {{ line.product.units[0].shortName }} left@if (batch.expiryDate) { &middot; expires {{ batch.expiryDate | nepaliDate }}}@if (batch.rate != null) { &middot; {{ batch.rate | amount }} }</label>
                               </li>
                             }
                           </ul>

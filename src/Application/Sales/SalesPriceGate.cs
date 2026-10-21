@@ -30,7 +30,9 @@ namespace ErpApp.Application.Sales;
 public static class SalesPriceGate
 {
     /// <param name="UnitId">As stored on a line: null is the product's primary unit.</param>
-    public sealed record PricedLine(Guid ProductId, Guid? UnitId, decimal Rate, decimal DiscountPct);
+    /// <param name="BatchId">Phase 95 -- the batch an invoice line issues from: its own selling price is a rate the
+    /// line keeps, beside the catalogue's.</param>
+    public sealed record PricedLine(Guid ProductId, Guid? UnitId, decimal Rate, decimal DiscountPct, Guid? BatchId = null);
 
     /// <param name="IsBaseCurrency">A document in another currency has no catalogue price to compare a
     /// rate with (the catalogue is in the base currency), so only its discount is judged.</param>
@@ -126,12 +128,23 @@ public static class SalesPriceGate
         var basis = settings?.ProductPriceBasis ?? Domain.Tenancy.ProductPriceBasis.ExclusiveOfVat;
         var recentMode = settings?.SuggestSellingPriceMode == Domain.Tenancy.SuggestSellingPriceMode.RecentSellingPrice;
 
+        // Phase 95 -- a batch's own selling price, which picking it prices the line at (ProductPrices.BatchRate).
+        var batchIds = changed.Where(x => x.BatchId is not null).Select(x => x.BatchId!.Value).Distinct().ToList();
+        var batchPrices = batchIds.Count == 0
+            ? []
+            : await db.ProductBatches
+                .AsNoTracking()
+                .Where(x => x.OrganizationId == organizationId && batchIds.Contains(x.Id))
+                .ToDictionaryAsync(x => x.Id, x => x.SellingPrice, cancellationToken);
+
         foreach (var line in changed)
         {
             if (!products.TryGetValue(line.ProductId, out var product)
                 || ProductPrices.CatalogueRate(product, line.UnitId, basis) is not { } catalogueRate
                 || catalogueRate == 0m
-                || line.Rate == catalogueRate)
+                || line.Rate == catalogueRate
+                || (line.BatchId is { } batchId
+                    && ProductPrices.BatchRate(product, line.UnitId, basis, batchPrices.GetValueOrDefault(batchId)) == line.Rate))
             {
                 continue;
             }

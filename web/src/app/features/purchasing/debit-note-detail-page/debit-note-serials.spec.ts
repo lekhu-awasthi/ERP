@@ -84,7 +84,7 @@ describe('DebitNoteDetailPage — serial numbers', () => {
         provideRouter([]),
         { provide: PurchasingService, useValue: purchasingService },
         { provide: ContactsService, useValue: { listAllContacts: () => of([]) } },
-        { provide: CatalogService, useValue: { listAllProducts: () => of(products), listUnitsOfMeasurement: () => of([]) } },
+        { provide: CatalogService, useValue: { listAllProducts: () => of(products), listUnitsOfMeasurement: () => of([]), getStockTracking: () => of({ batchTrackingEnabled: true, serialTrackingEnabled: true }) } },
         { provide: AccountingService, useValue: { listAllAccounts: () => of([]) } },
         {
           provide: OrganizationsService,

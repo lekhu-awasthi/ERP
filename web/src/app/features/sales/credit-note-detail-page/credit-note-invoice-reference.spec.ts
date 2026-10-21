@@ -85,6 +85,7 @@ describe('CreditNoteDetailPage — the invoice it relates to', () => {
             listAllProducts: () => of([{ id: 'p-1', code: 'P0001', name: 'Consulting', type: 'Service', sellingPrice: 100, vatRate: 'NoVat' }]),
             listUnitsOfMeasurement: () => of([]),
             suggestProductRate: () => of({ rate: 100, vatRate: 'NoVat' }),
+            getStockTracking: () => of({ batchTrackingEnabled: true, serialTrackingEnabled: true }),
           },
         },
         { provide: AccountingService, useValue: { listAllAccounts: () => of([]) } },

@@ -1,5 +1,6 @@
 using ErpApp.Application.Common.Security;
 using ErpApp.Domain.Catalog;
+using FluentValidation;
 using MediatR;
 
 namespace ErpApp.Application.Catalog.Queries.SuggestProductRate;
@@ -28,10 +29,22 @@ namespace ErpApp.Application.Catalog.Queries.SuggestProductRate;
 /// last sale in that unit; picking a unit used to drop the unit row's raw price into Rate, which on an
 /// Inclusive-of-VAT tenant charged the VAT twice and would now be refused as a changed rate.</para>
 /// </summary>
-public sealed record SuggestProductRateQuery(Guid OrganizationId, Guid ProductId, Guid? UnitId = null)
+/// <param name="BatchNo">Phase 95 -- the batch the line issues from: one with its own selling price suggests that,
+/// which the ERP's price gate keeps as unchanged (one reader for both, phase 81).</param>
+public sealed record SuggestProductRateQuery(Guid OrganizationId, Guid ProductId, Guid? UnitId = null, string? BatchNo = null)
     : IRequest<SuggestedProductRateDto>, IRequirePermission, IOrganizationScoped
 {
     public string PermissionKey => PermissionKeys.ProductView;
+}
+
+/// <summary>Phase 95 -- the batch number is read into a query, so its length is a 400 naming it, as a line's is.</summary>
+public sealed class SuggestProductRateQueryValidator : AbstractValidator<SuggestProductRateQuery>
+{
+    public SuggestProductRateQueryValidator()
+    {
+        RuleFor(x => x.ProductId).NotEmpty();
+        RuleFor(x => x.BatchNo).MaximumLength(ProductBatch.BatchNoMaxLength);
+    }
 }
 
 /// <param name="Rate">The VAT-exclusive rate to put on the line. Stored amounts are always
@@ -51,4 +64,7 @@ public enum ProductRateSource
 
     /// <summary>The most recent approved Invoice line's rate for this product.</summary>
     RecentSale,
+
+    /// <summary>Phase 95 -- the named batch's own selling price.</summary>
+    BatchSellingPrice,
 }

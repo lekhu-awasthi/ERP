@@ -541,7 +541,7 @@ public static class ConfigurationEndpoints
             var result = await sender.Send(
                 new UpdatePrintingTemplateLayoutCommand(
                     organizationId, id, request.Layout, request.HiddenElements, request.PrintedCustomFieldIds,
-                    request.FooterText, request.CompactMargins),
+                    request.FooterText, request.CompactMargins, request.PrintSerialNumbers),
                 ct);
             return Results.Ok(result);
         });
@@ -555,7 +555,7 @@ public static class ConfigurationEndpoints
             var dto = await sender.Send(
                 new PreviewPrintingTemplateQuery(
                     organizationId, request.DocumentType, request.Layout, request.HiddenElements,
-                    request.PrintedCustomFieldIds, request.FooterText, request.CompactMargins),
+                    request.PrintedCustomFieldIds, request.FooterText, request.CompactMargins, request.PrintSerialNumbers),
                 ct);
             return Results.File(DocumentPdfRenderer.Render(dto), "application/pdf", $"{request.DocumentType}_preview.pdf");
         });
@@ -708,7 +708,8 @@ public static class ConfigurationEndpoints
         IReadOnlyList<PrintElement>? HiddenElements,
         IReadOnlyList<Guid>? PrintedCustomFieldIds,
         string? FooterText,
-        bool? CompactMargins);
+        bool? CompactMargins,
+        bool? PrintSerialNumbers);
 
     /// <summary>Phase 75 -- both required; a missing one binds to an empty id, which the validator names.</summary>
     private sealed record PrintingTemplateLocationChoiceRequest(Guid LocationId, Guid PrintingTemplateId);
@@ -719,7 +720,8 @@ public static class ConfigurationEndpoints
         IReadOnlyList<PrintElement>? HiddenElements,
         IReadOnlyList<Guid>? PrintedCustomFieldIds,
         string? FooterText,
-        bool? CompactMargins);
+        bool? CompactMargins,
+        bool? PrintSerialNumbers);
 
     private sealed record CreateCustomTemplateRequest(string Name, CustomTemplateType Type, string Body);
 

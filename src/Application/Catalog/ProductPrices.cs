@@ -46,4 +46,26 @@ public static class ProductPrices
         var secondary = product.SecondaryUnits.FirstOrDefault(x => x.UnitId == unitId);
         return secondary is null ? null : ToExclusiveRate(secondary.SellingPrice, product.VatRate, basis);
     }
+
+    /// <summary>
+    /// Phase 95 -- the rate a batch's own selling price gives a line in one of the product's units: per primary unit,
+    /// times a secondary unit's conversion rate, through <see cref="ToExclusiveRate"/> as the catalogue's is. What
+    /// picking the batch prices a line at, and a rate the price gates keep as unchanged, beside the catalogue's. Null
+    /// when the batch has no price (one created before phase 95) or the product is not sold in that unit.
+    /// </summary>
+    public static decimal? BatchRate(Product product, Guid? unitId, ProductPriceBasis basis, decimal? batchSellingPrice)
+    {
+        if (batchSellingPrice is not { } price)
+        {
+            return null;
+        }
+
+        if (unitId is null || unitId == product.PrimaryUnitId)
+        {
+            return ToExclusiveRate(price, product.VatRate, basis);
+        }
+
+        var secondary = product.SecondaryUnits.FirstOrDefault(x => x.UnitId == unitId);
+        return secondary is null ? null : ToExclusiveRate(price * secondary.ConversionRate, product.VatRate, basis);
+    }
 }

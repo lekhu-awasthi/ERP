@@ -55,6 +55,8 @@ public sealed class PrintingTemplateConfiguration : IEntityTypeConfiguration<Pri
 
         builder.Property(x => x.FooterText).HasMaxLength(PrintingTemplate.FooterTextMaxLength);
         builder.Property(x => x.CompactMargins).IsRequired();
+        // Phase 95 -- off, true of every existing template: no bill changes until a company asks.
+        builder.Property(x => x.PrintSerialNumbers).IsRequired().HasDefaultValue(false);
 
         builder.HasIndex(x => new { x.OrganizationId, x.DocumentType, x.Name }).IsUnique();
     }

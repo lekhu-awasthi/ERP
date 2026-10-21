@@ -65,6 +65,8 @@ interface EditableLine {
   batchNo: string;
   manufactureDate: string;
   expiryDate: string;
+  /** Phase 95 -- a new batch's selling price, as typed; empty until typed. */
+  batchPriceText: string;
   serialsText: string;
   /** The serial the box's last Enter took out as a repeat, named under it until the next keystroke. */
   serialRepeat?: string | null;
@@ -365,6 +367,7 @@ export class PurchaseBillDetailPage {
                   batchNo: ('batchNo' in l ? (l.batchNo ?? '') : ''),
                   manufactureDate: ('manufactureDate' in l ? (l.manufactureDate ?? '') : ''),
                   expiryDate: ('expiryDate' in l ? (l.expiryDate ?? '') : ''),
+                  batchPriceText: '',
                   serialsText: ('serialNumbers' in l ? (l.serialNumbers ?? []).join(', ') : ''),
                   unitId: ('unitId' in l ? ((l as { unitId?: string | null }).unitId ?? '') : ''),
                 }))
@@ -450,6 +453,7 @@ export class PurchaseBillDetailPage {
     const productId = (event.target as HTMLSelectElement).value;
     const product = this.products().find((p) => p.id === productId);
     this.updateLine(key, { productId, rate: product?.purchasePrice ?? 0, vatRate: product?.vatRate ?? 'NoVat' });
+    this.loadBatchesOf(productId);
   }
 
   protected onQuantityChange(key: number, event: Event): void {
@@ -689,6 +693,7 @@ export class PurchaseBillDetailPage {
         batchNo: '',
         manufactureDate: '',
         expiryDate: '',
+        batchPriceText: '',
         serialsText: '',
         // Phase 52 -- the product's primary unit, deliberately. The five document-to-document
         // conversion templates carry the source line's unit because their source is a line in
@@ -777,6 +782,8 @@ export class PurchaseBillDetailPage {
         unitId: l.unitId || null,
         manufactureDate: l.manufactureDate || null,
         expiryDate: l.expiryDate || null,
+        // Phase 95 -- only a new batch carries a price; an existing one keeps its own.
+        batchSellingPrice: this.isNewBatch(l) && l.batchPriceText.trim() !== '' ? Number(l.batchPriceText) : null,
         serialNumbers: parseSerials(l.serialsText),
       }));
 
@@ -795,6 +802,38 @@ export class PurchaseBillDetailPage {
    *  handler, never derived in a `computed()` over a form value (zoneless, phase 17). */
   protected onBatchNoChange(key: number, event: Event): void {
     this.updateLine(key, { batchNo: (event.target as HTMLInputElement).value });
+  }
+
+  /** Phase 95 -- each batch-tracked product's existing batch numbers (upper-cased), read once per product, so a line
+   * naming a new one can ask for what a new batch needs. */
+  protected readonly knownBatches = signal<Record<string, string[]>>({});
+
+  protected loadBatchesOf(productId: string): void {
+    const product = this.products().find((p) => p.id === productId);
+    if (!product?.batchTracking || productId in this.knownBatches()) return;
+    this.knownBatches.update((all) => ({ ...all, [productId]: [] }));
+    this.catalogService.listProductBatches(this.organizationId, productId, {}).subscribe({
+      next: (rows) =>
+        this.knownBatches.update((all) => ({ ...all, [productId]: rows.map((r) => r.batchNo.toUpperCase()) })),
+    });
+  }
+
+  /** Phase 95 -- whether a line names a batch its product does not have yet: the vendor's New Batch, which needs an
+   * expiry date and a selling price (the server refuses one without them, naming the line). */
+  protected isNewBatch(line: EditableLine): boolean {
+    const batch = line.batchNo.trim().toUpperCase();
+    const product = this.products().find((p) => p.id === line.productId);
+    if (!batch || !product?.batchTracking) return false;
+    const known = this.knownBatches()[line.productId];
+    return known !== undefined && !known.includes(batch);
+  }
+
+  protected onBatchExpiryChange(key: number, value: string): void {
+    this.updateLine(key, { expiryDate: value });
+  }
+
+  protected onBatchPriceChange(key: number, event: Event): void {
+    this.updateLine(key, { batchPriceText: (event.target as HTMLInputElement).value });
   }
 
   /** Phase 51 -- the serial list, kept as raw text and parsed at submit time by `parseSerials`. */
@@ -855,6 +894,7 @@ export class PurchaseBillDetailPage {
       batchNo: '',
       manufactureDate: '',
       expiryDate: '',
+      batchPriceText: '',
       serialsText: '',
 };
   }
@@ -1081,6 +1121,7 @@ export class PurchaseBillDetailPage {
                 batchNo: l.batchNo ?? '',
                 manufactureDate: l.manufactureDate ?? '',
                 expiryDate: l.expiryDate ?? '',
+                batchPriceText: '',
                 serialsText: (l.serialNumbers ?? []).join(', '),
               }))
             : [this.newLine()],

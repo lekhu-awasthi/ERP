@@ -198,6 +198,8 @@ export interface PosOrderLine {
   gross: number;
   /** Phase 74 -- rupees off each unit, never beside `discountPct`. */
   discountPerUnit: number;
+  /** Phase 95 -- the batch a batch-tracked item is served from; null otherwise, or on a line ordered before. */
+  batchNo?: string | null;
   /** Phase 74 -- this dish's share of the order's amount discount: live until the first bill, frozen from it. */
   orderDiscountShare: number;
   /** Phase 83 -- what this dish's bills gave off it of their own (one guest's discount each). */
@@ -309,6 +311,8 @@ export interface PosOrderItemInput {
   quantity: number;
   unitId: string | null;
   note: string | null;
+  /** Phase 95 -- required for a batch-tracked product (the server's 400 names the item). */
+  batchNo?: string | null;
 }
 
 export interface PosOrderLineQuantityInput {

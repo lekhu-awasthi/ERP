@@ -488,6 +488,9 @@ export interface GeneralSettings {
   negativeCashBalanceAction: BalanceAction;
   negativeStockBalanceAction: BalanceAction;
   creditLimitExceedsAction: BalanceAction;
+  /** Phase 95 -- the company's tracking switches: off overrides every product's own. */
+  batchTrackingEnabled: boolean;
+  serialTrackingEnabled: boolean;
 }
 
 /** Phase 31 -- the renewal 20f left out. Entitlement flags are deliberately absent: a renewal is a

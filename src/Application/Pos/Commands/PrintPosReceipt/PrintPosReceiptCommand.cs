@@ -21,7 +21,10 @@ public sealed record PosReceiptLineDto(
     VatRate VatRate,
     decimal VatAmount,
     decimal LineTotal,
-    decimal DiscountPerUnit = 0m);
+    decimal DiscountPerUnit = 0m,
+    // Phase 95 -- the units the line sold or brought back, when the location's bill template prints them (its Invoice
+    // template for a sale, its Credit Note template for a refund); null otherwise.
+    IReadOnlyList<string>? SerialNumbers = null);
 
 public sealed record PosReceiptTenderDto(string PaymentModeName, PaymentModeKind Kind, decimal Amount);
 

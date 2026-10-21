@@ -34,6 +34,12 @@ internal static class CreditNoteBatches
             return null;
         }
 
+        // Phase 95 -- the company's Batch Tracking switch off: no product is batch-tracked, so there is no batch to check.
+        if (!(await StockTrackingSwitches.LoadAsync(db, creditNote.OrganizationId, cancellationToken)).Batch)
+        {
+            return null;
+        }
+
         var organizationId = creditNote.OrganizationId;
         var lines = creditNote.Lines.Select((line, i) => (Line: line, No: i + 1)).ToList();
         var productIds = lines.Select(x => x.Line.ProductId).Distinct().ToList();

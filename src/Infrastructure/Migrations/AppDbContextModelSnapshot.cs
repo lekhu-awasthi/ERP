@@ -662,8 +662,12 @@ namespace ErpApp.Infrastructure.Migrations
 
                     b.HasIndex("SalesReturnAccountId");
 
+                    b.HasIndex("OrganizationId", "Barcode");
+
                     b.HasIndex("OrganizationId", "Code")
                         .IsUnique();
+
+                    b.HasIndex("OrganizationId", "Sku");
 
                     b.HasIndex("OrganizationId", "Name", "Code");
 
@@ -701,6 +705,10 @@ namespace ErpApp.Infrastructure.Migrations
 
                     b.Property<Guid>("ProductId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal?>("SellingPrice")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
 
                     b.HasKey("Id");
 
@@ -1707,6 +1715,11 @@ namespace ErpApp.Infrastructure.Migrations
 
                     b.Property<Guid>("OrganizationId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("PrintSerialNumbers")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
 
                     b.Property<string>("PrintedCustomFieldIds")
                         .IsRequired()
@@ -4341,6 +4354,9 @@ namespace ErpApp.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid?>("BatchId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<decimal>("ConversionFactor")
                         .HasPrecision(18, 6)
                         .HasColumnType("decimal(18,6)");
@@ -4413,6 +4429,8 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasColumnType("nvarchar(30)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("BatchId");
 
                     b.HasIndex("KitchenStationId");
 
@@ -5186,6 +5204,9 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasColumnType("nvarchar(100)");
 
                     b.Property<Guid?>("InventoryAccountId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("InventoryAdjustmentAccountId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<bool>("IsImport")
@@ -10776,6 +10797,11 @@ namespace ErpApp.Infrastructure.Migrations
                     b.Property<bool>("AiDocumentExtractionEnabled")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("BatchTrackingEnabled")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("datetimeoffset");
 
@@ -10871,6 +10897,11 @@ namespace ErpApp.Infrastructure.Migrations
                         .HasMaxLength(30)
                         .HasColumnType("nvarchar(30)")
                         .HasDefaultValue("ExclusiveOfVat");
+
+                    b.Property<bool>("SerialTrackingEnabled")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
 
                     b.Property<string>("SuggestSellingPriceMode")
                         .IsRequired()
@@ -12207,6 +12238,11 @@ namespace ErpApp.Infrastructure.Migrations
 
             modelBuilder.Entity("ErpApp.Domain.Pos.PosOrderLine", b =>
                 {
+                    b.HasOne("ErpApp.Domain.Catalog.ProductBatch", null)
+                        .WithMany()
+                        .HasForeignKey("BatchId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("ErpApp.Domain.Pos.KitchenStation", null)
                         .WithMany()
                         .HasForeignKey("KitchenStationId")

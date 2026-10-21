@@ -22,6 +22,8 @@ public sealed class GetGeneralSettingsQueryHandler(IAppDbContext db)
             settings.InventoryTrackingMode,
             settings.NegativeCashBalanceAction,
             settings.NegativeStockBalanceAction,
-            settings.CreditLimitExceedsAction);
+            settings.CreditLimitExceedsAction,
+            settings.BatchTrackingEnabled,
+            settings.SerialTrackingEnabled);
     }
 }

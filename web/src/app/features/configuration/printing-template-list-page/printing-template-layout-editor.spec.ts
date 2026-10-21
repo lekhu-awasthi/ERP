@@ -168,8 +168,31 @@ describe('PrintingTemplateLayoutEditor', () => {
         printedCustomFieldIds: [],
         footerText: 'Bank: NIC Asia 0012345',
         compactMargins: true,
+        printSerialNumbers: false,
       },
     }]);
+  });
+
+  it('offers a bill\'s template the serial numbers, off until ticked, and sends what was chosen (phase 95)', async () => {
+    await render(template());
+
+    const box = el().querySelector<HTMLInputElement>('#layout-editor-serials')!;
+    expect(box.checked).toBe(false);
+    expect(el().querySelector('label[for="layout-editor-serials"]')?.textContent).toContain('Print serial numbers');
+
+    click('layout-editor-serials');
+    button('Save Layout').click();
+
+    expect(saved[0].request.printSerialNumbers).toBe(true);
+  });
+
+  it('offers no serial numbers to a type that sells no units, and leaves them alone on save (phase 95)', async () => {
+    await render(template({ documentType: 'JournalVoucher' }));
+
+    expect(el().querySelector('#layout-editor-serials')).toBeNull();
+    button('Save Layout').click();
+
+    expect(saved[0].request.printSerialNumbers).toBeNull();
   });
 
   it('starts from what is saved', async () => {

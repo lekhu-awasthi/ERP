@@ -210,6 +210,8 @@ export interface PurchaseBillLineInput {
   batchNo?: string | null;
   manufactureDate?: string | null;
   expiryDate?: string | null;
+  /** Phase 95 -- what a batch this line creates sells for, per primary unit; required with the expiry of a new one. */
+  batchSellingPrice?: number | null;
   /** Phase 51 -- one per physical unit received. */
   serialNumbers?: string[] | null;
   /**

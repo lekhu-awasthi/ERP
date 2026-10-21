@@ -56,6 +56,9 @@ export class GeneralSettingsPage {
   protected readonly negativeCashBalanceAction = signal<BalanceAction>('Reject');
   protected readonly negativeStockBalanceAction = signal<BalanceAction>('Warn');
   protected readonly creditLimitExceedsAction = signal<BalanceAction>('Warn');
+  /** Phase 95 -- the company's tracking switches (the vendor's Batch and Serial No Tracking, on this same page). */
+  protected readonly batchTrackingEnabled = signal(false);
+  protected readonly serialTrackingEnabled = signal(false);
 
   /** The three-way groups all render the same way, so the option copy lives here once. Wording is
    *  taken from the live page verbatim. */
@@ -89,6 +92,23 @@ export class GeneralSettingsPage {
     this.creditLimitExceedsAction.set(value);
   }
 
+  protected setBatchTracking(event: Event): void {
+    this.batchTrackingEnabled.set((event.target as HTMLInputElement).checked);
+  }
+
+  protected setSerialTracking(event: Event): void {
+    this.serialTrackingEnabled.set((event.target as HTMLInputElement).checked);
+  }
+
+  /** Phase 95 -- said before Save, because stock received while a switch is off carries no batch or serial for good. */
+  protected switchingOff(kind: 'batch' | 'serial'): boolean {
+    const saved = this.settings();
+    if (!saved) return false;
+    return kind === 'batch'
+      ? saved.batchTrackingEnabled && !this.batchTrackingEnabled()
+      : saved.serialTrackingEnabled && !this.serialTrackingEnabled();
+  }
+
   protected save(): void {
     const current = this.settings();
     if (!current) {
@@ -108,6 +128,8 @@ export class GeneralSettingsPage {
         negativeCashBalanceAction: this.negativeCashBalanceAction(),
         negativeStockBalanceAction: this.negativeStockBalanceAction(),
         creditLimitExceedsAction: this.creditLimitExceedsAction(),
+        batchTrackingEnabled: this.batchTrackingEnabled(),
+        serialTrackingEnabled: this.serialTrackingEnabled(),
       })
       .subscribe({
         next: (result) => {
@@ -144,5 +166,7 @@ export class GeneralSettingsPage {
     this.negativeCashBalanceAction.set(result.negativeCashBalanceAction);
     this.negativeStockBalanceAction.set(result.negativeStockBalanceAction);
     this.creditLimitExceedsAction.set(result.creditLimitExceedsAction);
+    this.batchTrackingEnabled.set(result.batchTrackingEnabled);
+    this.serialTrackingEnabled.set(result.serialTrackingEnabled);
   }
 }

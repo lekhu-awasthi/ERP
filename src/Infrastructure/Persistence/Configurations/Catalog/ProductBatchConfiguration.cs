@@ -27,6 +27,8 @@ public sealed class ProductBatchConfiguration : IEntityTypeConfiguration<Product
         // declaration (phase 50's lesson about being right by luck rather than by rule).
         builder.Property(x => x.ManufactureDate);
         builder.Property(x => x.ExpiryDate);
+        // Phase 95 -- the product's own Selling Price scale.
+        builder.Property(x => x.SellingPrice).HasPrecision(18, 4);
 
         builder.HasOne<Product>().WithMany().HasForeignKey(x => x.ProductId).OnDelete(DeleteBehavior.Restrict);
 

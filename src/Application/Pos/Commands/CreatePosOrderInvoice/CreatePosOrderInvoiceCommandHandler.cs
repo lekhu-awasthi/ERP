@@ -116,7 +116,8 @@ public sealed class CreatePosOrderInvoiceCommandHandler(
                 line.Line.DiscountPerUnit, line.Line.DiscountPct, line.BillDiscountShare + line.PartDiscountShare,
                 line.PartDiscountShare, line.Line.UnitId, line.Line.ConversionFactor,
                 line.ServiceChargeWaived > 0m ? 0m : order.ServiceChargeRateOf(line.Line),
-                line.Line.PackagingFee, line.Figures, partServiceChargeWaived: line.ServiceChargeWaived);
+                line.Line.PackagingFee, line.Figures, partServiceChargeWaived: line.ServiceChargeWaived,
+                batchId: line.Line.BatchId);
         }
 
         // Phase 74 -- the first bill freezes how the order's amount discount is spread (Decision B); the plan above

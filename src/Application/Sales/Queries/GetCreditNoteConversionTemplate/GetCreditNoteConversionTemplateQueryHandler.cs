@@ -134,6 +134,9 @@ public sealed class GetCreditNoteConversionTemplateQueryHandler(IAppDbContext db
             throw new ConflictException("This invoice has already been fully credited.");
         }
 
+        // Phase 95 -- a company switch that is off: the note names no batch or serial of that kind, so none is offered.
+        var switches = await StockTrackingSwitches.LoadAsync(db, request.OrganizationId, cancellationToken);
+
         return new CreditNoteConversionTemplateDto(
             invoice.ContactId,
             DateOnly.FromDateTime(DateTime.UtcNow),
@@ -141,7 +144,11 @@ public sealed class GetCreditNoteConversionTemplateQueryHandler(IAppDbContext db
             DocumentType.Invoice,
             invoice.Id,
             invoice.DiscountPct,
-            lines,
+            [.. lines.Select(l => l with
+            {
+                BatchNo = switches.Batch ? l.BatchNo : null,
+                SerialNumbers = switches.Serial ? l.SerialNumbers : [],
+            })],
             invoice.LocationId,
             invoice.Terms,
             invoice.CurrencyCode,

@@ -85,7 +85,8 @@ public sealed class UpdateInvoiceCommandHandler(IAppDbContext db, ICurrentUserSe
         await SalesPriceGate.EnsureMayPriceAsync(
             db, request.OrganizationId, currentUser.UserId, invoice.LocationId, SalesPriceGate.IsBase(invoice.CurrencyCode),
             request.DiscountPct,
-            [.. request.Lines.Select((x, i) => new SalesPriceGate.PricedLine(x.ProductId, units[i].UnitId, x.Rate, x.DiscountPct))],
+            [.. request.Lines.Select((x, i) => new SalesPriceGate.PricedLine(
+                x.ProductId, units[i].UnitId, x.Rate, x.DiscountPct, allocations[i]))],
             carriedDiscountPct,
             [.. oldLines.Select(x => new SalesPriceGate.PricedLine(x.ProductId, x.UnitId, x.Rate, x.DiscountPct))],
             cancellationToken);

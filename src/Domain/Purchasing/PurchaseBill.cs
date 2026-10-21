@@ -387,6 +387,12 @@ public sealed class PurchaseBill
     /// payment settling it use the same ones whatever the settings say by then. Draft only, because the approval is the
     /// action. A leg the bill does not post records no account. The line accounts are in line order.
     /// </summary>
+    /// <summary>Phase 95 -- the Inventory Adjustment account in force when the bill was approved, recorded for its debit
+    /// notes: a return's difference between its price and the cost the stock gives up goes here, as the user chose
+    /// (2026-10-20, phase 87's Decision G reopened), not to whatever the default is by the time of the return. Null on a
+    /// bill that stocked nothing, and on one approved before phase 95, which keeps today's rule.</summary>
+    public Guid? InventoryAdjustmentAccountId { get; private set; }
+
     public void RecordPostingAccounts(PurchaseBillPostingAccounts accounts)
     {
         ArgumentNullException.ThrowIfNull(accounts);
@@ -402,6 +408,8 @@ public sealed class PurchaseBill
         TdsPayableAccountId = TdsAmount != 0m ? accounts.TdsPayableAccountId : null;
         InventoryAccountId = accounts.InventoryAccountId;
         LandedCostClearingAccountId = _additionalCosts.Count > 0 ? accounts.LandedCostClearingAccountId : null;
+        // Phase 95 -- a bill that stocked goods keeps the account a return of them books its price-to-cost difference to.
+        InventoryAdjustmentAccountId = accounts.InventoryAccountId is not null ? accounts.InventoryAdjustmentAccountId : null;
 
         for (var i = 0; i < _lines.Count; i++)
         {

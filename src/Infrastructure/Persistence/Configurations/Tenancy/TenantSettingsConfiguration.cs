@@ -48,6 +48,11 @@ public sealed class TenantSettingsConfiguration : IEntityTypeConfiguration<Tenan
             .HasConversion<string>().HasMaxLength(30).IsRequired()
             .HasDefaultValue(Domain.Tenancy.BalanceAction.Warn).ValueGeneratedNever();
 
+        // Phase 95 -- off for a new company, as the vendor's are; the migration switches each on for a company that
+        // already tracks a product that way, so nothing an existing company does changes.
+        builder.Property(s => s.BatchTrackingEnabled).IsRequired().HasDefaultValue(false);
+        builder.Property(s => s.SerialTrackingEnabled).IsRequired().HasDefaultValue(false);
+
         builder.HasIndex(s => s.OrganizationId).IsUnique();
 
         builder.HasOne<Organization>()

@@ -21,6 +21,9 @@ namespace ErpApp.Application.Purchasing;
 /// product's primary nor one of its secondary units is a 400 naming the line. The conversion
 /// factor is <b>not</b> accepted from the client: it is resolved from the catalogue once, by
 /// <c>DocumentLineUnitResolver</c>, and frozen on the line.</param>
+/// <param name="BatchSellingPrice">Phase 95 -- what a batch this line creates sells for, per primary unit, typed as a
+/// product's Selling Price is. A new batch needs it and an <paramref name="ExpiryDate"/> (the vendor's New Batch form
+/// requires both); a batch that already exists ignores both unless it lacks them.</param>
 public sealed record PurchaseBillLineInput(
     Guid ProductId,
     decimal Quantity,
@@ -32,4 +35,5 @@ public sealed record PurchaseBillLineInput(
     DateOnly? ManufactureDate = null,
     DateOnly? ExpiryDate = null,
     IReadOnlyList<string>? SerialNumbers = null,
-    Guid? UnitId = null);
+    Guid? UnitId = null,
+    decimal? BatchSellingPrice = null);

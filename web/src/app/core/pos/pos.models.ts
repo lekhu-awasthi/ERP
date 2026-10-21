@@ -219,6 +219,9 @@ export interface PosProductBatch {
   batchNo: string;
   expiryDate: string | null;
   quantity: number;
+  /** Phase 95 -- the batch's own price, exclusive of VAT per primary unit; picking it prices the line. Null on an
+   * older batch, which keeps the catalogue price. */
+  rate?: number | null;
 }
 
 export type PosSessionStatus = 'Open' | 'Closed';
@@ -582,6 +585,8 @@ export interface PosReceiptLine {
   lineTotal: number;
   /** Phase 74 -- rupees off each unit; zero unless the line had an Amount discount. */
   discountPerUnit: number;
+  /** Phase 95 -- the units sold or returned, when the location's bill template prints them. */
+  serialNumbers?: string[] | null;
 }
 
 export interface PosReceiptTender {

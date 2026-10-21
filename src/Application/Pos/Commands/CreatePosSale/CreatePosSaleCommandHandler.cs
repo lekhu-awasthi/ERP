@@ -194,10 +194,28 @@ public sealed class CreatePosSaleCommandHandler(
             .ToDictionaryAsync(x => x.Id, cancellationToken);
         var basis = await PosSellableProducts.PriceBasisAsync(db, request.OrganizationId, cancellationToken);
 
+        // Phase 95 -- the batch a line names prices it at its own selling price when it has one: that is the batch's
+        // price, not a changed one (ProductPrices.BatchRate).
+        var batchNos = request.Lines.Where(x => !string.IsNullOrWhiteSpace(x.BatchNo)).Select(x => x.BatchNo!.Trim())
+            .Distinct().ToList();
+        var batches = batchNos.Count == 0
+            ? []
+            : await db.ProductBatches
+                .AsNoTracking()
+                .Where(x => x.OrganizationId == request.OrganizationId && productIds.Contains(x.ProductId)
+                    && batchNos.Contains(x.BatchNo))
+                .Select(x => new { x.ProductId, x.BatchNo, x.SellingPrice })
+                .ToListAsync(cancellationToken);
+
+        decimal? BatchPrice(PosSaleLineInput line) => batches
+            .FirstOrDefault(b => b.ProductId == line.ProductId
+                && string.Equals(b.BatchNo, line.BatchNo?.Trim(), StringComparison.OrdinalIgnoreCase))?.SellingPrice;
+
         return request.Lines.Any(line =>
             catalogue.TryGetValue(line.ProductId, out var product)
             && ProductPrices.CatalogueRate(product, line.UnitId, basis) is { } rate
-            && line.Rate != rate);
+            && line.Rate != rate
+            && line.Rate != ProductPrices.BatchRate(product, line.UnitId, basis, BatchPrice(line)));
     }
 
     /// <summary>Each tender's mode must be one this till offers, and a cash tender must go into this

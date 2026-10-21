@@ -20,7 +20,8 @@ public sealed record UpdatePrintingTemplateLayoutCommand(
     IReadOnlyList<PrintElement>? HiddenElements,
     IReadOnlyList<Guid>? PrintedCustomFieldIds,
     string? FooterText,
-    bool? CompactMargins)
+    bool? CompactMargins,
+    bool? PrintSerialNumbers = null)
     : IRequest<PrintingTemplateLayoutResult>, IRequirePermission, IOrganizationScoped
 {
     public string PermissionKey => PermissionKeys.PrintingTemplateManage;
@@ -32,4 +33,5 @@ public sealed record PrintingTemplateLayoutResult(
     IReadOnlyList<PrintElement> HiddenElements,
     IReadOnlyList<Guid> PrintedCustomFieldIds,
     string? FooterText,
-    bool CompactMargins);
+    bool CompactMargins,
+    bool PrintSerialNumbers = false);

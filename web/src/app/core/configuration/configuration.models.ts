@@ -289,6 +289,8 @@ export interface PrintingTemplate {
   printedCustomFieldIds: string[];
   footerText: string | null;
   compactMargins: boolean;
+  /** Phase 95 -- a bill printed with it names each line's serial numbers; off until a company switches it on. */
+  printSerialNumbers?: boolean;
 }
 
 /** Phase 75 -- the template one location uses for one document type instead of the organization's default. */
@@ -319,6 +321,8 @@ export interface PrintingTemplateLayoutRequest {
   printedCustomFieldIds: string[];
   footerText: string | null;
   compactMargins: boolean;
+  /** Phase 95 -- only an Invoice's or a Credit Note's template prints serials; null leaves the stored value. */
+  printSerialNumbers: boolean | null;
 }
 
 export interface PrintingTemplatePreviewRequest extends PrintingTemplateLayoutRequest {

@@ -105,10 +105,14 @@ public static class StockTrackingRules
             return;
         }
 
+        // Phase 95 -- tracked as the company's switches let it be: a switch that is off overrides the product's own.
+        var switches = await StockTrackingSwitches.LoadAsync(db, organizationId, cancellationToken);
+        var batchOn = switches.Batch;
+        var serialOn = switches.Serial;
         var tracked = await db.Products
             .Where(x => x.OrganizationId == organizationId && distinct.Contains(x.Id)
-                && (x.BatchTracking || x.SerialTracking))
-            .Select(x => new { x.Name, x.BatchTracking })
+                && ((batchOn && x.BatchTracking) || (serialOn && x.SerialTracking)))
+            .Select(x => new { x.Name, BatchTracking = batchOn && x.BatchTracking })
             .FirstOrDefaultAsync(cancellationToken);
 
         if (tracked is null)
@@ -136,33 +140,39 @@ public static class StockTrackingRules
     /// What the line does to stock. Phase 51's Decision D made a receipt <b>must</b> name the batch and an issue
     /// <b>may</b>; phase 93 made an ERP issue must as well (the vendor's rule), and phase 94 the Retail till's.
     /// </param>
+    /// <param name="switches">Phase 95 -- the company's tracking switches: one that is off overrides the product's
+    /// own flag.</param>
     public static string? ValidateLineAllocation(
         Product product,
         Guid? batchId,
         IReadOnlyCollection<string> serialNumbers,
-        StockLineKind kind)
+        StockLineKind kind,
+        StockTrackingSwitches switches)
     {
-        if (!product.BatchTracking && batchId is not null)
+        var batchTracked = switches.TracksBatches(product);
+        var serialTracked = switches.TracksSerials(product);
+
+        if (!batchTracked && batchId is not null)
         {
             return $"'{product.Name}' is not batch-tracked, so a line for it cannot name a batch.";
         }
 
-        if (!product.SerialTracking && serialNumbers.Count > 0)
+        if (!serialTracked && serialNumbers.Count > 0)
         {
             return $"'{product.Name}' is not serial-tracked, so a line for it cannot name serial numbers.";
         }
 
-        if (product.BatchTracking && batchId is null)
+        if (batchTracked && batchId is null)
         {
             return BatchRequiredMessage(product.Name, kind);
         }
 
-        if (product.SerialTracking && serialNumbers.Count == 0)
+        if (serialTracked && serialNumbers.Count == 0)
         {
             return $"'{product.Name}' is serial-tracked, so a line for it must name its serial numbers.";
         }
 
-        if (product.SerialTracking)
+        if (serialTracked)
         {
             var duplicate = serialNumbers
                 .GroupBy(x => x.Trim(), StringComparer.OrdinalIgnoreCase)
@@ -188,9 +198,10 @@ public static class StockTrackingRules
     /// <see cref="ValidateLineAllocation"/> because it needs the line's quantity and the message
     /// names a different field.
     /// </summary>
-    public static string? ValidateSerialCount(Product product, decimal quantity, int serialCount)
+    public static string? ValidateSerialCount(
+        Product product, decimal quantity, int serialCount, StockTrackingSwitches switches)
     {
-        if (!product.SerialTracking)
+        if (!switches.TracksSerials(product))
         {
             return null;
         }

@@ -104,6 +104,14 @@
       <input class="form-check-input" type="checkbox" id="layout-editor-compact" [checked]="compactMargins()" (change)="onCompact($event)" />
       <label class="form-check-label small" for="layout-editor-compact">Compact margins (fits a short document on half a page)</label>
     </div>
+    @if (printsSerials()) {
+      <!-- Phase 95 -- off unless asked: no statute asks a bill for serials, and a warranty does. The till's receipt at a
+           location follows the template that location prints its bills with. -->
+      <div class="form-check mb-4">
+        <input class="form-check-input" type="checkbox" id="layout-editor-serials" [checked]="printSerialNumbers()" (change)="onPrintSerials($event)" />
+        <label class="form-check-label small" for="layout-editor-serials">Print serial numbers (under each item, on the bill and the till receipt)</label>
+      </div>
+    }
 
     <div class="d-flex gap-2 flex-wrap">
       <button type="button" class="btn btn-primary fw-bold" [disabled]="saving() || footerTooLong()" (click)="save()">

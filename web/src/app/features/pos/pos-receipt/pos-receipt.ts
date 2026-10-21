@@ -106,6 +106,10 @@ export const POS_RECEIPT_STYLES = `
       <div class="r-rule"></div>
       @for (line of r.lines; track $index) {
         <p>{{ line.productName }}</p>
+        @if (line.serialNumbers?.length) {
+          <!-- Phase 95 -- when the location's bill template prints them. -->
+          <p>SN: {{ line.serialNumbers!.join(', ') }}</p>
+        }
         <div class="r-row r-indent">
           <span>{{ line.quantity }} {{ line.unitShortName }} &times; {{ line.rate | amount }}</span>
           <span>{{ line.amount | amount }}</span>
