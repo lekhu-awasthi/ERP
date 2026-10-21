@@ -435,6 +435,22 @@ public class PrintingTemplateLayoutTests
 
         var bill = types.Single(x => x.DocumentType == DocumentType.PurchaseBill);
         Assert.DoesNotContain(bill.Layouts, x => x.Layout == PrintLayout.Retail);
+
+        // Phase 98 -- the money receipt is offered the roll, with what the roll has no room for.
+        var receipt = types.Single(x => x.DocumentType == DocumentType.Payment);
+        var roll = Assert.Single(receipt.Layouts, x => x.Layout == PrintLayout.Retail);
+        Assert.DoesNotContain(PrintElement.OrganizationLogo, receipt.Layouts.Single(x => x.Layout == PrintLayout.Classic).Omits);
+        Assert.Contains(PrintElement.OrganizationLogo, roll.Omits);
+    }
+
+    /// <summary>Phase 98 -- a Payment's template saves the roll, and the money receipt then prints on it.</summary>
+    [Fact]
+    public void A_money_receipt_prints_on_the_roll_its_template_chose()
+    {
+        var printed = PrintTemplateApplier.Apply(SampleDto(DocumentType.Payment), Settings(hidden: [], layout: PrintLayout.Retail));
+
+        Assert.Equal(PrintLayout.Retail, printed.Layout);
+        Assert.False(printed.ShowSignatureLine);
     }
 
     // ---- Helpers --------------------------------------------------------------------------------------

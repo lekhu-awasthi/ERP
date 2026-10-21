@@ -19,11 +19,14 @@ public class PrintLayoutsTests
     }
 
     [Fact]
-    public void The_roll_is_offered_to_invoice_credit_note_and_sales_order_only()
+    public void The_roll_is_offered_to_invoice_credit_note_sales_order_and_the_money_receipt_only()
     {
         var offered = DocumentMechanisms.Printable.Where(type => PrintLayouts.IsOffered(PrintLayout.Retail, type)).ToList();
 
-        Assert.Equal([DocumentType.SalesOrder, DocumentType.Invoice, DocumentType.CreditNote], offered.OrderBy(x => x).ToList());
+        // Phase 98 -- the money receipt (a Payment) joined the vendor's three.
+        Assert.Equal(
+            [DocumentType.SalesOrder, DocumentType.Invoice, DocumentType.CreditNote, DocumentType.Payment],
+            offered.OrderBy(x => x).ToList());
     }
 
     [Fact]

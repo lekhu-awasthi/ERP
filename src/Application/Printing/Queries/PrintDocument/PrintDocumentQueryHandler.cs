@@ -362,10 +362,9 @@ public sealed class PrintDocumentQueryHandler(IAppDbContext db, IFileStorage sto
             ]));
         }
 
-        var header = new List<PrintableFieldDto>
-        {
-            new(received ? "Receipt No" : "Payment No", document.Code),
-        };
+        // Phase 98 -- no "Receipt No" / "Payment No" field: the renderer prints every document's code as its Number, so
+        // the receipt printed the same number twice on every layout (seen on the 80 mm roll, where it costs a line).
+        var header = new List<PrintableFieldDto>();
         if (paymentModeName is not null)
         {
             header.Add(new PrintableFieldDto("Payment Mode", paymentModeName));

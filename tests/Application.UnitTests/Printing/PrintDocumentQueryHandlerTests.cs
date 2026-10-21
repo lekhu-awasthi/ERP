@@ -248,6 +248,8 @@ public class PrintDocumentQueryHandlerTests
         Assert.Empty(dto.Sections[1].Rows);
         Assert.Null(dto.Sections[1].TotalRow);
         Assert.Equal("1,200.00", dto.Summary.Single(x => x.Label == "Unallocated").Value);
+        // Phase 98 -- the receipt's number prints once, as every document's Number does.
+        Assert.DoesNotContain(dto.HeaderFields, x => x.Value == dto.Code);
     }
 
     /// <summary>Phase 84 -- the money receipt is a bill a customer is handed, so its date prints in BS with AD beside

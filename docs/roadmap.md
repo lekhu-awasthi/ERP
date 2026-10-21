@@ -318,6 +318,9 @@ invoice (built); the vendor's print extras (phase 79 § 5) and its per-row alloc
 **Carried from phase 96** (§ 5 there): the tax advisor answered all three (2026-10-21), built in phase 97: the credit
 carries on unchanged, a domestic zero-rated sale has its own return line, and Annex 13 stays before VAT.
 
+**Carried from phase 79** (§ 5 there), last item: the money receipt on the roll was done in phase 98. The rest of
+that list was dropped in phase 96 by the user's choice.
+
 **Carried from phase 97** (§ 5 there):
 
 - Whether **exempt** sales should limit the input VAT a month claims (proportional credit). The app has never

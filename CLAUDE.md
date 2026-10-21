@@ -129,6 +129,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 95: seven leftovers cleared in one session (focus kept app-wide, `FocusKeeper`; a batch on a restaurant order line; the scan indexed and the grid's location rule a set; a batch's own price and required expiry; serials printable by template; company tracking switches over each product's; a return's difference to its bill's account). Before deferring a flaw, moving focus, or reading a product's tracking flag — `docs/phase-95-status.md`
 - Phase 96: the carried questions answered (a till refund rounds into the account its sale rounded into, `Invoice.RoundingAccountId`; the vendor's print extras and allocation table dropped; the VAT points written as questions for a tax advisor). Before reversing into an account a setting chose — `docs/phase-96-status.md`
 - Phase 97: the tax advisor's answers (a domestic zero-rated sale its own VAT-return line, `Bucketed.ZeroRated`; the credit's carry and Annex 13 confirmed and pinned) + discount schemes (item, category, slab; one reader `DiscountSchemeRates` for forms, till and gates; the scheme is where a discount starts and keeping it needs no key). Before a promotion, an automatic price, or splitting a statutory figure by rate — `docs/phase-97-status.md`
+- Phase 98: the money receipt on the 80 mm roll (`PrintLayouts.RetailTypes` gains Payment; the roll renderer is type-free, so nothing else moved; supplier payments may use it too; the receipt's number no longer prints twice). Before offering a layout to another type — `docs/phase-98-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -611,19 +612,18 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 
 ## Current status
 
-**Phases 0-97 are complete. Next: not yet scheduled** (the user picks; candidates in `docs/roadmap.md`).
+**Phases 0-98 are complete. Next: not yet scheduled** (the user picks; candidates in `docs/roadmap.md`).
 Each phase's story is in its `docs/phase-N-status.md`, and finished planning entries are archived in
 `docs/roadmap-history.md`.
 
-**Phase 97 built the tax advisor's answers and discount schemes** (2026-10-21). A 0% sale inside Nepal has its own
-line on the VAT return; the credit's carry and Annex 13 were already right and are now pinned. *Configurations >
-Discount Schemes* gives items, categories and bills a dated percent off, on the ERP's sales forms and at both tills.
+**Phase 98 put the money receipt on the 80 mm roll** (2026-10-21), the last item of the old carried list. Phase 97
+before it built the tax advisor's VAT answers and discount schemes.
 
 **Next:** not yet scheduled. Open: whether exempt sales should limit the input VAT claimed (a question for the tax
 advisor, `phase-97-status.md` § 5), and free goods in a scheme (left out by the user's choice).
 
-Tests: Domain **1055**, Application.UnitTests **1914**, Infrastructure.UnitTests 14,
-Api.IntegrationTests 79, Angular 935. Everything was green at phase 97's close with Docker up.
+Tests: Domain **1055**, Application.UnitTests **1915**, Infrastructure.UnitTests 14,
+Api.IntegrationTests 80, Angular 935. Everything was green at phase 98's close with Docker up.
 The bundle sits at **656.17 kB** against `build-budget.spec.ts`'s 680 kB; every POS screen is lazy.
 
 - `Api.IntegrationTests` needs Docker Desktop running. Without it the Testcontainers-backed tests

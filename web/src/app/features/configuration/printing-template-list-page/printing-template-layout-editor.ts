@@ -107,7 +107,8 @@ export class PrintingTemplateLayoutEditor implements OnInit, AfterViewInit, OnDe
   private readonly forType = computed(() =>
     this.elementTable().find((row) => row.documentType === this.template().documentType) ?? null);
 
-  /** Phase 79 -- the layouts this type is offered, in the server's order. The till roll is offered to three types. */
+  /** Phase 79 -- the layouts this type is offered, in the server's order. The till roll is offered to four types (phase 98
+   * added the money receipt). */
   protected readonly offeredLayouts = computed(() => {
     const offered = this.forType()?.layouts.map((option) => option.layout) ?? [];
     return offered

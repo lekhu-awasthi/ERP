@@ -387,7 +387,8 @@ beside a 200 from the same user, and create a fresh Organization per phase.
   - Accounting defaults for a purchase E2E: set every `default*Id` by name (payable, receivable, both VATs, inventory,
     landed cost clearing, TDS payable, purchase, COGS) from one `GET`, then `PUT` it back whole.
 - Phase 79. `PUT /configuration/printing-templates/{id}/layout` takes `layout` `Standard|Traditional|Minimal|Modern|
-  Classic|Retail`; Retail on any type but `Invoice`/`CreditNote`/`SalesOrder` is a **400 naming `Layout`** (so is the
+  Classic|Retail`; Retail on any type but `Invoice`/`CreditNote`/`SalesOrder`/`Payment` (the last since phase 98) is a
+  **400 naming `Layout`** (so is the
   same on `POST .../preview`). `GET .../elements` rows carry `layouts: [{layout, omits}]`. A roll's counted print is one
   page whose `/MediaBox` is `[0 0 226.75 <height>]` (80 mm), readable straight from the PDF's bytes. The 403-not-404 pair:
   the layout `PUT` on a nonexistent template with a **valid** body is 404 as Admin and **403 naming

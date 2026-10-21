@@ -143,6 +143,78 @@ public class Phase79PrintLayoutPdfTests
             "A line's name prints above its figures.");
     }
 
+    /// <summary>Phase 98 -- the money receipt (a Payment, the shape <c>PrintDocumentQueryHandler.BuildPaymentAsync</c>
+    /// builds) on the 80 mm roll: one page that wide, its date in BS with AD beside it, who paid, the account, every
+    /// document it settles, what is left unallocated and the amount in words.</summary>
+    [Fact]
+    public void A_money_receipt_prints_whole_on_the_roll()
+    {
+        var receipt = Invoice(PrintLayout.Retail) with
+        {
+            DocumentType = DocumentType.Payment,
+            Title = "Customer Receipt",
+            TitleNepali = null,
+            Code = "RCPT0007",
+            DateText = "2083-07-04 BS (2026-10-21 AD)",
+            DateLabel = "Date",
+            IssueDateText = null,
+            Reference = "Cash at counter",
+            PartyHeading = "Received From",
+            HeaderFields = [new PrintableFieldDto("Payment Mode", "Cash")],
+            Sections =
+            [
+                new PrintableSectionDto(
+                    "Payment Details",
+                    [new PrintableColumnDto("Account", 4), new PrintableColumnDto("Amount", 1, AlignRight: true)],
+                    [new PrintableRowDto(["1001 — Cash In Hand", "5,000.00"])],
+                    new PrintableRowDto(["Net Debit", "5,000.00"])),
+                new PrintableSectionDto(
+                    "Payment For",
+                    [
+                        new PrintableColumnDto("Document", 3),
+                        new PrintableColumnDto("Date", 1, AlignRight: true),
+                        new PrintableColumnDto("Amount", 1, AlignRight: true),
+                    ],
+                    [
+                        new PrintableRowDto(["Invoice INV0003/1002", "2083-06-24 BS (2026-10-10 AD)", "2,534.00"]),
+                        new PrintableRowDto(["Invoice INV0004/1002", "2083-06-30 BS (2026-10-16 AD)", "1,466.00"]),
+                    ],
+                    new PrintableRowDto(["Allocated", "", "4,000.00"])),
+            ],
+            Summary =
+            [
+                new PrintableFieldDto("Amount", "5,000.00"),
+                new PrintableFieldDto("Allocated", "4,000.00"),
+                new PrintableFieldDto("Unallocated", "1,000.00", Emphasise: true),
+            ],
+            Terms = null,
+            CustomFields = [],
+            AmountInWords = "Rupees Five Thousand Only",
+            // A money receipt is not a counted print (phase 67 counts invoices and credit notes), so no "Printed by".
+            PrintedCopy = null,
+        };
+
+        var bytes = DocumentPdfRenderer.Render(receipt);
+        var text = PdfText.Extract(bytes);
+
+        foreach (var expected in new[]
+                 {
+                     "Moonbeam Trading", "PAN: 031564579", "CUSTOMER RECEIPT", "RCPT0007", "2083-07-04 BS (2026-10-21 AD)",
+                     "Payment Mode", "Cash", "Received From", "C0001 — Adhi Kishan", "1001 — Cash In Hand", "Net Debit",
+                     "Invoice INV0003/1002", "Invoice INV0004/1002", "Allocated", "4,000.00", "Unallocated", "1,000.00",
+                     "Rupees Five Thousand Only",
+                 })
+        {
+            Assert.Contains(expected, text, StringComparison.Ordinal);
+        }
+
+        var widths = Regex.Matches(System.Text.Encoding.Latin1.GetString(bytes), @"/MediaBox\s*\[\s*0\s+0\s+([0-9.]+)\s+([0-9.]+)\s*\]")
+            .Select(m => float.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture))
+            .ToList();
+        Assert.Single(widths);
+        Assert.InRange(widths[0], 226f, 227.5f);
+    }
+
     [Fact]
     public void The_roll_draws_no_logo_and_no_signature_line()
     {

@@ -53,11 +53,13 @@ public static class PrintLayouts
     public static readonly IReadOnlyList<PrintLayout> A4 =
         [PrintLayout.Standard, PrintLayout.Traditional, PrintLayout.Minimal, PrintLayout.Modern, PrintLayout.Classic];
 
-    /// <summary>The types offered the 80 mm layout: the vendor's Retail is offered for exactly these three (phase-73
-    /// § Live read 4, re-read 2026-10-11). A purchase document or a payment printed on a till roll is not a thing a
-    /// counter does.</summary>
+    /// <summary>The types offered the 80 mm layout: the vendor's Retail is offered for the first three (phase-73
+    /// § Live read 4, re-read 2026-10-11). Phase 98 -- and the money receipt (a Payment), the user's choice
+    /// (2026-10-21): a shop that takes a customer's payment at the counter hands back a slip from the counter's printer.
+    /// A Payment is one type in both directions, so a supplier payment may print on the roll too. A purchase document on
+    /// a till roll is still not a thing a counter does.</summary>
     public static readonly IReadOnlyList<DocumentType> RetailTypes =
-        [DocumentType.Invoice, DocumentType.CreditNote, DocumentType.SalesOrder];
+        [DocumentType.Invoice, DocumentType.CreditNote, DocumentType.SalesOrder, DocumentType.Payment];
 
     /// <summary>The layouts this type may choose, in the order the editor lists them. Empty for a type with no
     /// printable record.</summary>
