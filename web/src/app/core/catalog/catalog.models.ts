@@ -1,4 +1,7 @@
+import { VatCreditCategory } from '../purchasing/vat-credit';
+
 export type ProductType = 'Goods' | 'Service';
+
 export type VatRate = 'NoVat' | 'ZeroVat' | 'ThirteenPercentVat';
 
 export interface ProductCategory {
@@ -90,6 +93,8 @@ export interface Product {
   serviceChargeApplicable: boolean;
   /** Phase 70 -- a parcel of this product carries its location's packaging fee; on unless exempted. */
   packagingFeeApplicable: boolean;
+  /** Phase 99 -- Rule 41's limit on a purchase's input credit; prefills a purchase bill line. */
+  vatCreditCategory: VatCreditCategory;
   sellingPrice: number;
   purchasePrice: number;
   vatRate: VatRate;
@@ -155,6 +160,8 @@ export interface CreateProductRequest {
   serviceChargeApplicable: boolean;
   /** Phase 70 -- a parcel of this product carries its location's packaging fee; on unless exempted. */
   packagingFeeApplicable: boolean;
+  /** Phase 99 -- Rule 41's category; omitted is Full. */
+  vatCreditCategory?: VatCreditCategory;
   sellingPrice: number;
   purchasePrice: number;
   vatRate: VatRate;
@@ -186,6 +193,8 @@ export interface UpdateProductRequest {
   serviceChargeApplicable: boolean;
   /** Phase 70 -- a parcel of this product carries its location's packaging fee; on unless exempted. */
   packagingFeeApplicable: boolean;
+  /** Phase 99 -- Rule 41's category; omitted leaves it unchanged. */
+  vatCreditCategory?: VatCreditCategory;
   sellingPrice: number;
   purchasePrice: number;
   vatRate: VatRate;

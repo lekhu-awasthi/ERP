@@ -60,7 +60,7 @@ public sealed class UpdateExpenseCommandHandler(IAppDbContext db)
         expense.ClearLines();
         foreach (var line in request.Lines)
         {
-            expense.AddLine(line.AccountId, line.Amount, line.VatRate);
+            expense.AddLine(line.AccountId, line.Amount, line.VatRate, line.CreditUse, line.CreditCategory);
         }
 
         db.ExpenseLines.RemoveRange(oldLines);

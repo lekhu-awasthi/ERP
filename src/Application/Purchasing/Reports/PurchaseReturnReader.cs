@@ -51,12 +51,51 @@ internal static class PurchaseReturnReader
             + NonCapitalImportValue + NonCapitalImportVat + CapitalValue + CapitalVat;
     }
 
+    /// <summary>
+    /// Phase 99 -- a document's input VAT that is not, or not wholly, credit, in base currency and always non-negative:
+    /// <paramref name="ExemptUseVat"/> is the VAT of lines used for exempt sales (Rule 40(3)), <paramref name="BlockedVat"/>
+    /// Rule 41's disallowed share of the rest, and <paramref name="SharedVat"/> the claimable VAT of shared lines, which the
+    /// VAT return apportions by the month's sales (Rule 40(4)). The first two are exactly what the document's approval
+    /// posted away from VAT Receivable (<see cref="VatCredit.DisallowedAtPosting"/> on the same base VAT), so the return
+    /// and the general ledger agree.
+    /// </summary>
+    internal sealed record CreditFigures(decimal ExemptUseVat, decimal BlockedVat, decimal SharedVat)
+    {
+        internal static CreditFigures Empty { get; } = new(0, 0, 0);
+
+        internal static CreditFigures Of(IEnumerable<(decimal VatAmount, VatCreditUse Use, VatCreditCategory Category)> lines)
+        {
+            decimal exemptUse = 0, blocked = 0, shared = 0;
+            foreach (var (vat, use, category) in lines)
+            {
+                if (use == VatCreditUse.Exempt)
+                {
+                    exemptUse += vat;
+                    continue;
+                }
+
+                var disallowed = VatCredit.DisallowedAtPosting(vat, use, category);
+                blocked += disallowed;
+                if (use == VatCreditUse.Shared)
+                {
+                    shared += vat - disallowed;
+                }
+            }
+
+            return new(exemptUse, blocked, shared);
+        }
+    }
+
     internal sealed record DebitNoteRow(
         Guid Id,
         Guid ContactId,
         string Code,
         DateOnly Date,
-        Bucketed Buckets);
+        Bucketed Buckets)
+    {
+        /// <summary>Phase 99 -- the returned lines' credit figures, from the terms each inherited from its bill line.</summary>
+        public CreditFigures Credit { get; init; } = CreditFigures.Empty;
+    }
 
     internal static async Task<List<DebitNoteRow>> LoadAsync(
         IAppDbContext db,
@@ -108,13 +147,41 @@ internal static class PurchaseReturnReader
             .ToDictionaryAsync(x => x.Id, x => x.IsImport, cancellationToken);
         var referredPurchaseBillLines = await db.PurchaseBillLines
             .Where(x => referredPurchaseBillIds.Contains(x.PurchaseBillId))
-            .Select(x => new { x.PurchaseBillId, x.ProductId, x.Rate, x.VatRate, x.ExpenditureClassification })
+            .Select(x => new
+            {
+                x.PurchaseBillId, x.ProductId, x.Rate, x.VatRate, x.ExpenditureClassification, x.CreditUse, x.CreditCategory,
+            })
             .ToListAsync(cancellationToken);
         var classificationBySourceLine = referredPurchaseBillLines
             .GroupBy(x => (x.PurchaseBillId, x.ProductId, x.Rate, x.VatRate))
             .ToDictionary(g => g.Key, g => g.First().ExpenditureClassification);
 
+        // Phase 99 -- the credit terms each line inherits, by the same key and the same rule its approval used.
         var debitNotesById = debitNotes.ToDictionary(x => x.Id);
+        var termsBySourceBill = referredPurchaseBillLines
+            .GroupBy(x => x.PurchaseBillId)
+            .ToDictionary(
+                g => g.Key,
+                g => PurchaseLineVatCredit.SourceTerms(
+                    g.Select(x => (x.ProductId, x.Rate, x.VatRate, x.CreditUse, x.CreditCategory))));
+        var productCategories = await PurchaseLineVatCredit.ProductCategoriesAsync(
+            db, organizationId, [.. debitNoteLines.Select(x => x.ProductId)], cancellationToken);
+        var creditByNote = debitNoteLines
+            .GroupBy(x => x.DebitNoteId)
+            .ToDictionary(g => g.Key, g =>
+            {
+                var debitNote = debitNotesById[g.Key];
+                var sourceTerms = debitNote.ReferrerType == DocumentType.PurchaseBill && debitNote.ReferrerId is { } billId
+                    ? termsBySourceBill.GetValueOrDefault(billId)
+                    : null;
+                return CreditFigures.Of(g.Select(line =>
+                {
+                    var (use, category) = PurchaseLineVatCredit.ForDebitNoteLine(
+                        sourceTerms, line.ProductId, line.Rate, line.VatRate, productCategories);
+                    return (ExchangeRates.ToBase(line.VatAmount, debitNote.ExchangeRate), use, category);
+                }));
+            });
+
         var buckets = debitNoteLines
             .GroupBy(x => x.DebitNoteId)
             .ToDictionary(g => g.Key, g =>
@@ -158,7 +225,10 @@ internal static class PurchaseReturnReader
             });
 
         return [.. debitNotes.Select(x => new DebitNoteRow(
-            x.Id, x.ContactId, x.Code, x.Date, buckets.GetValueOrDefault(x.Id) ?? Bucketed.Empty))];
+            x.Id, x.ContactId, x.Code, x.Date, buckets.GetValueOrDefault(x.Id) ?? Bucketed.Empty)
+        {
+            Credit = creditByNote.GetValueOrDefault(x.Id) ?? CreditFigures.Empty,
+        })];
     }
 
     /// <summary>

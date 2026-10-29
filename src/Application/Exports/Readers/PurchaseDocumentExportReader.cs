@@ -110,6 +110,9 @@ public sealed class PurchaseDocumentExportReader(IAppDbContext db) : IExportCate
         "Exchange Rate",
         "Location",
         "Allocation Method",
+        // Phase 99 -- a line's input-credit terms (VAT Rules 40 and 41); a debit note's are its bill line's.
+        "VAT Credit Use",
+        "VAT Credit Category",
     ];
 
     public async Task<ExportCategoryResult> ReadAsync(
@@ -134,7 +137,11 @@ public sealed class PurchaseDocumentExportReader(IAppDbContext db) : IExportCate
                 null, doc.SupplierInvoiceReference, null, line.ExpenditureClassification, doc.IsImport,
                 doc.DiscountPct, 0m, null, 0m,
                 line.UnitId ?? (product == null ? null : (Guid?)product.PrimaryUnitId), doc.ExchangeRate, doc.LocationId,
-                null, RowKind.Line);
+                null, RowKind.Line)
+            {
+                CreditUse = line.CreditUse,
+                CreditCategory = line.CreditCategory,
+            };
 
         // A Debit Note's figures are negated so the columns sum to net purchases; its rates and percentages are not.
         // Its bill is phase 6's referrer; a standalone note has none, and classifies as Others and local, as the
@@ -169,7 +176,25 @@ public sealed class PurchaseDocumentExportReader(IAppDbContext db) : IExportCate
                 bill != null && bill.IsImport,
                 doc.DiscountPct, 0m, null, 0m,
                 line.UnitId ?? (product == null ? null : (Guid?)product.PrimaryUnitId), doc.ExchangeRate, doc.LocationId,
-                null, RowKind.Line);
+                null, RowKind.Line)
+            {
+                // Phase 99 -- inherited from the bill line by the classification's key; unmatched, Taxable and the
+                // product's category (PurchaseLineVatCredit.ForDebitNoteLine, which the posting and the return use).
+                CreditUse = (bill == null
+                    ? null
+                    : (from source in db.PurchaseBillLines
+                       where source.PurchaseBillId == bill.Id && source.ProductId == line.ProductId
+                             && source.Rate == line.Rate && source.VatRate == line.VatRate
+                       select (VatCreditUse?)source.CreditUse).FirstOrDefault())
+                    ?? VatCreditUse.Taxable,
+                CreditCategory = (bill == null
+                    ? null
+                    : (from source in db.PurchaseBillLines
+                       where source.PurchaseBillId == bill.Id && source.ProductId == line.ProductId
+                             && source.Rate == line.Rate && source.VatRate == line.VatRate
+                       select (VatCreditCategory?)source.CreditCategory).FirstOrDefault())
+                    ?? (product == null ? VatCreditCategory.Full : product.VatCreditCategory),
+            };
 
         var expenseLines =
             from line in db.ExpenseLines
@@ -187,7 +212,11 @@ public sealed class PurchaseDocumentExportReader(IAppDbContext db) : IExportCate
                 null, doc.SupplierInvoiceReference, line.AccountId, null, null,
                 0m, 0m, null, 0m,
                 null, doc.ExchangeRate, doc.LocationId,
-                null, RowKind.Line);
+                null, RowKind.Line)
+            {
+                CreditUse = line.CreditUse,
+                CreditCategory = line.CreditCategory,
+            };
 
         var additionalCosts =
             from cost in db.PurchaseBillAdditionalCosts
@@ -341,6 +370,12 @@ public sealed class PurchaseDocumentExportReader(IAppDbContext db) : IExportCate
         AdditionalCostMethod? Method,
         RowKind Kind)
     {
+        /// <summary>Phase 99 -- a line's credit terms; null on a row that is not a line.</summary>
+        public VatCreditUse? CreditUse { get; init; }
+
+        /// <inheritdoc cref="CreditUse"/>
+        public VatCreditCategory? CreditCategory { get; init; }
+
         public object?[] ToCells(Names names) =>
         [
             .. new DocumentLineRow(
@@ -359,6 +394,8 @@ public sealed class PurchaseDocumentExportReader(IAppDbContext db) : IExportCate
             ExchangeRate,
             names.Locations.NameOf(LocationId),
             Method?.ToString(),
+            CreditUse?.ToString(),
+            CreditCategory?.ToString(),
         ];
     }
 }

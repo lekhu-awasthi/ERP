@@ -76,7 +76,7 @@ describe('ProductDetailPage — batch and serial tracking', () => {
       primaryUnitId: pieceUnit.id,
       hsCode: null,
       availableForSale: true,
-      serviceChargeApplicable: false, packagingFeeApplicable: true,
+      serviceChargeApplicable: false, packagingFeeApplicable: true, vatCreditCategory: 'Full',
       sellingPrice: 100,
       purchasePrice: 80,
       vatRate: 'NoVat',

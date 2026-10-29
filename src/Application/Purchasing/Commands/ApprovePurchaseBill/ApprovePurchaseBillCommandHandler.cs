@@ -67,12 +67,20 @@ public sealed class ApprovePurchaseBillCommandHandler(
         // here, before the posting rule runs. Doing it here rather than on the finished GlLineInput
         // list is what keeps the entry balanced by construction -- the rule derives its balancing
         // leg as a sum of these very numbers. See ExchangeRates' doc comment.
+        //
+        // Phase 99 -- each line's VAT that is not input credit (exempt use, Rule 41), worked out on the base-currency VAT,
+        // as the VAT return works it out (PurchaseBookReader), so the two cannot differ by a paisa.
+        var disallowedByLine = purchaseBill.Lines.ToDictionary(
+            x => x.Id,
+            x => VatCredit.DisallowedAtPosting(
+                ExchangeRates.ToBase(x.VatAmount, purchaseBill.ExchangeRate), x.CreditUse, x.CreditCategory));
         var postingInput = await PurchaseBillAccountResolver.ResolveAsync(
             db, request.OrganizationId,
             purchaseBill.Lines.Select(x => (
                 x.ProductId,
                 ExchangeRates.ToBase(x.Amount, purchaseBill.ExchangeRate),
-                ExchangeRates.ToBase(x.VatAmount, purchaseBill.ExchangeRate))),
+                ExchangeRates.ToBase(x.VatAmount, purchaseBill.ExchangeRate),
+                disallowedByLine[x.Id])),
             ExchangeRates.ToBase(purchaseBill.TdsAmount, purchaseBill.ExchangeRate), cancellationToken,
             requiresLandedCostClearing: purchaseBill.AdditionalCosts.Count > 0);
 
@@ -177,10 +185,17 @@ public sealed class ApprovePurchaseBillCommandHandler(
             // money is untouched: Amount stays Quantity x Rate in the entered unit.
             var primaryQuantity = line.PrimaryQuantity.Value;
 
-            var unitCost = ExchangeRates.ToBaseUnitCost(
-                (line.Amount + allocated) / primaryQuantity, purchaseBill.ExchangeRate);
+            // Phase 99 -- VAT that is not input credit is part of what the goods cost: the GL debits it to Inventory with
+            // the line, so the layer carries it too, or the account and the ledger part by it (phase 37's three views).
+            // Already base currency, so added after the conversion; a line with none is costed exactly as before.
+            var disallowedVat = disallowedByLine[line.Id];
+            var unitCost = disallowedVat == 0
+                ? ExchangeRates.ToBaseUnitCost((line.Amount + allocated) / primaryQuantity, purchaseBill.ExchangeRate)
+                : Math.Round(
+                    ((line.Amount + allocated) * purchaseBill.ExchangeRate + disallowedVat) / primaryQuantity,
+                    ExchangeRates.UnitCostScale, MidpointRounding.AwayFromZero);
 
-            goodsAmountBase += ExchangeRates.ToBase(line.Amount, purchaseBill.ExchangeRate);
+            goodsAmountBase += ExchangeRates.ToBase(line.Amount, purchaseBill.ExchangeRate) + disallowedVat;
             layerValueCreated += unitCost * primaryQuantity;
 
             // Phase 51 -- the receipt carries the line's batch, and splits into one layer per

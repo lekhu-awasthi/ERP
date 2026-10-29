@@ -14,4 +14,6 @@ public sealed record ExpensePostingInput(
     decimal TdsAmount,
     IReadOnlyList<ExpensePostingLineInput> Lines);
 
-public sealed record ExpensePostingLineInput(Guid AccountId, decimal Amount, decimal VatAmount);
+/// <param name="DisallowedVat">Phase 99 -- see <see cref="PurchaseBillPostingLineInput"/>: posted to the line's own
+/// account, not VAT Receivable.</param>
+public sealed record ExpensePostingLineInput(Guid AccountId, decimal Amount, decimal VatAmount, decimal DisallowedVat = 0);

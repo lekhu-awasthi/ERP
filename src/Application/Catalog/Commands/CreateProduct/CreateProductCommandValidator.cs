@@ -16,6 +16,7 @@ public sealed class CreateProductCommandValidator : AbstractValidator<CreateProd
         RuleFor(x => x.SellingPrice).GreaterThanOrEqualTo(0);
         RuleFor(x => x.PurchasePrice).GreaterThanOrEqualTo(0);
         RuleFor(x => x.VatRate).IsInEnum();
+        RuleFor(x => x.VatCreditCategory).IsInEnum();
         RuleFor(x => x.ReOrderLevel).GreaterThanOrEqualTo(0);
 
         // Phase 51 -- the same rule Product.EnsureTrackingIsCoherent enforces, said here so the

@@ -35,7 +35,9 @@ public sealed record UpdateProductCommand(
     bool ServiceChargeApplicable = false,
     // Phase 70 -- null leaves the product's flag as it is, so a caller that does not know the field never
     // turns an exemption back on (see Product.PackagingFeeApplicable).
-    bool? PackagingFeeApplicable = null)
+    bool? PackagingFeeApplicable = null,
+    // Phase 99 -- null leaves the product's Rule 41 category as it is (see Product.VatCreditCategory).
+    Domain.Purchasing.VatCreditCategory? VatCreditCategory = null)
     : IRequest<UpdateProductResult>, IRequirePermission, IOrganizationScoped, IExpirySensitiveMasterData
 {
     public string PermissionKey => PermissionKeys.ProductManage;

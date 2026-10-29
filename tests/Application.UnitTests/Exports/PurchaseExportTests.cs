@@ -58,7 +58,7 @@ public sealed class PurchaseExportTests
             new DateOnly(2026, 8, 24), "IMP-1", null, 15m, null, null, discountPct: 10m);
         bill.SetCurrency("USD", 133.5m);
         bill.SetLocation(location.Id);
-        bill.AddLine(product.Id, 4m, 100m, VatRate.ThirteenPercentVat, ExpenditureClassification.Capital, 5m, carton.Id, 12m);
+        bill.AddLine(product.Id, 4m, 100m, VatRate.ThirteenPercentVat, ExpenditureClassification.Capital, 5m, carton.Id, 12m, null, VatCreditUse.Taxable, VatCreditCategory.Full);
         bill.AddAdditionalCost(freight.Id, null, AdditionalCostMethod.Value, 50m);
         db.PurchaseBills.Add(bill);
 
@@ -74,7 +74,7 @@ public sealed class PurchaseExportTests
         db.DebitNotes.Add(standalone);
 
         var expense = Expense.Create(org, supplier.Id, new DateOnly(2026, 8, 27), null, "SUP-EXP-1", "August rent", true, null, 20m);
-        expense.AddLine(rentAccount.Id, 2000m, VatRate.ThirteenPercentVat);
+        expense.AddLine(rentAccount.Id, 2000m, VatRate.ThirteenPercentVat, VatCreditUse.Taxable, VatCreditCategory.Full);
         expense.SetLocation(location.Id);
         db.Expenses.Add(expense);
 
@@ -206,6 +206,10 @@ public sealed class PurchaseExportTests
             [(typeof(Expense), nameof(Expense.GrandTotal))] = "derived: Amount + VAT Amount",
             [(typeof(PurchaseBillAdditionalCostAllocation), nameof(PurchaseBillAdditionalCostAllocation.Amount))] =
                 "derived at Approve from the Additional Cost rows the sheet carries",
+            [(typeof(PurchaseBillLine), nameof(PurchaseBillLine.DisallowedVat))] =
+                "derived (phase 99): VAT Amount and the VAT Credit Use and Category columns",
+            [(typeof(ExpenseLine), nameof(ExpenseLine.DisallowedVat))] =
+                "derived (phase 99): VAT Amount and the VAT Credit Use and Category columns",
         };
 
         System.Type[] types =

@@ -9,6 +9,14 @@ import { ExpenseDetail, ExpenseLineInput } from '../../../core/purchasing/purcha
 import { ContactsService } from '../../../core/contacts/contacts.service';
 import { Contact } from '../../../core/contacts/contacts.models';
 import { VatRate } from '../../../core/catalog/catalog.models';
+import {
+  VAT_CREDIT_CATEGORIES,
+  VAT_CREDIT_USES,
+  VatCreditCategory,
+  VatCreditUse,
+  vatCreditCategoryLabel,
+  vatCreditUseLabel,
+} from '../../../core/purchasing/vat-credit';
 import { AccountingService } from '../../../core/accounting/accounting.service';
 import { Account } from '../../../core/accounting/accounting.models';
 import { ConfigurationService } from '../../../core/configuration/configuration.service';
@@ -36,6 +44,11 @@ interface EditableLine {
   accountId: string;
   amount: number;
   vatRate: VatRate;
+  /** Phase 99 -- what the expense was for (Rule 40) and Rule 41's limit (entertainment, vehicle petrol). */
+  creditUse: VatCreditUse;
+  creditCategory: VatCreditCategory;
+  /** Phase 99 -- the server's figure for a saved line; undefined while it is being typed. */
+  disallowedVat?: number;
 }
 
 let nextLineKey = 1;
@@ -115,6 +128,10 @@ export class ExpenseDetailPage {
   protected readonly lines = signal<EditableLine[]>([]);
 
   protected readonly vatRates: VatRate[] = ['NoVat', 'ZeroVat', 'ThirteenPercentVat'];
+  protected readonly vatCreditUses = VAT_CREDIT_USES;
+  protected readonly vatCreditCategories = VAT_CREDIT_CATEGORIES;
+  protected readonly vatCreditUseLabel = vatCreditUseLabel;
+  protected readonly vatCreditCategoryLabel = vatCreditCategoryLabel;
 
   protected readonly printing = signal(false);
   protected routeExpenseId = '';
@@ -199,6 +216,16 @@ this.exchangeRate.set(1);
   protected onVatRateChange(key: number, event: Event): void {
     const vatRate = (event.target as HTMLSelectElement).value as VatRate;
     this.updateLine(key, { vatRate });
+  }
+
+  protected onCreditUseChange(key: number, event: Event): void {
+    const creditUse = (event.target as HTMLSelectElement).value as VatCreditUse;
+    this.updateLine(key, { creditUse, disallowedVat: undefined });
+  }
+
+  protected onCreditCategoryChange(key: number, event: Event): void {
+    const creditCategory = (event.target as HTMLSelectElement).value as VatCreditCategory;
+    this.updateLine(key, { creditCategory, disallowedVat: undefined });
   }
 
   protected addLine(): void {
@@ -378,7 +405,13 @@ this.exchangeRate.set(1);
   private toLineInputs(): ExpenseLineInput[] | null {
     const lines = this.lines()
       .filter((l) => l.accountId && l.amount > 0)
-      .map((l) => ({ accountId: l.accountId, amount: l.amount, vatRate: l.vatRate }));
+      .map((l) => ({
+        accountId: l.accountId,
+        amount: l.amount,
+        vatRate: l.vatRate,
+        creditUse: l.creditUse,
+        creditCategory: l.creditCategory,
+      }));
 
     if (lines.length === 0) {
       this.fieldError.fail('expense-detail-page-add-line', 'Add at least one line with an Account and an Amount.');
@@ -393,7 +426,7 @@ this.exchangeRate.set(1);
   }
 
   private newLine(): EditableLine {
-    return { key: nextLineKey++, accountId: '', amount: 0, vatRate: 'NoVat' };
+    return { key: nextLineKey++, accountId: '', amount: 0, vatRate: 'NoVat', creditUse: 'Taxable', creditCategory: 'Full' };
   }
 
   private today(): string {
@@ -421,7 +454,15 @@ this.exchangeRate.set(1);
         this.tdsTypeId.set(expense.tdsTypeId ?? '');
         this.lines.set(
           expense.lines.length > 0
-            ? expense.lines.map((l) => ({ key: nextLineKey++, accountId: l.accountId, amount: l.amount, vatRate: l.vatRate }))
+            ? expense.lines.map((l) => ({
+                key: nextLineKey++,
+                accountId: l.accountId,
+                amount: l.amount,
+                vatRate: l.vatRate,
+                creditUse: l.creditUse,
+                creditCategory: l.creditCategory,
+                disallowedVat: l.disallowedVat,
+              }))
             : [this.newLine()],
         );
         this.loading.set(false);

@@ -28,6 +28,8 @@ public sealed class UpdatePurchaseBillCommandValidator : AbstractValidator<Updat
             line.RuleFor(x => x.Rate).GreaterThanOrEqualTo(0);
             line.RuleFor(x => x.VatRate).IsInEnum();
             line.RuleFor(x => x.ExpenditureClassification).IsInEnum();
+            line.RuleFor(x => x.CreditUse).IsInEnum();
+            line.RuleFor(x => x.CreditCategory).IsInEnum();
             line.RuleFor(x => x.DiscountPct).InclusiveBetween(0, 100);
             line.BatchNoRule(x => x.BatchNo);
             // Phase 95 -- a new batch's price: zero or more, at the product price's own scale.

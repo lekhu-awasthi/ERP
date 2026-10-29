@@ -58,6 +58,12 @@ public class ProductVariantSweepGuardTests
         ["Manufacturing/Commands/ApproveProductionJournal/ApproveProductionJournalCommandHandler.cs"] =
             "Approves an existing journal: its raw-material, by-product and output ids were "
             + "refused-if-parent at Create (ManufacturingValidation). Takes no product id from its request.",
+
+        // Phase 99 -- the same shape: Approve reads an existing note's line product ids to look up their Rule 41
+        // category (PurchaseLineVatCredit.ProductCategoriesAsync), and the pattern matched that read.
+        ["Purchasing/Commands/ApproveDebitNote/ApproveDebitNoteCommandHandler.cs"] =
+            "Approves an existing debit note: its lines' product ids were refused-if-parent at Create "
+            + "(PurchasingValidation). Takes no product id from its request.",
     };
 
     /// <summary>The sanctioned ways through the rule. Both funnel into ProductVariantRules.</summary>

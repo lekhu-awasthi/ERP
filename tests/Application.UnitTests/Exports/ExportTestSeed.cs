@@ -126,7 +126,7 @@ internal static class ExportTestSeed
         var bill = PurchaseBill.Create(
             organization.Id, supplier.Id, warehouse.Id, new DateOnly(2026, 8, 22), $"REF-{marker}-PB",
             null, false, null, null, null, null, 0m, null, null);
-        bill.AddLine(product.Id, 5m, 80m, VatRate.ThirteenPercentVat, ExpenditureClassification.Others, 0m, null, 1m);
+        bill.AddLine(product.Id, 5m, 80m, VatRate.ThirteenPercentVat, ExpenditureClassification.Others, 0m, null, 1m, null, VatCreditUse.Taxable, VatCreditCategory.Full);
         db.PurchaseBills.Add(bill);
 
         db.Payments.Add(Payment.Create(

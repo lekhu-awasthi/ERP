@@ -63,6 +63,12 @@ public sealed class CreateProductCommandHandler(IAppDbContext db, IDocumentNumbe
             product.SetPackagingFeeApplicable(packagingFeeApplicable);
         }
 
+        // Phase 99 -- its own mutator too (see Product.VatCreditCategory).
+        if (request.VatCreditCategory is { } vatCreditCategory)
+        {
+            product.SetVatCreditCategory(vatCreditCategory);
+        }
+
         // Phase 36 -- an empty set is the restriction being absent, not a product available
         // nowhere. Added before the parent is saved, so these ride the same insert.
         product.SetLocations(request.LocationIds);

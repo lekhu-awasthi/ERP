@@ -199,7 +199,7 @@ The ERP gate was proven to bite: with the line exemption removed from `SalesPric
   claims that month, and by what rule (in proportion to exempt sales, or only the VAT on purchases used for them)? Is
   the adjustment monthly or settled at the year's end?*
 
-  **Answered from the statutes (2026-10-29), confirmed by the user; scheduled as phase 99.** Read in an unofficial
+  **Answered from the statutes (2026-10-29), confirmed by the user; built in phase 99 (`phase-99-status.md`).** Read in an unofficial
   English translation of the VAT Rules, 2053 (nepalarchives.com) and the Act (actnepal.com, ICAN's copy):
   - **Act s.17(1)/(3):** where a purchase is not wholly used for taxable transactions, the credit is apportioned *in any
     month*. **s.5(3):** no credit on Schedule-1 (exempt) goods.

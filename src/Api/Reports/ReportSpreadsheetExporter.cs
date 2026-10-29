@@ -373,6 +373,15 @@ public static partial class ReportSpreadsheetExporter
                     sheet.Cell(row, 2).Value = line.LabelNepali;
                     for (var c = 0; c < line.Monthly.Count; c++)
                     {
+                        // Phase 99 -- the month's taxable share of sales is a percent, never a credit in parentheses; a
+                        // 0% (every sale exempt) is a figure, so it is written like any other.
+                        if (line.IsPercent)
+                        {
+                            sheet.Cell(row, c + 3).Value = (double)line.Monthly[c];
+                            sheet.Cell(row, c + 3).Style.NumberFormat.Format = "0.00\"%\"";
+                            continue;
+                        }
+
                         WriteSignedCell(sheet, row, c + 3, line.Monthly[c]);
                     }
                     if (line.Total is { } total)

@@ -49,7 +49,7 @@ public sealed class CreateExpenseCommandHandler(IAppDbContext db)
 
         foreach (var line in request.Lines)
         {
-            expense.AddLine(line.AccountId, line.Amount, line.VatRate);
+            expense.AddLine(line.AccountId, line.Amount, line.VatRate, line.CreditUse, line.CreditCategory);
         }
 
         db.Expenses.Add(expense);

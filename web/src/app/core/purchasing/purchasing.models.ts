@@ -1,6 +1,7 @@
 import { VatRate } from '../catalog/catalog.models';
 import { ContactType } from '../contacts/contacts.models';
 import { DocumentType } from '../sales/sales.models';
+import { VatCreditCategory, VatCreditUse } from './vat-credit';
 
 export type PurchaseOrderStatus = 'Draft' | 'Approved' | 'Void' | 'Converted';
 export type PurchaseBillStatus = 'Draft' | 'Approved' | 'Void';
@@ -220,6 +221,10 @@ export interface PurchaseBillLineInput {
    * the server resolves it from the catalogue once and freezes it on the line.
    */
   unitId?: string | null;
+  /** Phase 99 -- what the line was bought for (Rule 40); omitted is Taxable use. */
+  creditUse?: VatCreditUse | null;
+  /** Phase 99 -- Rule 41's limit; omitted takes the product's own category. */
+  creditCategory?: VatCreditCategory | null;
 }
 
 export interface PurchaseBill {
@@ -291,6 +296,10 @@ export interface PurchaseBillLineDto extends PurchaseBillLineInput {
   unitId: string | null;
   unitName: string | null;
   conversionFactor: number;
+  creditUse: VatCreditUse;
+  creditCategory: VatCreditCategory;
+  /** Phase 99 -- the part of vatAmount posted to the line's own account rather than VAT Receivable. */
+  disallowedVat: number;
 }
 
 export interface PurchaseBillDetail extends PurchaseBill {
@@ -391,6 +400,9 @@ export interface ExpenseLineInput {
   accountId: string;
   amount: number;
   vatRate: VatRate;
+  /** Phase 99 -- what the expense was for (Rule 40), and Rule 41's limit; omitted are Taxable use and Full. */
+  creditUse?: VatCreditUse;
+  creditCategory?: VatCreditCategory;
 }
 
 export interface Expense {
@@ -415,6 +427,10 @@ export interface Expense {
 export interface ExpenseLineDto extends ExpenseLineInput {
   id: string;
   vatAmount: number;
+  creditUse: VatCreditUse;
+  creditCategory: VatCreditCategory;
+  /** Phase 99 -- the part of vatAmount posted to the line's own account rather than VAT Receivable. */
+  disallowedVat: number;
 }
 
 export interface ExpenseDetail extends Expense {

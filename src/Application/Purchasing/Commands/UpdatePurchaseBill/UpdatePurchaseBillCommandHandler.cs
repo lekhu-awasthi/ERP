@@ -98,12 +98,17 @@ public sealed class UpdatePurchaseBillCommandHandler(IAppDbContext db)
             [.. request.Lines.Select(x => new DocumentLineUnitResolver.LineUnitInput(x.ProductId, x.UnitId))],
             cancellationToken);
 
+        // Phase 99 -- a line's Rule 41 category is the one it names, else its product's.
+        var creditCategories = await PurchaseLineVatCredit.CategoriesAsync(
+            db, request.OrganizationId, [.. request.Lines.Select(x => (x.ProductId, x.CreditCategory))], cancellationToken);
+
         for (var i = 0; i < request.Lines.Count; i++)
         {
             var line = request.Lines[i];
             purchaseBill.AddLine(
                 line.ProductId, line.Quantity, line.Rate, line.VatRate, line.ExpenditureClassification,
-                line.DiscountPct, units[i].UnitId, units[i].ConversionFactor, allocations[i]);
+                line.DiscountPct, units[i].UnitId, units[i].ConversionFactor, allocations[i],
+                line.CreditUse ?? VatCreditUse.Taxable, creditCategories[i]);
         }
 
         await DocumentLineAllocationWriter.ReplaceSerialsAsync(

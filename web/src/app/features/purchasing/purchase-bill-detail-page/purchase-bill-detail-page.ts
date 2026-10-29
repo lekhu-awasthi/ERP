@@ -15,6 +15,14 @@ import {
   PurchaseBillLineInput,
 } from '../../../core/purchasing/purchasing.models';
 import { DocumentType } from '../../../core/sales/sales.models';
+import {
+  VAT_CREDIT_CATEGORIES,
+  VAT_CREDIT_USES,
+  VatCreditCategory,
+  VatCreditUse,
+  vatCreditCategoryLabel,
+  vatCreditUseLabel,
+} from '../../../core/purchasing/vat-credit';
 import { ContactsService } from '../../../core/contacts/contacts.service';
 import { Contact } from '../../../core/contacts/contacts.models';
 import { CatalogService } from '../../../core/catalog/catalog.service';
@@ -56,6 +64,11 @@ interface EditableLine {
   rate: number;
   vatRate: VatRate;
   expenditureClassification: ExpenditureClassification;
+  /** Phase 99 -- what the line was bought for (Rule 40) and Rule 41's limit, prefilled from the product. */
+  creditUse: VatCreditUse;
+  creditCategory: VatCreditCategory;
+  /** Phase 99 -- the server's figure for a saved line: the VAT that is not credit. Undefined on a line being typed. */
+  disallowedVat?: number;
   discountPct: number;
   /**
    * Phase 51 -- the allocation the line names. See the Invoice page's copy of this comment for why
@@ -212,6 +225,10 @@ export class PurchaseBillDetailPage {
 
   protected readonly vatRates: VatRate[] = ['NoVat', 'ZeroVat', 'ThirteenPercentVat'];
   protected readonly expenditureClassifications: ExpenditureClassification[] = ['Others', 'Capital'];
+  protected readonly vatCreditUses = VAT_CREDIT_USES;
+  protected readonly vatCreditCategories = VAT_CREDIT_CATEGORIES;
+  protected readonly vatCreditUseLabel = vatCreditUseLabel;
+  protected readonly vatCreditCategoryLabel = vatCreditCategoryLabel;
 
   protected routePurchaseBillId = '';
 
@@ -359,6 +376,9 @@ export class PurchaseBillDetailPage {
               ? template.lines.map((l) => ({
                   key: nextLineKey++,
                   ...l,
+                  // Phase 99 -- the template sends both terms; defaulted for an older template shape.
+                  creditUse: l.creditUse ?? 'Taxable',
+                  creditCategory: l.creditCategory ?? this.creditCategoryOf(l.productId),
                   // Phase 51 -- a conversion template carries the source document's own allocation
                   // where the server sends one (Quotation -> Invoice, Purchase Order -> Bill), and
                   // blank where it does not. Defaulted here rather than left undefined, so the
@@ -452,7 +472,13 @@ export class PurchaseBillDetailPage {
   protected onProductChange(key: number, event: Event): void {
     const productId = (event.target as HTMLSelectElement).value;
     const product = this.products().find((p) => p.id === productId);
-    this.updateLine(key, { productId, rate: product?.purchasePrice ?? 0, vatRate: product?.vatRate ?? 'NoVat' });
+    // Phase 99 -- the product's Rule 41 category prefills the line, as the server would without one.
+    this.updateLine(key, {
+      productId,
+      rate: product?.purchasePrice ?? 0,
+      vatRate: product?.vatRate ?? 'NoVat',
+      creditCategory: product?.vatCreditCategory ?? 'Full',
+    });
     this.loadBatchesOf(productId);
   }
 
@@ -474,6 +500,20 @@ export class PurchaseBillDetailPage {
   protected onExpenditureClassificationChange(key: number, event: Event): void {
     const expenditureClassification = (event.target as HTMLSelectElement).value as ExpenditureClassification;
     this.updateLine(key, { expenditureClassification });
+  }
+
+  protected onCreditUseChange(key: number, event: Event): void {
+    const creditUse = (event.target as HTMLSelectElement).value as VatCreditUse;
+    this.updateLine(key, { creditUse, disallowedVat: undefined });
+  }
+
+  protected onCreditCategoryChange(key: number, event: Event): void {
+    const creditCategory = (event.target as HTMLSelectElement).value as VatCreditCategory;
+    this.updateLine(key, { creditCategory, disallowedVat: undefined });
+  }
+
+  private creditCategoryOf(productId: string): VatCreditCategory {
+    return this.products().find((p) => p.id === productId)?.vatCreditCategory ?? 'Full';
   }
 
   protected onDiscountPctChange(key: number, event: Event): void {
@@ -685,6 +725,8 @@ export class PurchaseBillDetailPage {
         rate: l.rate ?? 0,
         vatRate: this.products().find((p) => p.id === l.productId)?.vatRate ?? ('NoVat' as VatRate),
         expenditureClassification: 'Others' as ExpenditureClassification,
+        creditUse: 'Taxable' as VatCreditUse,
+        creditCategory: this.creditCategoryOf(l.productId!),
         discountPct: 0,
         // Phase 51 -- an AI-extracted document names no batch and no serials (phase 22 reads a
         // supplier's PDF, not our ledger), so these start blank and the user fills them. Blank is
@@ -774,6 +816,8 @@ export class PurchaseBillDetailPage {
         rate: l.rate,
         vatRate: l.vatRate,
         expenditureClassification: l.expenditureClassification,
+        creditUse: l.creditUse,
+        creditCategory: l.creditCategory,
         discountPct: l.discountPct,
         // Phase 51. Null rather than '' -- the server reads a blank as "no batch", and a product
         // that is not batch-tracked is refused one outright, so '' would be sending a value.
@@ -890,6 +934,8 @@ export class PurchaseBillDetailPage {
       rate: 0,
       vatRate: 'NoVat',
       expenditureClassification: 'Others',
+      creditUse: 'Taxable',
+      creditCategory: 'Full',
       discountPct: 0,
       batchNo: '',
       manufactureDate: '',
@@ -1113,6 +1159,9 @@ export class PurchaseBillDetailPage {
                 rate: l.rate,
                 vatRate: l.vatRate,
                 expenditureClassification: l.expenditureClassification,
+                creditUse: l.creditUse,
+                creditCategory: l.creditCategory,
+                disallowedVat: l.disallowedVat,
                 discountPct: l.discountPct,
                 unitId: l.unitId ?? '',
                 // Phase 51 -- read back, not only written. Phase 35a found 14 of 15 detail reads

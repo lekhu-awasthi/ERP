@@ -242,7 +242,8 @@ public sealed class PurchaseBill
 
     public void AddLine(
         Guid productId, decimal quantity, decimal rate, VatRate vatRate, ExpenditureClassification expenditureClassification,
-        decimal discountPct, Guid? unitId, decimal conversionFactor, Guid? batchId = null)
+        decimal discountPct, Guid? unitId, decimal conversionFactor, Guid? batchId,
+        VatCreditUse creditUse, VatCreditCategory creditCategory)
     {
         EnsureDraft();
 
@@ -255,7 +256,7 @@ public sealed class PurchaseBill
 
         _lines.Add(PurchaseBillLine.Create(
             Id, productId, quantity, rate, vatRate, expenditureClassification, discountPct, DiscountPct,
-            batchId, unitId, conversionFactor));
+            batchId, unitId, conversionFactor, creditUse, creditCategory));
     }
 
     private static void EnsureValidDiscountPct(decimal discountPct)

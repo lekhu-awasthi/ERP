@@ -35,6 +35,19 @@ public sealed record PurchaseBillPostingInput(
 /// would have been a guess on any tenant that points two defaults at one account.
 /// <c>PurchaseBillPostingRule</c> ignores it: a bill debits Inventory the amount it paid, which is
 /// the line amount.
+///
+/// <para><paramref name="DisallowedVat"/> (phase 99) is the part of <paramref name="VatAmount"/> that is not input credit
+/// at approval (an exempt-use line's whole VAT, Rule 41's share otherwise; <c>VatCredit.DisallowedAtPosting</c>). It is a
+/// cost of the purchase, so it goes to the line's own account with the Amount and only the rest goes to VAT Receivable;
+/// the payable is unchanged.</para>
 /// </summary>
 public sealed record PurchaseBillPostingLineInput(
-    Guid DebitAccountId, decimal Amount, decimal VatAmount, bool RelievesStock = false);
+    Guid DebitAccountId, decimal Amount, decimal VatAmount, bool RelievesStock = false, decimal DisallowedVat = 0)
+{
+    /// <summary>What the line's own account is debited (a bill) or credited (a debit note): its Amount and the VAT that is
+    /// not credit.</summary>
+    public decimal Cost => Amount + DisallowedVat;
+
+    /// <summary>The line's VAT that is input credit.</summary>
+    public decimal ClaimableVat => VatAmount - DisallowedVat;
+}

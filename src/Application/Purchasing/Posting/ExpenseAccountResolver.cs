@@ -13,7 +13,7 @@ internal static class ExpenseAccountResolver
     public static async Task<ExpensePostingInput> ResolveAsync(
         IAppDbContext db,
         Guid organizationId,
-        IEnumerable<(Guid AccountId, decimal Amount, decimal VatAmount)> lines,
+        IEnumerable<(Guid AccountId, decimal Amount, decimal VatAmount, decimal DisallowedVat)> lines,
         decimal tdsAmount,
         CancellationToken cancellationToken)
     {
@@ -29,8 +29,9 @@ internal static class ExpenseAccountResolver
                 "Default Accounts Payable account is not configured. Set it under Accounting Defaults before approving expenses.");
         }
 
-        var totalVat = lineList.Sum(x => x.VatAmount);
-        if (totalVat > 0 && settings.DefaultVatReceivableAccountId is null)
+        // Phase 99 -- only the VAT that is credit reaches VAT Receivable.
+        var claimableVat = lineList.Sum(x => x.VatAmount - x.DisallowedVat);
+        if (claimableVat > 0 && settings.DefaultVatReceivableAccountId is null)
         {
             throw new ConflictException(
                 "Default VAT Receivable account is not configured. Set it under Accounting Defaults before approving expenses with VAT.");
@@ -42,7 +43,9 @@ internal static class ExpenseAccountResolver
                 "Default TDS Payable account is not configured. Set it under Accounting Defaults before approving expenses with TDS.");
         }
 
-        var postingLines = lineList.Select(x => new ExpensePostingLineInput(x.AccountId, x.Amount, x.VatAmount)).ToList();
+        var postingLines = lineList
+            .Select(x => new ExpensePostingLineInput(x.AccountId, x.Amount, x.VatAmount, x.DisallowedVat))
+            .ToList();
 
         return new ExpensePostingInput(
             accountsPayableId,

@@ -15,6 +15,7 @@ public sealed class UpdateProductCommandValidator : AbstractValidator<UpdateProd
         RuleFor(x => x.SellingPrice).GreaterThanOrEqualTo(0);
         RuleFor(x => x.PurchasePrice).GreaterThanOrEqualTo(0);
         RuleFor(x => x.VatRate).IsInEnum();
+        RuleFor(x => x.VatCreditCategory).IsInEnum();
         RuleFor(x => x.ReOrderLevel).GreaterThanOrEqualTo(0);
 
         // Phase 51. Only the Track Inventory half is checkable here: a product's Type is immutable

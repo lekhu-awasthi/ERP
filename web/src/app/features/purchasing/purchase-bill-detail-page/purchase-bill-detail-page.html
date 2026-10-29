@@ -294,6 +294,8 @@
                 <th scope="col" style="width: 100px;" class="text-end">Discount %</th>
                 <th scope="col" style="width: 140px;">VAT</th>
                 <th scope="col" style="width: 140px;">Classification</th>
+                <!-- Phase 99 -- the line's input-credit terms: what it was used for (VAT Rule 40) over Rule 41's limit. -->
+                <th scope="col" style="min-width: 200px;">VAT Credit</th>
                 <th scope="col" style="width: 110px;" class="text-end">Amount</th>
                 @if (isDraft()) {
                   <th scope="col" style="width: 48px;"></th>
@@ -446,6 +448,28 @@
                       {{ line.expenditureClassification }}
                     }
                   </td>
+                  <td>
+                    @if (isDraft()) {
+                      <select aria-label="VAT credit use" class="form-select form-select-sm mb-1" style="min-width: 180px;"
+                        (change)="onCreditUseChange(line.key, $event)">
+                        @for (u of vatCreditUses; track u.value) {
+                          <option [value]="u.value" [selected]="u.value === line.creditUse">{{ u.label }}</option>
+                        }
+                      </select>
+                      <select aria-label="VAT credit category" class="form-select form-select-sm" style="min-width: 180px;"
+                        (change)="onCreditCategoryChange(line.key, $event)">
+                        @for (c of vatCreditCategories; track c.value) {
+                          <option [value]="c.value" [selected]="c.value === line.creditCategory">{{ c.label }}</option>
+                        }
+                      </select>
+                    } @else {
+                      <span class="d-block">{{ vatCreditUseLabel(line.creditUse) }}</span>
+                      <span class="d-block small text-muted">{{ vatCreditCategoryLabel(line.creditCategory) }}</span>
+                    }
+                    @if (line.disallowedVat) {
+                      <span class="d-block small text-muted">Not claimable: {{ (line.disallowedVat | amount) }}</span>
+                    }
+                  </td>
                   <td class="text-end">{{ ((line.quantity * line.rate * (1 - line.discountPct / 100)) | amount) }}</td>
                   @if (isDraft()) {
                     <td>
@@ -459,7 +483,7 @@
             </tbody>
             <tfoot>
               <tr>
-                <td colspan="5"></td>
+                <td colspan="7"></td>
                 <td class="text-end fw-semibold">Sub Total</td>
                 <td class="text-end fw-bold">{{ (subTotal() | amount) }}</td>
                 @if (isDraft()) {
@@ -467,7 +491,7 @@
                 }
               </tr>
               <tr>
-                <td colspan="5"></td>
+                <td colspan="7"></td>
                 <td class="text-end fw-semibold">
                   Discount %
                   @if (isDraft()) {
@@ -489,7 +513,7 @@
                 }
               </tr>
               <tr>
-                <td colspan="5"></td>
+                <td colspan="7"></td>
                 <td class="text-end fw-semibold">Non-Taxable Total</td>
                 <td class="text-end fw-bold">{{ (nonTaxableTotal() | amount) }}</td>
                 @if (isDraft()) {
@@ -497,7 +521,7 @@
                 }
               </tr>
               <tr>
-                <td colspan="5"></td>
+                <td colspan="7"></td>
                 <td class="text-end fw-semibold">Taxable Total</td>
                 <td class="text-end fw-bold">{{ (taxableTotal() | amount) }}</td>
                 @if (isDraft()) {
@@ -505,7 +529,7 @@
                 }
               </tr>
               <tr>
-                <td colspan="5"></td>
+                <td colspan="7"></td>
                 <td class="text-end fw-semibold">VAT</td>
                 <td class="text-end fw-bold">{{ (vatTotal() | amount) }}</td>
                 @if (isDraft()) {
@@ -513,7 +537,7 @@
                 }
               </tr>
               <tr>
-                <td colspan="5"></td>
+                <td colspan="7"></td>
                 <td class="text-end fw-bold">Grand Total</td>
                 <td class="text-end fw-bold text-primary">{{ (grandTotal() | amount) }}</td>
                 @if (isDraft()) {

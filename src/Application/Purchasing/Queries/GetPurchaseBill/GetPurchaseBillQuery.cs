@@ -36,6 +36,10 @@ public sealed record GetPurchaseBillQuery(Guid OrganizationId, Guid Id)
 /// catalogue that may since have changed. The converted quantity is deliberately not sent --
 /// it is <c>Quantity x ConversionFactor</c>, and shipping it would put a second quantity on the
 /// wire that can contradict the first.</param>
+/// <param name="CreditUse">Phase 99 -- what the line was bought for (Rule 40).</param>
+/// <param name="CreditCategory">Phase 99 -- Rule 41's limit on its credit.</param>
+/// <param name="DisallowedVat">Phase 99 -- the part of its VAT the approval posts to the line's own account rather than
+/// VAT Receivable, in the bill's currency, for the form to show beside the VAT.</param>
 public sealed record PurchaseBillLineDto(
     Guid Id, Guid ProductId, decimal Quantity, decimal Rate, VatRate VatRate, decimal DiscountPct, decimal Amount, decimal VatAmount,
     ExpenditureClassification ExpenditureClassification,
@@ -43,7 +47,8 @@ public sealed record PurchaseBillLineDto(
     DateOnly? ManufactureDate,
     DateOnly? ExpiryDate,
     IReadOnlyList<string> SerialNumbers,
-    Guid? UnitId, string? UnitName, decimal ConversionFactor);
+    Guid? UnitId, string? UnitName, decimal ConversionFactor,
+    VatCreditUse CreditUse, VatCreditCategory CreditCategory, decimal DisallowedVat);
 
 public sealed record PostedGlLineDto(Guid Id, Guid AccountId, decimal Debit, decimal Credit);
 

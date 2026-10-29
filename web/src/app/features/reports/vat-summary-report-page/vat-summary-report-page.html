@@ -78,7 +78,11 @@
                     </th>
                     @for (figure of line.monthly; track $index) {
                       <td class="text-end text-nowrap ps-4">
-                        @if (figure === 0) {
+                        @if (line.isPercent) {
+                          <!-- Phase 99 -- the month's taxable share of sales, a percent and never a credit; 0% (every sale
+                               exempt) is a figure, not a nil. -->
+                          {{ (figure | amount) }}%
+                        } @else if (figure === 0) {
                           <span class="text-muted" aria-hidden="true">–</span><span class="visually-hidden">nil</span>
                         } @else if (figure < 0) {
                           ({{ (-figure | amount) }})
@@ -104,7 +108,9 @@
         </div>
         <p class="text-muted small mt-3 mb-0">
           Figures in parentheses are a credit. A month's credit is brought forward into the next month, across the fiscal
-          year's end, until a month's VAT uses it up.
+          year's end, until a month's VAT uses it up. Only the input VAT that may be claimed counts: VAT on purchases for
+          exempt sales and under Rule 41 was posted to the purchase's own account when it was approved, and the shared part
+          not claimable is for you to post by journal.
         </p>
       }
     </div>

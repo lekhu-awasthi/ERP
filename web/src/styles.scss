@@ -350,3 +350,11 @@ body {
 .table-responsive > table input.form-control:not([type='checkbox']):not([type='radio']) {
   min-width: 5rem;
 }
+
+/*
+  Phase 99 -- and every choice in one. The purchase bill's VAT Credit column widened the table, and the squeeze moved to
+  its selects: VAT came out 46 px wide, showing "1" for 13%. The same floor for the same reason.
+*/
+.table-responsive > table select.form-select {
+  min-width: 6.5rem;
+}

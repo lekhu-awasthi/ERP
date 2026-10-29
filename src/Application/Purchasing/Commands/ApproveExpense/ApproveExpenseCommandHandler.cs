@@ -43,10 +43,13 @@ public sealed class ApproveExpenseCommandHandler(
         // leg as a sum of these very numbers. See ExchangeRates' doc comment.
         var postingInput = await ExpenseAccountResolver.ResolveAsync(
             db, request.OrganizationId,
+            // Phase 99 -- the VAT that is not credit, worked out on the base-currency VAT as the VAT return does.
             expense.Lines.Select(x => (
                 x.AccountId,
                 ExchangeRates.ToBase(x.Amount, expense.ExchangeRate),
-                ExchangeRates.ToBase(x.VatAmount, expense.ExchangeRate))),
+                ExchangeRates.ToBase(x.VatAmount, expense.ExchangeRate),
+                VatCredit.DisallowedAtPosting(
+                    ExchangeRates.ToBase(x.VatAmount, expense.ExchangeRate), x.CreditUse, x.CreditCategory))),
             ExchangeRates.ToBase(expense.TdsAmount, expense.ExchangeRate), cancellationToken);
 
         var code = await numberGenerator.GetNextNumberAsync(

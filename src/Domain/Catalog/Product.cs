@@ -83,6 +83,17 @@ public sealed class Product
     public bool PackagingFeeApplicable { get; private set; }
 
     /// <summary>
+    /// Phase 99 -- Rule 41's limit on the input credit for this product (none for alcohol, 40% for a car, 60% for a
+    /// computer), which prefills a purchase bill line's <c>CreditCategory</c>; the line can change it. Full by default,
+    /// and member 0, so every product from before the phase is Full.
+    ///
+    /// <para><b>Written by <see cref="SetVatCreditCategory"/> alone</b>, for <see cref="PackagingFeeApplicable"/>'s reason:
+    /// an optional parameter on <see cref="Update"/> would reset a chosen category to Full from every caller that does
+    /// not know the field. A variant starts with its parent's.</para>
+    /// </summary>
+    public Purchasing.VatCreditCategory VatCreditCategory { get; private set; }
+
+    /// <summary>
     /// Phase 64 -- the kitchen station (the vendor's <i>Print Profile</i>) a restaurant order line of
     /// this product is sent to. Null is the till's Default station. This reopens phase 47's drop of
     /// <c>PrintProfileId</c>, which was right about the ERP -- nothing there acts on it -- and wrong
@@ -323,6 +334,9 @@ public sealed class Product
     /// <summary>Phase 70 -- see <see cref="PackagingFeeApplicable"/>.</summary>
     public void SetPackagingFeeApplicable(bool applicable) => PackagingFeeApplicable = applicable;
 
+    /// <summary>Phase 99 -- see <see cref="VatCreditCategory"/>.</summary>
+    public void SetVatCreditCategory(Purchasing.VatCreditCategory category) => VatCreditCategory = category;
+
     public void AssignKitchenStation(Guid? kitchenStationId)
     {
         if (kitchenStationId is not null && HasVariants)
@@ -472,6 +486,7 @@ public sealed class Product
             AvailableForSale = AvailableForSale,
             ServiceChargeApplicable = ServiceChargeApplicable,
             PackagingFeeApplicable = PackagingFeeApplicable,
+            VatCreditCategory = VatCreditCategory,
             SellingPrice = sellingPrice,
             PurchasePrice = purchasePrice,
             VatRate = VatRate,

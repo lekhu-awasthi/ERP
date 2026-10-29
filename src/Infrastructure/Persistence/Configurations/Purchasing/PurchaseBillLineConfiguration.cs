@@ -22,6 +22,12 @@ public sealed class PurchaseBillLineConfiguration : IEntityTypeConfiguration<Pur
         builder.Property(x => x.VatAmount).HasPrecision(18, 4).IsRequired();
         builder.Property(x => x.ExpenditureClassification).HasConversion<string>().HasMaxLength(20).IsRequired();
 
+        // Phase 99 -- the line's input-credit terms, by name. No model default (both are member 0 and always written);
+        // the migration backfills every existing line to Taxable / Full, which is what it posted.
+        builder.Property(x => x.CreditUse).HasConversion<string>().HasMaxLength(20).IsRequired();
+        builder.Property(x => x.CreditCategory).HasConversion<string>().HasMaxLength(20).IsRequired();
+        builder.Ignore(x => x.DisallowedVat);
+
         builder.HasOne<Product>().WithMany().HasForeignKey(x => x.ProductId).OnDelete(DeleteBehavior.Restrict);
 
         // Phase 51 -- the batch this line receives into or issues from. Restrict, not Cascade:

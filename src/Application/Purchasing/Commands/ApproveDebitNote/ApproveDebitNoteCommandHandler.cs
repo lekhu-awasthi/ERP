@@ -77,12 +77,27 @@ public sealed class ApproveDebitNoteCommandHandler(
         // here, before the posting rule runs. Doing it here rather than on the finished GlLineInput
         // list is what keeps the entry balanced by construction -- the rule derives its balancing
         // leg as a sum of these very numbers. See ExchangeRates' doc comment.
+        // Phase 99 -- each line's credit terms inherited from its bill line (PurchaseLineVatCredit.ForDebitNoteLine, the
+        // reading the VAT return uses), so the VAT that never reached VAT Receivable is credited back to where it went.
+        var sourceTerms = sourcePurchaseBill is null
+            ? null
+            : PurchaseLineVatCredit.SourceTerms(sourcePurchaseBill.Lines.Select(x =>
+                (x.ProductId, x.Rate, x.VatRate, x.CreditUse, x.CreditCategory)));
+        var productCategories = await PurchaseLineVatCredit.ProductCategoriesAsync(
+            db, request.OrganizationId, [.. debitNote.Lines.Select(x => x.ProductId)], cancellationToken);
         var postingInput = await DebitNoteAccountResolver.ResolveAsync(
             db, request.OrganizationId,
-            debitNote.Lines.Select(x => (
-                x.ProductId,
-                ExchangeRates.ToBase(x.Amount, debitNote.ExchangeRate),
-                ExchangeRates.ToBase(x.VatAmount, debitNote.ExchangeRate))),
+            debitNote.Lines.Select(x =>
+            {
+                var vatBase = ExchangeRates.ToBase(x.VatAmount, debitNote.ExchangeRate);
+                var (use, category) = PurchaseLineVatCredit.ForDebitNoteLine(
+                    sourceTerms, x.ProductId, x.Rate, x.VatRate, productCategories);
+                return (
+                    x.ProductId,
+                    ExchangeRates.ToBase(x.Amount, debitNote.ExchangeRate),
+                    vatBase,
+                    VatCredit.DisallowedAtPosting(vatBase, use, category));
+            }),
             ExchangeRates.ToBase(debitNote.TdsAmount, debitNote.ExchangeRate), cancellationToken,
             requiresLandedCostClearing: sourcePurchaseBill?.AdditionalCosts.Count > 0,
             // Phase 87 -- the accounts the bill this note returns recorded at its approval: each line's debit account by

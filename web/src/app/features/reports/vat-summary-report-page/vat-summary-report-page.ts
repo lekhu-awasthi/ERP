@@ -16,6 +16,7 @@ const SECTION_TITLES: Readonly<Record<VatReturnSection, string>> = {
   SalesReturns: 'Sales returns',
   Purchases: 'Purchases',
   PurchaseReturns: 'Purchase returns',
+  InputCredit: 'Input VAT not claimable (VAT Rules 40 and 41)',
   Settlement: 'VAT for the month',
 };
 

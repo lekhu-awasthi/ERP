@@ -84,6 +84,7 @@ describe('PurchaseBillDetailPage — Additional Cost', () => {
           unitId: null,
           unitName: null,
           conversionFactor: 1,
+          creditUse: 'Taxable', creditCategory: 'Full', disallowedVat: 0,
         },
         {
           id: 'l-helmet',
@@ -102,6 +103,7 @@ describe('PurchaseBillDetailPage — Additional Cost', () => {
           unitId: null,
           unitName: null,
           conversionFactor: 1,
+          creditUse: 'Taxable', creditCategory: 'Full', disallowedVat: 0,
         },
       ],
       glLines: null,
@@ -266,6 +268,7 @@ describe('PurchaseBillDetailPage — Additional Cost', () => {
           unitId: null,
           unitName: null,
           conversionFactor: 1,
+          creditUse: 'Taxable', creditCategory: 'Full', disallowedVat: 0,
           },
         ],
       }),

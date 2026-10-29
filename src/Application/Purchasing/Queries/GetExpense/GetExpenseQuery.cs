@@ -16,7 +16,12 @@ public sealed record GetExpenseQuery(Guid OrganizationId, Guid Id)
     public Guid LocationDocumentId => Id;
 }
 
-public sealed record ExpenseLineDto(Guid Id, Guid AccountId, decimal Amount, VatRate VatRate, decimal VatAmount);
+/// <param name="CreditUse">Phase 99 -- what the expense was for (Rule 40).</param>
+/// <param name="CreditCategory">Phase 99 -- Rule 41's limit on its credit.</param>
+/// <param name="DisallowedVat">Phase 99 -- the part of its VAT posted to the line's own account, not VAT Receivable.</param>
+public sealed record ExpenseLineDto(
+    Guid Id, Guid AccountId, decimal Amount, VatRate VatRate, decimal VatAmount,
+    VatCreditUse CreditUse, VatCreditCategory CreditCategory, decimal DisallowedVat);
 
 public sealed record PostedGlLineDto(Guid Id, Guid AccountId, decimal Debit, decimal Credit);
 

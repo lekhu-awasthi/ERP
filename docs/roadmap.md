@@ -6,7 +6,7 @@ Guiding rule for phase sizing: each phase ends with something *runnable and demo
 
 ---
 
-## Completed phases (0–95)
+## Completed phases (0–99)
 
 One line each; phase *N*'s full story is `docs/phase-N-status.md`. The verbose index as it stood on
 2026-09-28 is archived verbatim in `roadmap-history.md` ("Completed-phases index, verbose form").
@@ -81,6 +81,10 @@ One line each; phase *N*'s full story is `docs/phase-N-status.md`. The verbose i
 | 93 | Batch integrity: an ERP invoice or debit-note line of a batch-tracked product names its batch, as the vendor requires (`StockLineKind`; the till still walks); both notes carry the batch phase 51 gave them and nothing wrote, prefilled by their templates (`DebitNoteBatches`: a converted note's from its bill; `CreditNoteBatches`: a converted note's from what the invoice issued, capped per batch); a void or till refund of a walked issue goes back into the batches it took, read from the document's own movements (`IssuedStockRestock`); over-long serial or batch numbers are 400s on all ten line commands, and two saves putting one serial in stock at once a 409; every native select binds per option (the credit note's showed the walk-in on every converted note), guarded by `select-binding-sweep-guard.spec.ts` |
 | 94 | The Retail till's batch picker: a till line of a batch-tracked product names its batch, as the vendor's till requires (read live; `StockLineKind.TillIssue` retired, a till sale is an `Issue`); `GET /pos/tills/{loc}/products/{id}/batches` lists the batches left at the till's warehouse with their expiry, soonest first; the till opens a batch line on a radio picker and refuses payment until each names one; restaurant bills still walk, and a batch has no price of its own |
 | 95 | Seven leftovers cleared in one session at the user's request: focus kept app-wide after a failed Save or a removed line (`FocusKeeper`); a batch on a restaurant order line; the till's scan indexed (11,189 → 50 reads) and its grid's location rule made a set (85,606 → 5,413); a batch's own selling price and required expiry, which every price gate keeps; serials printable on the bill and receipt (a template switch, off by default); company Batch/Serial Tracking switches overriding each product's; a return's price-to-cost difference to its bill's recorded account; line-table boxes kept readable at 1,024 px |
+| 96 | The carried questions answered: a till refund rounds into the account its sale rounded into (`Invoice.RoundingAccountId`); the vendor's print extras and per-row allocation table dropped; the VAT points written as questions for a tax advisor |
+| 97 | The tax advisor's answers built (a domestic zero-rated sale its own VAT-return line, `Bucketed.ZeroRated`; the credit's carry and Annex 13's basis pinned by tests) and discount schemes (item, category, slab; one reader `DiscountSchemeRates` for forms, till and gates; keeping a scheme's figure needs no key) |
+| 98 | The money receipt on the 80 mm roll (`PrintLayouts.RetailTypes` gains Payment; supplier payments may use it; the receipt's number no longer prints twice) |
+| 99 | Input VAT apportionment (VAT Rules 40 and 41): each purchase bill and expense line has a use (Taxable/Exempt/Shared) and a Rule 41 category (Full/None/Vehicle 40%/Computer 60%, prefilled from the product); exempt use and Rule 41 posted to the line's own account and FIFO layer at approval, debit notes inheriting the bill line's terms; the VAT return works out the shared part by the month's taxable share and shows the working; Payable and the carry on the allowed credit only |
 
 ---
 
@@ -324,10 +328,19 @@ that list was dropped in phase 96 by the user's choice.
 **Carried from phase 97** (§ 5 there):
 
 - Whether **exempt** sales should limit the input VAT a month claims: **answered from the statutes (2026-10-29) and
-  scheduled as phase 99.** Rule 40(3)–(5): credit only on purchases for taxable supplies, a shared purchase in the month's
-  proportion of taxable to total sales; Rule 41's blocked and partial credits beside it. Detail in § 5 there.
+  built in phase 99** (Rule 40(3)–(4) and Rule 41).
 - **Free goods** in a discount scheme (the vendor's mock-up has an *Issue Qty*): left out by the user's choice (percent
   only). Start condition: a user asking for "buy N get M free", plus the advisor's word on VAT for free units.
+
+**Carried from phase 99** (§ 5 there):
+
+- **Rule 40(5)**, a method the Tax Officer directs in place of the proportion: out of scope by the user's choice.
+  Start condition: a user with such a direction.
+- **Posting the shared part.** The return shows it and the accountant journals it each month. Start condition: a user
+  asking for a month-end action that posts it.
+- **A year-end true-up**: none found in the Act or Rules 39–41. Start condition: an advisor naming one.
+- **A standalone debit note** is Taxable use with its product's category (converted notes inherit exactly).
+- The statutes were read in unofficial translations; the user is to show the rule numbers to the tax advisor.
 
 **Carried from phase 62** (§ 5 there):
 

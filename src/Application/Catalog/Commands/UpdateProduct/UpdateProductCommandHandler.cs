@@ -68,6 +68,11 @@ public sealed class UpdateProductCommandHandler(IAppDbContext db)
             product.SetPackagingFeeApplicable(packagingFeeApplicable);
         }
 
+        if (request.VatCreditCategory is { } vatCreditCategory)
+        {
+            product.SetVatCreditCategory(vatCreditCategory);
+        }
+
         product.SetAccounts(
             request.SalesAccountId, request.SalesReturnAccountId, request.PurchaseAccountId, request.PurchaseReturnAccountId);
 

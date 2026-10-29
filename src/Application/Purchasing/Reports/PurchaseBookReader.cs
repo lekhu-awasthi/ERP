@@ -29,7 +29,11 @@ internal static class PurchaseBookReader
         DateOnly Date,
         string? SupplierInvoiceReference,
         string? ImportDocumentNo,
-        PurchaseReturnReader.Bucketed Buckets);
+        PurchaseReturnReader.Bucketed Buckets)
+    {
+        /// <summary>Phase 99 -- the document's credit figures, from each line's own terms.</summary>
+        public PurchaseReturnReader.CreditFigures Credit { get; init; } = PurchaseReturnReader.CreditFigures.Empty;
+    }
 
     internal static async Task<List<PurchaseBookRow>> LoadAsync(
         IAppDbContext db,
@@ -68,7 +72,11 @@ internal static class PurchaseBookReader
         var billLines = await (
                 from line in db.PurchaseBillLines
                 join bill in billQuery on line.PurchaseBillId equals bill.Id
-                select new { line.PurchaseBillId, line.Amount, line.VatAmount, line.ExpenditureClassification, bill.ExchangeRate })
+                select new
+                {
+                    line.PurchaseBillId, line.Amount, line.VatAmount, line.ExpenditureClassification, line.CreditUse,
+                    line.CreditCategory, bill.ExchangeRate,
+                })
             .ToListAsync(cancellationToken);
 
         var expenses = await expenseQuery
@@ -77,7 +85,7 @@ internal static class PurchaseBookReader
         var expenseLines = await (
                 from line in db.ExpenseLines
                 join expense in expenseQuery on line.ExpenseId equals expense.Id
-                select new { line.ExpenseId, line.Amount, line.VatAmount, expense.ExchangeRate })
+                select new { line.ExpenseId, line.Amount, line.VatAmount, line.CreditUse, line.CreditCategory, expense.ExchangeRate })
             .ToListAsync(cancellationToken);
 
         // Phase 44 (43 Decision D) -- <b>the book is filed in NPR, so it reports NPR.</b> Folded per line, before Bucket,
@@ -106,14 +114,34 @@ internal static class PurchaseBookReader
                         ExpenditureClassification.Others)),
                     isImport: false));
 
+        // Phase 99 -- folded per line on the same base-currency VAT the approval posted from.
+        var billCredit = billLines
+            .GroupBy(x => x.PurchaseBillId)
+            .ToDictionary(
+                g => g.Key,
+                g => PurchaseReturnReader.CreditFigures.Of(g.Select(l => (
+                    ExchangeRates.ToBase(l.VatAmount, l.ExchangeRate), l.CreditUse, l.CreditCategory))));
+        var expenseCredit = expenseLines
+            .GroupBy(x => x.ExpenseId)
+            .ToDictionary(
+                g => g.Key,
+                g => PurchaseReturnReader.CreditFigures.Of(g.Select(l => (
+                    ExchangeRates.ToBase(l.VatAmount, l.ExchangeRate), l.CreditUse, l.CreditCategory))));
+
         return
         [
             .. bills.Select(x => new PurchaseBookRow(
                 x.Id, DocumentType.PurchaseBill, x.ContactId, x.Code, x.Date, x.SupplierInvoiceReference, x.ImportDocumentNo,
-                billBuckets.GetValueOrDefault(x.Id) ?? PurchaseReturnReader.Bucketed.Empty)),
+                billBuckets.GetValueOrDefault(x.Id) ?? PurchaseReturnReader.Bucketed.Empty)
+            {
+                Credit = billCredit.GetValueOrDefault(x.Id) ?? PurchaseReturnReader.CreditFigures.Empty,
+            }),
             .. expenses.Select(x => new PurchaseBookRow(
                 x.Id, DocumentType.Expense, x.ContactId, x.Code, x.Date, x.SupplierInvoiceReference, null,
-                expenseBuckets.GetValueOrDefault(x.Id) ?? PurchaseReturnReader.Bucketed.Empty)),
+                expenseBuckets.GetValueOrDefault(x.Id) ?? PurchaseReturnReader.Bucketed.Empty)
+            {
+                Credit = expenseCredit.GetValueOrDefault(x.Id) ?? PurchaseReturnReader.CreditFigures.Empty,
+            }),
         ];
     }
 }

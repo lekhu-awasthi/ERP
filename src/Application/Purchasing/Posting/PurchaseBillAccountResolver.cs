@@ -31,7 +31,7 @@ internal static class PurchaseBillAccountResolver
     public static async Task<PurchaseBillPostingInput> ResolveAsync(
         IAppDbContext db,
         Guid organizationId,
-        IEnumerable<(Guid ProductId, decimal Amount, decimal VatAmount)> lines,
+        IEnumerable<(Guid ProductId, decimal Amount, decimal VatAmount, decimal DisallowedVat)> lines,
         decimal tdsAmount,
         CancellationToken cancellationToken,
         bool requiresLandedCostClearing = false,
@@ -78,7 +78,8 @@ internal static class PurchaseBillAccountResolver
                         "Set a Purchase Account on the product, or configure a Default Purchase Account under Accounting Defaults.");
             }
 
-            postingLines.Add(new PurchaseBillPostingLineInput(debitAccountId, line.Amount, line.VatAmount, relievesStock));
+            postingLines.Add(new PurchaseBillPostingLineInput(
+                debitAccountId, line.Amount, line.VatAmount, relievesStock, line.DisallowedVat));
         }
 
         if ((recorded?.PayableAccountId ?? settings.DefaultAccountsPayableId) is not { } accountsPayableId)
@@ -91,8 +92,9 @@ internal static class PurchaseBillAccountResolver
         var tdsPayableAccountId = recorded?.TdsPayableAccountId ?? settings.DefaultTdsPayableAccountId;
         var inventoryAccountIdOrDefault = recorded?.InventoryAccountId ?? settings.DefaultInventoryAccountId;
 
-        var totalVat = lineList.Sum(x => x.VatAmount);
-        if (totalVat > 0 && vatReceivableAccountId is null)
+        // Phase 99 -- only the VAT that is credit reaches VAT Receivable, so a bill whose VAT is all disallowed needs none.
+        var claimableVat = lineList.Sum(x => x.VatAmount - x.DisallowedVat);
+        if (claimableVat > 0 && vatReceivableAccountId is null)
         {
             throw new ConflictException(
                 "Default VAT Receivable account is not configured. Set it under Accounting Defaults before approving purchase bills with VAT.");

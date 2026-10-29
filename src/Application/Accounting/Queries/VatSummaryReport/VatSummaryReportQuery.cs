@@ -37,6 +37,9 @@ public enum VatReturnSection
     SalesReturns,
     Purchases,
     PurchaseReturns,
+
+    /// <summary>Phase 99 -- the input VAT that is not credit under VAT Rules 40 and 41, and how it was worked out.</summary>
+    InputCredit,
     Settlement,
 }
 
@@ -49,6 +52,7 @@ public enum VatReturnSection
 /// <param name="Label">The line in English.</param>
 /// <param name="LabelNepali">The IRD form's own wording for the line, as the vendor's screen prints it.</param>
 /// <param name="IsTotal">A block's total line, which the screen and the sheet print bold.</param>
+/// <param name="IsPercent">Phase 99 -- the figures are a percent (the month's taxable share of sales), not rupees.</param>
 public sealed record VatReturnLineDto(
     string Key,
     VatReturnSection Section,
@@ -56,7 +60,8 @@ public sealed record VatReturnLineDto(
     string LabelNepali,
     bool IsTotal,
     IReadOnlyList<decimal> Monthly,
-    decimal? Total);
+    decimal? Total,
+    bool IsPercent = false);
 
 /// <param name="Lines">Every line of the return in the form's order, settlement last.</param>
 public sealed record VatSummaryReportDto(

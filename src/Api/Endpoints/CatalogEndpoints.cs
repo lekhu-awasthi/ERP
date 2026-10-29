@@ -29,6 +29,7 @@ using ErpApp.Application.Common.Pagination;
 using ErpApp.Application.Configuration.Commands.DeleteLookup;
 using ErpApp.Application.Configuration.Queries.ListLookups;
 using ErpApp.Domain.Catalog;
+using ErpApp.Domain.Purchasing;
 using MediatR;
 
 namespace ErpApp.Api.Endpoints;
@@ -156,7 +157,7 @@ public static class CatalogEndpoints
                     request.HsCode, request.AvailableForSale, request.SellingPrice, request.PurchasePrice,
                     request.VatRate, request.ReOrderLevel, request.TrackInventory, request.Sku, request.Barcode,
                     request.LocationIds, request.BatchTracking, request.SerialTracking,
-                    request.ServiceChargeApplicable, request.PackagingFeeApplicable),
+                    request.ServiceChargeApplicable, request.PackagingFeeApplicable, request.VatCreditCategory),
                 ct);
             return Results.Created($"/api/organizations/{organizationId}/products/{result.Id}", result);
         });
@@ -172,7 +173,7 @@ public static class CatalogEndpoints
                     request.SalesAccountId, request.SalesReturnAccountId, request.PurchaseAccountId, request.PurchaseReturnAccountId,
                     request.Sku, request.Barcode, request.LocationIds,
                     request.BatchTracking, request.SerialTracking, request.ServiceChargeApplicable,
-                    request.PackagingFeeApplicable),
+                    request.PackagingFeeApplicable, request.VatCreditCategory),
                 ct);
             return Results.Ok(result);
         });
@@ -381,14 +382,17 @@ public static class CatalogEndpoints
         // Phase 60 -- on both records for the same reason as the two above.
         bool ServiceChargeApplicable = false,
         // Phase 70 -- null takes the default (on) here and leaves the flag alone on an update.
-        bool? PackagingFeeApplicable = null);
+        bool? PackagingFeeApplicable = null,
+        // Phase 99 -- on both records (phase-27b); null is Full here and leaves the category alone on an update.
+        VatCreditCategory? VatCreditCategory = null);
 
     private sealed record UpdateProductRequest(
         string Name, Guid CategoryId, Guid PrimaryUnitId, string? HsCode, bool AvailableForSale,
         decimal SellingPrice, decimal PurchasePrice, VatRate VatRate, int ReOrderLevel, bool TrackInventory, bool IsActive,
         Guid? SalesAccountId, Guid? SalesReturnAccountId, Guid? PurchaseAccountId, Guid? PurchaseReturnAccountId,
         string? Sku, string? Barcode, IReadOnlyList<Guid>? LocationIds,
-        bool BatchTracking, bool SerialTracking, bool ServiceChargeApplicable = false, bool? PackagingFeeApplicable = null);
+        bool BatchTracking, bool SerialTracking, bool ServiceChargeApplicable = false, bool? PackagingFeeApplicable = null,
+        VatCreditCategory? VatCreditCategory = null);
 
     private sealed record AddSecondaryUnitRequest(Guid UnitId, decimal ConversionRate, decimal SellingPrice, decimal PurchasePrice);
 

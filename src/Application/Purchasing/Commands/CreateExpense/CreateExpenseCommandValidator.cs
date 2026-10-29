@@ -17,6 +17,8 @@ public sealed class CreateExpenseCommandValidator : AbstractValidator<CreateExpe
             line.RuleFor(x => x.AccountId).NotEmpty();
             line.RuleFor(x => x.Amount).GreaterThan(0);
             line.RuleFor(x => x.VatRate).IsInEnum();
+            line.RuleFor(x => x.CreditUse).IsInEnum();
+            line.RuleFor(x => x.CreditCategory).IsInEnum();
         });
 
         this.AddCurrencyRules(x => x.CurrencyCode, x => x.ExchangeRate);

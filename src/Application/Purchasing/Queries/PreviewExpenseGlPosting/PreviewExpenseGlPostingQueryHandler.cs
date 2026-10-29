@@ -2,6 +2,7 @@ using ErpApp.Application.Accounting.Posting;
 using ErpApp.Application.Common.Persistence;
 using ErpApp.Application.Purchasing.Posting;
 using ErpApp.Domain.Catalog;
+using ErpApp.Domain.Purchasing;
 using MediatR;
 
 namespace ErpApp.Application.Purchasing.Queries.PreviewExpenseGlPosting;
@@ -11,7 +12,16 @@ public sealed class PreviewExpenseGlPostingQueryHandler(IAppDbContext db, IGlPos
 {
     public async Task<IReadOnlyList<GlLinePreviewDto>> Handle(PreviewExpenseGlPostingQuery request, CancellationToken cancellationToken)
     {
-        var lines = request.Lines.Select(x => (x.AccountId, Amount: x.Amount, VatAmount: x.Amount * x.VatRate.ToPercent())).ToList();
+        // Phase 99 -- the VAT that is not credit goes where Approve sends it.
+        var lines = request.Lines.Select(x =>
+        {
+            var vatAmount = x.Amount * x.VatRate.ToPercent();
+            return (
+                x.AccountId,
+                Amount: x.Amount,
+                VatAmount: vatAmount,
+                DisallowedVat: VatCredit.DisallowedAtPosting(vatAmount, x.CreditUse, x.CreditCategory));
+        }).ToList();
 
         var tdsBaseAmount = request.Lines.Sum(x => x.Amount);
         var tdsAmount = request.TdsApplicable

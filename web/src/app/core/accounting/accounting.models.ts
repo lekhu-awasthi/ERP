@@ -541,7 +541,7 @@ export interface IncomeStatementDto {
 // --- Reports (Phase 8c) ---
 
 /** Phase 89 -- the VAT return's five blocks, in the IRD form's order. */
-export type VatReturnSection = 'Sales' | 'SalesReturns' | 'Purchases' | 'PurchaseReturns' | 'Settlement';
+export type VatReturnSection = 'Sales' | 'SalesReturns' | 'Purchases' | 'PurchaseReturns' | 'InputCredit' | 'Settlement';
 
 /**
  * One line of the VAT return: its English label, the IRD form's own Nepali wording, and a figure per BS month of the
@@ -556,6 +556,8 @@ export interface VatReturnLineDto {
   isTotal: boolean;
   monthly: number[];
   total: number | null;
+  /** Phase 99 -- the figures are a percent (the month's taxable share of sales), not rupees. */
+  isPercent: boolean;
 }
 
 /** Phase 89 -- the VAT return for one BS fiscal year: twelve month columns, Shrawan to Asar (read live 2026-10-12). */

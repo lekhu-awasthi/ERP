@@ -71,7 +71,14 @@ public class MigratedRegisterReportReachTests
         var result = await new VatSummaryReportQueryHandler(db).Handle(
             new VatSummaryReportQuery(organizationId, BsCalendar.FiscalYearOf(new DateOnly(2024, 3, 1))!.Value), CancellationToken.None);
 
-        Assert.All(result.Lines, line => Assert.All(line.Monthly, figure => Assert.Equal(0m, figure)));
+        // Phase 99 -- every rupee line is zero. The taxable share is the share applied, so a month with no sales shows
+        // 100%, which is itself proof the migrated rows were not read as sales.
+        Assert.All(
+            result.Lines.Where(x => !x.IsPercent),
+            line => Assert.All(line.Monthly, figure => Assert.Equal(0m, figure)));
+        Assert.All(
+            Assert.Single(result.Lines, x => x.IsPercent).Monthly,
+            figure => Assert.Equal(100m, figure));
     }
 
     /// <summary>

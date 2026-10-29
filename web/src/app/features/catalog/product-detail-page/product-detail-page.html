@@ -151,6 +151,16 @@
                       }
                     </select>
                   </div>
+                  <!-- Phase 99 -- Rule 41's limit on the VAT a purchase of this product may claim; it prefills a purchase
+                       bill line, where it can still be changed. -->
+                  <div class="col-6 col-sm-3">
+                    <label class="form-label small fw-semibold" for="product-detail-page-vat-credit">Purchase VAT Credit</label>
+                    <select id="product-detail-page-vat-credit" class="form-select" formControlName="vatCreditCategory">
+                      @for (c of vatCreditCategories; track c.value) {
+                        <option [value]="c.value">{{ c.label }}</option>
+                      }
+                    </select>
+                  </div>
                   <div class="col-6 col-sm-3">
                     <label class="form-label small fw-semibold" for="product-detail-page-re-order-level">Re-Order Level</label>
                     <input id="product-detail-page-re-order-level" type="number" class="form-control" formControlName="reOrderLevel" min="0" />
@@ -291,6 +301,8 @@
                 <dd class="col-8">{{ p.purchasePrice }}</dd>
                 <dt class="col-4 text-muted small">Tax</dt>
                 <dd class="col-8">{{ p.vatRate }}</dd>
+                <dt class="col-4 text-muted small">Purchase VAT Credit</dt>
+                <dd class="col-8">{{ vatCreditCategoryLabel(p.vatCreditCategory) }}</dd>
                 <dt class="col-4 text-muted small">Re-Order Level</dt>
                 <dd class="col-8">{{ p.reOrderLevel }}</dd>
                 <dt class="col-4 text-muted small">Available For Sale</dt>

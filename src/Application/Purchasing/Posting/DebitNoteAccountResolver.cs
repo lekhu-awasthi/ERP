@@ -13,7 +13,7 @@ internal static class DebitNoteAccountResolver
     public static async Task<DebitNotePostingInput> ResolveAsync(
         IAppDbContext db,
         Guid organizationId,
-        IEnumerable<(Guid ProductId, decimal Amount, decimal VatAmount)> lines,
+        IEnumerable<(Guid ProductId, decimal Amount, decimal VatAmount, decimal DisallowedVat)> lines,
         decimal tdsAmount,
         CancellationToken cancellationToken,
         bool requiresLandedCostClearing = false,

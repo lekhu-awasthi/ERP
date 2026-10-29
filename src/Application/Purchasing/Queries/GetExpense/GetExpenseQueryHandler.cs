@@ -52,7 +52,8 @@ public sealed class GetExpenseQueryHandler(IAppDbContext db) : IRequestHandler<G
             expense.ApprovedAt,
             expense.CreatedAt,
             expense.GrandTotal,
-            expense.Lines.Select(x => new ExpenseLineDto(x.Id, x.AccountId, x.Amount, x.VatRate, x.VatAmount)).ToList(),
+            expense.Lines.Select(x => new ExpenseLineDto(
+                x.Id, x.AccountId, x.Amount, x.VatRate, x.VatAmount, x.CreditUse, x.CreditCategory, x.DisallowedVat)).ToList(),
             glLines,
             expense.CurrencyCode,
             expense.ExchangeRate,

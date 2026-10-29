@@ -27,6 +27,12 @@ namespace ErpApp.Application.Purchasing.Posting;
 /// currency fold (phase 28) and absorbs the rounding residue at the same time. It posts to the
 /// tenant's Inventory Adjustment account, the same account every other "inventory is worth
 /// something other than the documents say" entry uses.</para>
+///
+/// <para><b>Phase 99 -- the VAT that was never credit is not taken back from VAT Receivable.</b> A returned line's
+/// disallowed VAT (inherited from its bill line) went to that line's own account at the bill's approval, so the note
+/// credits it back there with the line's Amount, and VAT Receivable is credited only the claimable rest. A Goods line
+/// returned at cost needs nothing more: its layer was built with the disallowed VAT in it, so
+/// <see cref="DebitNotePostingInput.RelievedInventoryCost"/> already carries it.</para>
 /// </summary>
 public sealed class DebitNotePostingRule : IGlPostingRule<DebitNotePostingInput>
 {
@@ -51,12 +57,12 @@ public sealed class DebitNotePostingRule : IGlPostingRule<DebitNotePostingInput>
         lines.AddRange(document.Lines
             .Where(x => !creditsStockLinesAtCost || !x.RelievesStock)
             .GroupBy(x => x.DebitAccountId)
-            .Select(g => new GlLineInput(g.Key, 0, g.Sum(x => x.Amount))));
+            .Select(g => new GlLineInput(g.Key, 0, g.Sum(x => x.Cost))));
 
-        var totalVat = document.Lines.Sum(x => x.VatAmount);
-        if (totalVat > 0)
+        var claimableVat = document.Lines.Sum(x => x.ClaimableVat);
+        if (claimableVat > 0)
         {
-            lines.Add(new GlLineInput(document.VatReceivableAccountId, 0, totalVat));
+            lines.Add(new GlLineInput(document.VatReceivableAccountId, 0, claimableVat));
         }
 
         if (document.RelievedInventoryCost is { } relieved && relieved > 0

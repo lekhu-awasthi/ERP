@@ -126,7 +126,8 @@ public sealed class Expense
         TdsAmount = tdsApplicable ? tdsAmount : 0;
     }
 
-    public void AddLine(Guid accountId, decimal amount, Catalog.VatRate vatRate)
+    public void AddLine(
+        Guid accountId, decimal amount, Catalog.VatRate vatRate, VatCreditUse creditUse, VatCreditCategory creditCategory)
     {
         EnsureDraft();
 
@@ -135,7 +136,7 @@ public sealed class Expense
             throw new InvalidOperationException("An expense line needs a positive Amount.");
         }
 
-        _lines.Add(ExpenseLine.Create(Id, accountId, amount, vatRate));
+        _lines.Add(ExpenseLine.Create(Id, accountId, amount, vatRate, creditUse, creditCategory));
     }
 
     public void ClearLines()

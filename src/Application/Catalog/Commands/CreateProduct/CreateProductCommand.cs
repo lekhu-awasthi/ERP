@@ -17,6 +17,8 @@ namespace ErpApp.Application.Catalog.Commands.CreateProduct;
     /// location's service charge. See <see cref="Product.ServiceChargeApplicable"/>.</param>
     /// <param name="PackagingFeeApplicable">Phase 70 -- a parcel of this product carries its location's
     /// packaging fee. Null takes the product's default, on. See <see cref="Product.PackagingFeeApplicable"/>.</param>
+    /// <param name="VatCreditCategory">Phase 99 -- Rule 41's limit on a purchase's input credit, which prefills a bill
+    /// line. Null is Full. See <see cref="Product.VatCreditCategory"/>.</param>
 public sealed record CreateProductCommand(
     Guid OrganizationId,
     ProductType Type,
@@ -36,7 +38,8 @@ public sealed record CreateProductCommand(
     bool BatchTracking = false,
     bool SerialTracking = false,
     bool ServiceChargeApplicable = false,
-    bool? PackagingFeeApplicable = null)
+    bool? PackagingFeeApplicable = null,
+    Domain.Purchasing.VatCreditCategory? VatCreditCategory = null)
     : IRequest<CreateProductResult>, IRequirePermission, IOrganizationScoped, IExpirySensitiveMasterData, IMeteredProduct
 {
     public string PermissionKey => PermissionKeys.ProductManage;

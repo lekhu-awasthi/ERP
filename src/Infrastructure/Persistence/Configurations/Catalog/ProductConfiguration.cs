@@ -31,6 +31,10 @@ public sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
         builder.Property(x => x.SellingPrice).HasPrecision(18, 4).IsRequired();
         builder.Property(x => x.PurchasePrice).HasPrecision(18, 4).IsRequired();
         builder.Property(x => x.VatRate).HasConversion<string>().HasMaxLength(30).IsRequired();
+
+        // Phase 99 -- Rule 41's category, by name. No model default: Full is member 0, always written, and the migration
+        // fills existing rows with 'Full' (a scaffolded '' would fail Enum.Parse on read, phase-73).
+        builder.Property(x => x.VatCreditCategory).HasConversion<string>().HasMaxLength(20).IsRequired();
         builder.Property(x => x.ValuationMethod).HasConversion<string>().HasMaxLength(20).IsRequired();
         builder.Property(x => x.ReOrderLevel).IsRequired();
         builder.Property(x => x.TrackInventory).IsRequired();

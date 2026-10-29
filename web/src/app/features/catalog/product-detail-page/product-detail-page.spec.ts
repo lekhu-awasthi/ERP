@@ -62,7 +62,7 @@ describe('ProductDetailPage — secondary units', () => {
       primaryUnitId: pieceUnit.id,
       hsCode: null,
       availableForSale: true,
-      serviceChargeApplicable: false, packagingFeeApplicable: true,
+      serviceChargeApplicable: false, packagingFeeApplicable: true, vatCreditCategory: 'Full',
       sellingPrice: 1000,
       purchasePrice: 800,
       vatRate: 'NoVat',

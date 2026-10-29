@@ -4808,3 +4808,32 @@ the slab, and the next dish moved the discount the cashier had just confirmed. A
 returns early must still record anything that is about *who chose*, not *what* (`DiscountSetByHand`), or an automatic
 rule will treat a person's decision as its own.
 
+
+## …and every select (phase 99)
+
+Phase 95 floored every typed box in a line table, and no select. The purchase bill's new *VAT Credit* column widened the
+table at 1,024 px and the browser took the room from the selects: the VAT select came out 46 px wide and showed "1" for
+13%. A floor on inputs only moved the squeeze to the next kind of control. `styles.scss` now floors
+`select.form-select` too; measure every control in the row, inputs and selects, after adding a column.
+
+## A footer spacer counts columns (phase 99)
+
+The purchase bill's totals sit in a `tfoot` whose first cell is a `colspan` spacer. Phase 51 added the Item Batch
+column and left the spacer at five, so for 48 phases *Sub Total*'s figure printed under Classification, not Amount, and
+nothing failed: the numbers were right, only one column off. A column added to a line table owes its `tfoot` spacers the
+same column; count the header cells and the footer cells after the change.
+
+## A percent line cannot use zero as nil (phase 99)
+
+The VAT return renders a zero as a dash read out as "nil". The month's taxable share was first shown that way for a month
+with no sales, which would also have shown a real 0% (every sale exempt) as nil, and the export left both blank. A ratio
+has no natural nil: show the share the arithmetic applied (100% with nothing to apportion) and render a percent line's
+zero as `0.00%`, before the nil branch.
+
+## A cost added at approval reaches the layer (phase 99)
+
+VAT that cannot be claimed is part of what goods cost, so a bill debits it to Inventory with the line. The FIFO layer
+must be built from the same figure, or the Inventory account and the stock valuation part by it (phase 37's three
+views). The consequence shows on a return: a debit note relieves FIFO's oldest layer, which may be another bill's with
+another bill's disallowed VAT in it, and Inventory Adjustment takes the difference. That is FIFO, not a leak; check
+Inventory plus Adjustment against the returned bill's own debit.

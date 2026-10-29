@@ -18,6 +18,7 @@ import {
   StockTrackingSwitches,
 } from '../../../core/catalog/catalog.models';
 import { AccountingService } from '../../../core/accounting/accounting.service';
+import { VAT_CREDIT_CATEGORIES, VatCreditCategory, vatCreditCategoryLabel } from '../../../core/purchasing/vat-credit';
 import { Account } from '../../../core/accounting/accounting.models';
 import { BillingLocationStore } from '../../../shared/locations/billing-location-store';
 import { AmountPipe } from '../../../shared/formatting/amount-pipe';
@@ -121,6 +122,8 @@ export class ProductDetailPage {
 
   protected readonly types: ProductType[] = ['Goods', 'Service'];
   protected readonly vatRates: VatRate[] = ['NoVat', 'ZeroVat', 'ThirteenPercentVat'];
+  protected readonly vatCreditCategories = VAT_CREDIT_CATEGORIES;
+  protected readonly vatCreditCategoryLabel = vatCreditCategoryLabel;
 
   protected readonly form = this.fb.nonNullable.group({
     type: ['Goods' as ProductType, Validators.required],
@@ -132,6 +135,8 @@ export class ProductDetailPage {
     serviceChargeApplicable: [false],
     // Phase 70 -- on by default, as the server's is: a parcel of a new product pays the location's fee.
     packagingFeeApplicable: [true],
+    // Phase 99 -- Rule 41's category, Full as the server's default.
+    vatCreditCategory: ['Full' as VatCreditCategory],
     sellingPrice: [0, [Validators.required, Validators.min(0)]],
     purchasePrice: [0, [Validators.required, Validators.min(0)]],
     vatRate: ['NoVat' as VatRate, Validators.required],
@@ -240,6 +245,7 @@ export class ProductDetailPage {
           availableForSale: true,
           serviceChargeApplicable: false,
           packagingFeeApplicable: true,
+          vatCreditCategory: 'Full',
           sellingPrice: 0,
           purchasePrice: 0,
           vatRate: 'NoVat',
@@ -280,6 +286,7 @@ export class ProductDetailPage {
         availableForSale: product.availableForSale,
         serviceChargeApplicable: product.serviceChargeApplicable,
         packagingFeeApplicable: product.packagingFeeApplicable,
+        vatCreditCategory: product.vatCreditCategory ?? 'Full',
         sellingPrice: product.sellingPrice,
         purchasePrice: product.purchasePrice,
         vatRate: product.vatRate,
@@ -323,6 +330,7 @@ export class ProductDetailPage {
       availableForSale,
       serviceChargeApplicable,
       packagingFeeApplicable,
+      vatCreditCategory,
       sellingPrice,
       purchasePrice,
       vatRate,
@@ -349,6 +357,7 @@ export class ProductDetailPage {
           availableForSale,
           serviceChargeApplicable,
           packagingFeeApplicable,
+          vatCreditCategory,
           sellingPrice,
           purchasePrice,
           vatRate,
@@ -384,6 +393,7 @@ export class ProductDetailPage {
         availableForSale,
         serviceChargeApplicable,
         packagingFeeApplicable,
+        vatCreditCategory,
         sellingPrice,
         purchasePrice,
         vatRate,

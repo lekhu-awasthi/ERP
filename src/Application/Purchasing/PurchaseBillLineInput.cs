@@ -24,6 +24,10 @@ namespace ErpApp.Application.Purchasing;
 /// <param name="BatchSellingPrice">Phase 95 -- what a batch this line creates sells for, per primary unit, typed as a
 /// product's Selling Price is. A new batch needs it and an <paramref name="ExpiryDate"/> (the vendor's New Batch form
 /// requires both); a batch that already exists ignores both unless it lacks them.</param>
+/// <param name="CreditUse">Phase 99 -- what the line was bought for (Rule 40). Null is Taxable, so a caller that does not
+/// know the field claims the whole credit, as before.</param>
+/// <param name="CreditCategory">Phase 99 -- Rule 41's limit. Null takes the product's own category
+/// (<c>Product.VatCreditCategory</c>), which is Full unless someone set it.</param>
 public sealed record PurchaseBillLineInput(
     Guid ProductId,
     decimal Quantity,
@@ -36,4 +40,6 @@ public sealed record PurchaseBillLineInput(
     DateOnly? ExpiryDate = null,
     IReadOnlyList<string>? SerialNumbers = null,
     Guid? UnitId = null,
-    decimal? BatchSellingPrice = null);
+    decimal? BatchSellingPrice = null,
+    VatCreditUse? CreditUse = null,
+    VatCreditCategory? CreditCategory = null);

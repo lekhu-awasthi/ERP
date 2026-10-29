@@ -16,8 +16,11 @@ import { VatSummaryReportPage } from './vat-summary-report-page';
 describe('VatSummaryReportPage', () => {
   const months = ['Shrawan', 'Bhadra', 'Aswin', 'Kartik', 'Mangsir', 'Poush', 'Magh', 'Falgun', 'Chaitra', 'Baisakh', 'Jestha', 'Asar'];
 
-  function line(key: string, section: VatReturnSection, label: string, labelNepali: string, aswin: number, total: number | null, isTotal = false): VatReturnLineDto {
-    return { key, section, label, labelNepali, isTotal, monthly: months.map((_, i) => (i === 2 ? aswin : 0)), total };
+  function line(
+    key: string, section: VatReturnSection, label: string, labelNepali: string, aswin: number, total: number | null,
+    isTotal = false, isPercent = false,
+  ): VatReturnLineDto {
+    return { key, section, label, labelNepali, isTotal, monthly: months.map((_, i) => (i === 2 ? aswin : 0)), total, isPercent };
   }
 
   function report(fiscalYear: number): VatSummaryReportDto {
@@ -36,6 +39,8 @@ describe('VatSummaryReportPage', () => {
       lines: [
         line('taxableSales', 'Sales', 'Taxable sales', 'करयोग्य बिक्री', 1000, 1000),
         line('totalSales', 'Sales', 'Total sales and exports', 'जम्मा बिक्री / निकासी', 1000, 1000, true),
+        line('taxableShare', 'InputCredit', 'Taxable sales ÷ total sales (%)', 'जम्मा बिक्रीमा करयोग्य बिक्रीको अनुपात (%)', 80, null, false, true),
+        line('disallowedInputVat', 'InputCredit', 'Input VAT not claimable', 'कट्टी गर्न नपाइने जम्मा खरिद कर', 26, 26, true),
         line('monthVat', 'Settlement', 'VAT for the month, payable / (credit)', 'महिनाको कर क्रेडिट / (डेबिट)', -26, -26),
         line('payable', 'Settlement', 'VAT payable / (credit carried forward)', 'तिर्नुपर्ने कर / (बाँकी क्रेडिट)', -26, null, true),
       ],
@@ -119,5 +124,21 @@ describe('VatSummaryReportPage', () => {
     expect(asked).toEqual([currentFiscalYear(), 2081]);
     expect(exported).toEqual([2081]);
     expect(element.querySelector('caption')!.textContent).toContain('2081 - 2082');
+  });
+  // Phase 99 -- the working of the input credit is its own block, and the month's share is a percent, never a credit.
+  it('shows the input-credit block with the taxable share as a percent', () => {
+    const { element } = page();
+
+    const headings = Array.from(element.querySelectorAll('tbody th[scope="rowgroup"]')).map((x) => x.textContent?.trim());
+    expect(headings).toContain('Input VAT not claimable (VAT Rules 40 and 41)');
+
+    const share = element.querySelector('tr[data-line="taxableShare"]')!;
+    const cells = Array.from(share.querySelectorAll('td')).map((x) => x.textContent?.trim());
+    expect(cells[2]).toBe('80.00%');
+    expect(cells[0]).toBe('0.00%');
+    expect(share.querySelector('td:last-child .visually-hidden')?.textContent).toBe('no year total');
+
+    const disallowed = element.querySelector('tr[data-line="disallowedInputVat"]')!;
+    expect(disallowed.classList).toContain('fw-bold');
   });
 });

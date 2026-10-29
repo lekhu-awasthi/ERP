@@ -130,6 +130,7 @@ A Tigg-style ERP/CRM/Accounting rebuild for Nepali SMEs. Clean Architecture + CQ
 - Phase 96: the carried questions answered (a till refund rounds into the account its sale rounded into, `Invoice.RoundingAccountId`; the vendor's print extras and allocation table dropped; the VAT points written as questions for a tax advisor). Before reversing into an account a setting chose — `docs/phase-96-status.md`
 - Phase 97: the tax advisor's answers (a domestic zero-rated sale its own VAT-return line, `Bucketed.ZeroRated`; the credit's carry and Annex 13 confirmed and pinned) + discount schemes (item, category, slab; one reader `DiscountSchemeRates` for forms, till and gates; the scheme is where a discount starts and keeping it needs no key). Before a promotion, an automatic price, or splitting a statutory figure by rate — `docs/phase-97-status.md`
 - Phase 98: the money receipt on the 80 mm roll (`PrintLayouts.RetailTypes` gains Payment; the roll renderer is type-free, so nothing else moved; supplier payments may use it too; the receipt's number no longer prints twice). Before offering a layout to another type — `docs/phase-98-status.md`
+- Phase 99: input VAT apportionment (a purchase line's use, Taxable/Exempt/Shared, and Rule 41 category, prefilled from the product; exempt use and Rule 41 posted to the line's own account and its FIFO layer at approval; the shared part worked out on the return by the month's taxable share, for a journal; one `VatCredit` for posting, preview, debit note and readers). Before changing what a purchase posts to VAT Receivable, or adding a column to a line table — `docs/phase-99-status.md`
 
 ## Stack & conventions
 - Backend: .NET 10 (LTS), Clean Architecture (`src/Domain` → `src/Application` → `src/Infrastructure`/`src/Api`), CQRS via MediatR, FluentValidation, EF Core + SQL Server.
@@ -608,23 +609,24 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - A screen with fields and a Save button is not a feature until Save sends something: the vendor's Discount Schemes list is `data: []` and Save only navigates (phase-97).
 - `Locations.Count == 0 || Locations.Any(...)` is two subqueries per row (80,004 reads to count a grid); as a set it is one pass, but an `EXISTS` that stops early loses by it. Measure each reader (phase-95).
 - A floor on one column of a squeezed table moves the squeeze to its neighbour; floor every typed box in a `.table-responsive` table and measure all of them (phase-95).
+- …and every select: a new column squeezed the bill's VAT select to 46 px ("1" for 13%). A column added to a line table also owes its `tfoot` spacer, one short since phase 51 (phase-99).
 - A company switch over a product flag is read through one reader (`StockTrackingSwitches`) or it overrides nothing; census the flag's readers and backfill so existing tenants change nothing (phase-95).
 
 ## Current status
 
-**Phases 0-98 are complete. Next: phase 99, input VAT apportionment** (scheduled 2026-10-29; see below).
+**Phases 0-99 are complete. Next: not yet scheduled** (see `docs/roadmap.md`, "Carried from phase 99").
 Each phase's story is in its `docs/phase-N-status.md`, and finished planning entries are archived in
 `docs/roadmap-history.md`.
 
-**Phase 98 put the money receipt on the 80 mm roll** (2026-10-21), the last item of the old carried list. Phase 97
-before it built the tax advisor's VAT answers and discount schemes.
+**Phase 99 built input VAT apportionment** (2026-10-29): VAT Rules 40 and 41 on every purchase line, exempt use and
+Rule 41 posted as cost at approval, the shared part worked out on the VAT return for the accountant to journal.
 
-**Next: phase 99, input VAT apportionment** (VAT Rules 40(3)–(5) and 41, answered from the statutes on 2026-10-29,
-`phase-97-status.md` § 5). Still open: free goods in a scheme (left out by the user's choice).
+**Still open:** Rule 40(5)'s officer-directed method and an automatic post of the shared part (both left out by the
+user's choice), free goods in a scheme, and the "Outside this sequence" list in the roadmap.
 
-Tests: Domain **1055**, Application.UnitTests **1915**, Infrastructure.UnitTests 14,
-Api.IntegrationTests 80, Angular 935. Everything was green at phase 98's close with Docker up.
-The bundle sits at **656.17 kB** against `build-budget.spec.ts`'s 680 kB; every POS screen is lazy.
+Tests: Domain **1070**, Application.UnitTests **1925**, Infrastructure.UnitTests 14,
+Api.IntegrationTests 80, Angular **938**. Everything was green at phase 99's close with Docker up.
+The bundle sits at **656.23 kB** against `build-budget.spec.ts`'s 680 kB; every POS screen is lazy.
 
 - `Api.IntegrationTests` needs Docker Desktop running. Without it the Testcontainers-backed tests
   fail in their constructors with `DockerEndpointAuthConfig` before any assertion, which reads like

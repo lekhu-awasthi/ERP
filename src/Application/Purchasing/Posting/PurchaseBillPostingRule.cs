@@ -42,6 +42,11 @@ namespace ErpApp.Application.Purchasing.Posting;
 /// credited that same figure and nothing else; it nets to zero once the carrier's own bill is
 /// entered against it. Accounts Payable, VAT Receivable and TDS Payable are untouched by this
 /// phase -- the supplier is owed the goods total and not a paisa more.</para>
+///
+/// <para><b>Phase 99, the VAT that is not input credit.</b> A line's disallowed VAT (Rule 40(3)'s exempt use, Rule 41's
+/// limits) is part of what the purchase cost, so it is debited to the line's own account with its Amount (Inventory for
+/// Goods, where the FIFO layer carries it too) and VAT Receivable takes only the rest. Accounts Payable still credits the
+/// supplier's whole bill. A shared line posts its whole credit here; its apportionment is the VAT return's.</para>
 /// </summary>
 public sealed class PurchaseBillPostingRule : IGlPostingRule<PurchaseBillPostingInput>
 {
@@ -53,12 +58,12 @@ public sealed class PurchaseBillPostingRule : IGlPostingRule<PurchaseBillPosting
 
         lines.AddRange(document.Lines
             .GroupBy(x => x.DebitAccountId)
-            .Select(g => new GlLineInput(g.Key, g.Sum(x => x.Amount), 0)));
+            .Select(g => new GlLineInput(g.Key, g.Sum(x => x.Cost), 0)));
 
-        var totalVat = document.Lines.Sum(x => x.VatAmount);
-        if (totalVat > 0)
+        var claimableVat = document.Lines.Sum(x => x.ClaimableVat);
+        if (claimableVat > 0)
         {
-            lines.Add(new GlLineInput(document.VatReceivableAccountId, totalVat, 0));
+            lines.Add(new GlLineInput(document.VatReceivableAccountId, claimableVat, 0));
         }
 
         if (document.TdsAmount > 0)

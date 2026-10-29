@@ -50,6 +50,19 @@ public sealed class PurchaseBillLine
     /// 87.</summary>
     public Guid? DebitAccountId { get; private set; }
 
+    /// <summary>Phase 99 -- what this line was bought for (Rule 40), chosen on the line; Taxable unless the user says
+    /// otherwise, and every line from before the phase was backfilled to Taxable.</summary>
+    public VatCreditUse CreditUse { get; private set; }
+
+    /// <summary>Phase 99 -- Rule 41's limit on this line's credit, prefilled from the product's
+    /// <see cref="Product.VatCreditCategory"/> and changeable on the line. Frozen with the line, so editing the product
+    /// later changes no approved bill.</summary>
+    public VatCreditCategory CreditCategory { get; private set; }
+
+    /// <summary>Phase 99 -- the part of <see cref="VatAmount"/> its approval posts to this line's own account rather than
+    /// VAT Receivable (<see cref="VatCredit.DisallowedAtPosting"/>), in the document's currency.</summary>
+    public decimal DisallowedVat => VatCredit.DisallowedAtPosting(VatAmount, CreditUse, CreditCategory);
+
     /// <summary>This line's quantity in the product's primary unit -- the only quantity the stock
     /// ledger and the GL accept.</summary>
     public PrimaryQuantity PrimaryQuantity => PrimaryQuantity.FromEntered(Quantity, ConversionFactor);
@@ -63,7 +76,7 @@ public sealed class PurchaseBillLine
     internal static PurchaseBillLine Create(
         Guid purchaseBillId, Guid productId, decimal quantity, decimal rate, VatRate vatRate,
         ExpenditureClassification expenditureClassification, decimal discountPct, decimal headerDiscountPct,
-        Guid? batchId, Guid? unitId, decimal conversionFactor)
+        Guid? batchId, Guid? unitId, decimal conversionFactor, VatCreditUse creditUse, VatCreditCategory creditCategory)
     {
         var grossAmount = quantity * rate;
         var netAfterLineDiscount = grossAmount * (1 - discountPct / 100m);
@@ -84,6 +97,8 @@ public sealed class PurchaseBillLine
             VatAmount = amount * vatRate.ToPercent(),
             ExpenditureClassification = expenditureClassification,
             BatchId = batchId,
+            CreditUse = creditUse,
+            CreditCategory = creditCategory,
         };
     }
 

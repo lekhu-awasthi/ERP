@@ -223,6 +223,8 @@
                 <th scope="col" style="min-width: 260px;">Account</th>
                 <th scope="col" style="width: 150px;" class="text-end">Amount</th>
                 <th scope="col" style="width: 150px;">VAT</th>
+                <!-- Phase 99 -- what the expense was for (VAT Rule 40) over Rule 41's limit. -->
+                <th scope="col" style="min-width: 200px;">VAT Credit</th>
                 @if (isDraft()) {
                   <th scope="col" style="width: 48px;"></th>
                 }
@@ -268,6 +270,28 @@
                       {{ line.vatRate }}
                     }
                   </td>
+                  <td>
+                    @if (isDraft()) {
+                      <select aria-label="VAT credit use" class="form-select form-select-sm mb-1" style="min-width: 180px;"
+                        (change)="onCreditUseChange(line.key, $event)">
+                        @for (u of vatCreditUses; track u.value) {
+                          <option [value]="u.value" [selected]="u.value === line.creditUse">{{ u.label }}</option>
+                        }
+                      </select>
+                      <select aria-label="VAT credit category" class="form-select form-select-sm" style="min-width: 180px;"
+                        (change)="onCreditCategoryChange(line.key, $event)">
+                        @for (c of vatCreditCategories; track c.value) {
+                          <option [value]="c.value" [selected]="c.value === line.creditCategory">{{ c.label }}</option>
+                        }
+                      </select>
+                    } @else {
+                      <span class="d-block">{{ vatCreditUseLabel(line.creditUse) }}</span>
+                      <span class="d-block small text-muted">{{ vatCreditCategoryLabel(line.creditCategory) }}</span>
+                    }
+                    @if (line.disallowedVat) {
+                      <span class="d-block small text-muted">Not claimable: {{ (line.disallowedVat | amount) }}</span>
+                    }
+                  </td>
                   @if (isDraft()) {
                     <td>
                       <button aria-label="Remove line" type="button" class="btn btn-outline-danger btn-sm" (click)="removeLine(line.key)">
@@ -283,6 +307,7 @@
                 <td></td>
                 <td class="text-end fw-semibold">Line Total</td>
                 <td class="text-end fw-bold">{{ (lineTotal() | amount) }}</td>
+                <td></td>
                 @if (isDraft()) {
                   <td></td>
                 }
@@ -291,6 +316,7 @@
                 <td></td>
                 <td class="text-end fw-semibold">VAT Total</td>
                 <td class="text-end fw-bold">{{ (vatTotal() | amount) }}</td>
+                <td></td>
                 @if (isDraft()) {
                   <td></td>
                 }
@@ -299,6 +325,7 @@
                 <td></td>
                 <td class="text-end fw-bold">Grand Total</td>
                 <td class="text-end fw-bold text-primary">{{ (grandTotal() | amount) }}</td>
+                <td></td>
                 @if (isDraft()) {
                   <td></td>
                 }

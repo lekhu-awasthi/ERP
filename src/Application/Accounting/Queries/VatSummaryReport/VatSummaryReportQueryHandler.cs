@@ -4,6 +4,7 @@ using ErpApp.Application.Purchasing.Reports;
 using ErpApp.Application.Sales.Reports;
 using ErpApp.Application.Trade;
 using ErpApp.Domain.Common;
+using ErpApp.Domain.Purchasing;
 using MediatR;
 
 namespace ErpApp.Application.Accounting.Queries.VatSummaryReport;
@@ -112,6 +113,11 @@ public sealed class VatSummaryReportQueryHandler(IAppDbContext db)
             f.Add(VatReturnLines.CapitalPurchases, c, b.CapitalValue);
             f.Add(VatReturnLines.CapitalPurchasesVat, c, b.CapitalVat);
             f.Add(VatReturnLines.ExemptPurchases, c, b.TaxExempt);
+
+            // Phase 99 -- the input VAT that is not credit (Rules 40 and 41), each document's from its own lines' terms.
+            f.Add(VatReturnLines.ExemptUseVat, c, purchase.Credit.ExemptUseVat);
+            f.Add(VatReturnLines.BlockedVat, c, purchase.Credit.BlockedVat);
+            f.Add(VatReturnLines.SharedVat, c, purchase.Credit.SharedVat);
         }
 
         foreach (var note in debitNotes)
@@ -129,6 +135,12 @@ public sealed class VatSummaryReportQueryHandler(IAppDbContext db)
             f.Add(VatReturnLines.TaxableImportReturnsVat, c, b.NonCapitalImportVat);
             f.Add(VatReturnLines.CapitalReturns, c, b.CapitalValue);
             f.Add(VatReturnLines.CapitalReturnsVat, c, b.CapitalVat);
+
+            // Phase 99 -- a returned line gives back its disallowance with its VAT, in the month of the return, so each
+            // credit line is the month's net, as the VAT lines above are once the returns' VAT is taken off.
+            f.Add(VatReturnLines.ExemptUseVat, c, -note.Credit.ExemptUseVat);
+            f.Add(VatReturnLines.BlockedVat, c, -note.Credit.BlockedVat);
+            f.Add(VatReturnLines.SharedVat, c, -note.Credit.SharedVat);
         }
 
         // The credit carried into Shrawan: every earlier month in order, a month's net VAT first using up the credit it
@@ -162,13 +174,15 @@ public sealed class VatSummaryReportQueryHandler(IAppDbContext db)
                 VatReturnLines.Payable => payable,
                 _ => year.Line(definition.Key),
             };
+            // Phase 99 -- a month's proportion adds up to nothing either.
             decimal? total = definition.Key is VatReturnLines.CreditBroughtForward or VatReturnLines.Payable
+                or VatReturnLines.TaxableShare
                 ? null
                 : monthly.Sum();
 
             return new VatReturnLineDto(
                 definition.Key, definition.Section, definition.Label, definition.LabelNepali, definition.IsTotal,
-                monthly, total);
+                monthly, total, definition.IsPercent);
         }).ToList();
 
         return new VatSummaryReportDto(
@@ -215,18 +229,48 @@ public sealed class VatSummaryReportQueryHandler(IAppDbContext db)
                 VatReturnLines.TotalPurchaseReturns =>
                     Get(VatReturnLines.ExemptPurchaseReturns, c) + Get(VatReturnLines.TaxablePurchaseReturns, c)
                     + Get(VatReturnLines.TaxableImportReturns, c) + Get(VatReturnLines.CapitalReturns, c),
+                // Shown as a percent to two places; the arithmetic uses the unrounded share. It is the share applied, so a
+                // month with no sales shows 100% (its shared purchases keep their whole credit, VatCredit.TaxableShare) and
+                // a month whose every sale is exempt shows 0%, which is a figure and not a nil.
+                VatReturnLines.TaxableShare => Math.Round(TaxableShare(c) * 100, 2, MidpointRounding.AwayFromZero),
+                VatReturnLines.SharedVatDisallowed => SharedVatDisallowed(c),
+                VatReturnLines.DisallowedInputVat => DisallowedInputVat(c),
                 _ => Get(key, c),
             }),
         ];
 
+        /// <summary>Phase 99 -- Rule 40(4)'s proportion for the month: taxable sales (exports and zero-rated sales
+        /// included) over total sales, each net of its returns.</summary>
+        public decimal TaxableShare(int column) => VatCredit.TaxableShare(TaxableSalesNet(column), TotalSalesNet(column));
+
+        private decimal TaxableSalesNet(int column) =>
+            Get(VatReturnLines.TaxableSales, column) + Get(VatReturnLines.ExportSales, column)
+            + Get(VatReturnLines.ZeroRatedLocalSales, column)
+            - Get(VatReturnLines.TaxableSalesReturns, column) - Get(VatReturnLines.ZeroRatedSalesReturns, column);
+
+        private decimal TotalSalesNet(int column) =>
+            TaxableSalesNet(column)
+            + Get(VatReturnLines.LocalExemptSales, column) - Get(VatReturnLines.LocalExemptSalesReturns, column);
+
+        /// <summary>Phase 99 -- the part of the month's shared-purchase VAT not in the taxable proportion.</summary>
+        public decimal SharedVatDisallowed(int column) =>
+            VatCredit.SharedDisallowed(Get(VatReturnLines.SharedVat, column), TaxableShare(column));
+
+        /// <summary>Phase 99 -- all the month's input VAT that is not credit: exempt use and Rule 41, which the approvals
+        /// already posted away from VAT Receivable, and the shared part, which the accountant posts by journal.</summary>
+        public decimal DisallowedInputVat(int column) =>
+            Get(VatReturnLines.ExemptUseVat, column) + Get(VatReturnLines.BlockedVat, column) + SharedVatDisallowed(column);
+
         /// <summary>Output VAT net of the sales returns' VAT, less input VAT (local, import and capital) net of the
-        /// purchase returns' VAT. Positive is payable; negative is a credit.</summary>
+        /// purchase returns' VAT and of the part that is not credit (phase 99). Positive is payable; negative is a
+        /// credit, so the credit carried forward is the allowed credit only.</summary>
         public decimal MonthVat(int column) =>
             Get(VatReturnLines.TaxableSalesVat, column) - Get(VatReturnLines.TaxableSalesReturnsVat, column)
             - (Get(VatReturnLines.TaxablePurchasesVat, column) + Get(VatReturnLines.TaxableImportsVat, column)
                 + Get(VatReturnLines.CapitalPurchasesVat, column)
                 - Get(VatReturnLines.TaxablePurchaseReturnsVat, column) - Get(VatReturnLines.TaxableImportReturnsVat, column)
-                - Get(VatReturnLines.CapitalReturnsVat, column));
+                - Get(VatReturnLines.CapitalReturnsVat, column)
+                - DisallowedInputVat(column));
     }
 }
 
@@ -263,11 +307,18 @@ public static class VatReturnLines
     public const string CapitalReturns = "capitalReturns";
     public const string CapitalReturnsVat = "capitalReturnsVat";
     public const string TotalPurchaseReturns = "totalPurchaseReturns";
+    public const string ExemptUseVat = "exemptUseVat";
+    public const string BlockedVat = "blockedVat";
+    public const string SharedVat = "sharedVat";
+    public const string TaxableShare = "taxableShare";
+    public const string SharedVatDisallowed = "sharedVatDisallowed";
+    public const string DisallowedInputVat = "disallowedInputVat";
     public const string MonthVat = "monthVat";
     public const string CreditBroughtForward = "creditBroughtForward";
     public const string Payable = "payable";
 
-    public sealed record Definition(string Key, VatReturnSection Section, string Label, string LabelNepali, bool IsTotal = false);
+    public sealed record Definition(
+        string Key, VatReturnSection Section, string Label, string LabelNepali, bool IsTotal = false, bool IsPercent = false);
 
     public static IReadOnlyList<Definition> All { get; } =
     [
@@ -300,6 +351,15 @@ public static class VatReturnLines
         new(CapitalReturns, VatReturnSection.PurchaseReturns, "Capital returns", "पूंजीगत करयोग्य फिर्ता"),
         new(CapitalReturnsVat, VatReturnSection.PurchaseReturns, "VAT on capital returns", "पूंजीगत करयोग्य फिर्ताको कर"),
         new(TotalPurchaseReturns, VatReturnSection.PurchaseReturns, "Total purchase and import returns", "जम्मा खरिद / पैठारी फिर्ता", IsTotal: true),
+        // Phase 99 -- the working of the input credit (VAT Rules 40 and 41). The IRD form has no such lines, so the Nepali
+        // is ours, in the form's own words (कट्टी, the credit taken; करयोग्य and कर छुट as above). Each is the month's net of
+        // its returns; the percent is the month's, so it has no year total.
+        new(ExemptUseVat, VatReturnSection.InputCredit, "VAT on purchases for exempt sales (Rule 40(3))", "कर छुट बिक्रीका लागि गरिएको खरिदको कर"),
+        new(BlockedVat, VatReturnSection.InputCredit, "VAT not claimable under Rule 41", "नियम ४१ अनुसार कट्टी गर्न नपाइने कर"),
+        new(SharedVat, VatReturnSection.InputCredit, "VAT on purchases for both kinds of sales (Rule 40(4))", "दुवै प्रकारको बिक्रीका लागि गरिएको खरिदको कर"),
+        new(TaxableShare, VatReturnSection.InputCredit, "Taxable sales ÷ total sales (%)", "जम्मा बिक्रीमा करयोग्य बिक्रीको अनुपात (%)", IsPercent: true),
+        new(SharedVatDisallowed, VatReturnSection.InputCredit, "Shared VAT not claimable", "दुवैका लागि गरिएको खरिदमा कट्टी गर्न नपाइने कर"),
+        new(DisallowedInputVat, VatReturnSection.InputCredit, "Input VAT not claimable", "कट्टी गर्न नपाइने जम्मा खरिद कर", IsTotal: true),
         new(MonthVat, VatReturnSection.Settlement, "VAT for the month, payable / (credit)", "महिनाको कर क्रेडिट / (डेबिट)"),
         new(CreditBroughtForward, VatReturnSection.Settlement, "Credit brought forward", "गत महिनाको मिलन गर्न बाँकी क्रेडिट"),
         new(Payable, VatReturnSection.Settlement, "VAT payable / (credit carried forward)", "तिर्नुपर्ने कर / (बाँकी क्रेडिट)", IsTotal: true),
