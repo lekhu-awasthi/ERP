@@ -323,8 +323,9 @@ that list was dropped in phase 96 by the user's choice.
 
 **Carried from phase 97** (§ 5 there):
 
-- Whether **exempt** sales should limit the input VAT a month claims (proportional credit). The app has never
-  apportioned; a question for the tax advisor, written in § 5.
+- Whether **exempt** sales should limit the input VAT a month claims: **answered from the statutes (2026-10-29) and
+  scheduled as phase 99.** Rule 40(3)–(5): credit only on purchases for taxable supplies, a shared purchase in the month's
+  proportion of taxable to total sales; Rule 41's blocked and partial credits beside it. Detail in § 5 there.
 - **Free goods** in a discount scheme (the vendor's mock-up has an *Issue Qty*): left out by the user's choice (percent
   only). Start condition: a user asking for "buy N get M free", plus the advisor's word on VAT for free units.
 

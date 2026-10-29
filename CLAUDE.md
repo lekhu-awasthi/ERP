@@ -612,15 +612,15 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 
 ## Current status
 
-**Phases 0-98 are complete. Next: not yet scheduled** (the user picks; candidates in `docs/roadmap.md`).
+**Phases 0-98 are complete. Next: phase 99, input VAT apportionment** (scheduled 2026-10-29; see below).
 Each phase's story is in its `docs/phase-N-status.md`, and finished planning entries are archived in
 `docs/roadmap-history.md`.
 
 **Phase 98 put the money receipt on the 80 mm roll** (2026-10-21), the last item of the old carried list. Phase 97
 before it built the tax advisor's VAT answers and discount schemes.
 
-**Next:** not yet scheduled. Open: whether exempt sales should limit the input VAT claimed (a question for the tax
-advisor, `phase-97-status.md` § 5), and free goods in a scheme (left out by the user's choice).
+**Next: phase 99, input VAT apportionment** (VAT Rules 40(3)–(5) and 41, answered from the statutes on 2026-10-29,
+`phase-97-status.md` § 5). Still open: free goods in a scheme (left out by the user's choice).
 
 Tests: Domain **1055**, Application.UnitTests **1915**, Infrastructure.UnitTests 14,
 Api.IntegrationTests 80, Angular 935. Everything was green at phase 98's close with Docker up.

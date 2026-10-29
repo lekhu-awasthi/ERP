@@ -198,6 +198,23 @@ The ERP gate was proven to bite: with the line exemption removed from `SalesPric
   *When a VAT-registered business sells some exempt (not zero-rated) goods in a month, must it reduce the purchase VAT it
   claims that month, and by what rule (in proportion to exempt sales, or only the VAT on purchases used for them)? Is
   the adjustment monthly or settled at the year's end?*
+
+  **Answered from the statutes (2026-10-29), confirmed by the user; scheduled as phase 99.** Read in an unofficial
+  English translation of the VAT Rules, 2053 (nepalarchives.com) and the Act (actnepal.com, ICAN's copy):
+  - **Act s.17(1)/(3):** where a purchase is not wholly used for taxable transactions, the credit is apportioned *in any
+    month*. **s.5(3):** no credit on Schedule-1 (exempt) goods.
+  - **Rule 40(3):** a business making both kinds of supply claims only the VAT on purchases *directly related* to its
+    taxable supplies. **Rule 40(4):** a purchase not attributable either way is credited in the proportion of taxable
+    sales to total sales. **Rule 40(5):** the Tax Officer may direct another method.
+  - Zero-rated sales and exports are taxable transactions at 0%, so they count on the taxable side (inferred from the
+    Act's definitions; the Rules do not say it in words).
+  - Monthly. No year-end true-up was found in the Act or Rules 39–41.
+  - **Rule 41 (found on the way):** no credit on beverages, alcohol, vehicle petrol or entertainment; aircraft and
+    automobiles 40%, computers 60%. The app applies none of this either.
+  - **Rule 39(4)/(5):** carry forward; a refund may be claimed after six months of continuous excess credit, or at once
+    by an exporter whose exports pass half that month's sales. Matches the advisor's answer.
+  - Caveat carried: translations are unofficial and an IRD directive or a 2083 amendment may have changed the wording;
+    the user is to show the rule numbers to the advisor.
 - **Free goods in a scheme** (the vendor's *Issue Qty*): left out by the user's choice. Start condition in the roadmap.
 - **Restaurant slab after a transfer.** A transfer between two orders on different slab figures is refused, as any two
   orders on different terms are (phase 72), with the message to give both the same discount first. The slab is not
