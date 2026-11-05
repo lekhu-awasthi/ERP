@@ -33,6 +33,7 @@ using ErpApp.Application.Tenancy.Queries.GetTenantSubscription;
 using ErpApp.Application.Tenancy.Queries.ListSubscriptionPlans;
 using ErpApp.Application.Tenancy.Queries.GetRolePermissionMatrix;
 using ErpApp.Application.Tenancy.Queries.ListOrganizationMembers;
+using ErpApp.Application.Tenancy.Queries.ListPendingInvitations;
 using ErpApp.Application.Tenancy.Queries.ListRoles;
 using ErpApp.Application.Tenancy.Queries.MyOrganizations;
 using ErpApp.Domain.Tenancy;
@@ -93,6 +94,15 @@ public static class OrganizationEndpoints
             Guid organizationId, InviteUserRequest request, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(new InviteUserCommand(organizationId, request.Email, request.RoleId), ct);
+            return Results.Ok(result);
+        });
+
+        // The sender's side of an invitation: what this Organization has sent and nobody has
+        // accepted yet (see ListPendingInvitationsQuery).
+        group.MapGet("/{organizationId:guid}/invitations", async (
+            Guid organizationId, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new ListPendingInvitationsQuery(organizationId), ct);
             return Results.Ok(result);
         });
 

@@ -2,6 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
+import { switchMap } from 'rxjs';
 
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -36,18 +37,37 @@ export class LoginPage {
 
     const { email, password } = this.form.getRawValue();
 
-    this.authService.login(email, password).subscribe({
-      next: () => this.router.navigate(['/organizations']),
-      error: (err: unknown) => {
-        this.submitting.set(false);
+    // The login response carries the user, so the app looks signed in whether or not the browser
+    // kept the session cookie. A private window blocks it (the API is another site in dev, so its
+    // cookie is third-party), and every later request was then a 401 shown as "Could not load your
+    // organizations". Ask /me once before moving on, so a dropped cookie is named here instead.
+    this.authService
+      .login(email, password)
+      .pipe(switchMap(() => this.authService.fetchCurrentUser()))
+      .subscribe({
+        next: (user) => {
+          if (user) {
+            this.router.navigate(['/organizations']);
+            return;
+          }
 
-        if (err instanceof HttpErrorResponse && err.status === 403) {
-          this.router.navigate(['/verify-email'], { queryParams: { email } });
-          return;
-        }
+          this.submitting.set(false);
+          this.errorMessage.set(
+            'Your password was accepted, but this browser did not keep the sign-in. ' +
+              'Private or incognito windows block the cookie that keeps you signed in. ' +
+              'Allow cookies for this site, or use a normal window.',
+          );
+        },
+        error: (err: unknown) => {
+          this.submitting.set(false);
 
-        this.errorMessage.set(extractErrorMessage(err) ?? 'Login failed. Please try again.');
-      },
-    });
+          if (err instanceof HttpErrorResponse && err.status === 403) {
+            this.router.navigate(['/verify-email'], { queryParams: { email } });
+            return;
+          }
+
+          this.errorMessage.set(extractErrorMessage(err) ?? 'Login failed. Please try again.');
+        },
+      });
   }
 }

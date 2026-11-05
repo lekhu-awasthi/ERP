@@ -32,6 +32,7 @@ import {
   MyOrganizations,
   OrganizationLockDate,
   OrganizationMember,
+  PendingSentInvitation,
   Role,
   RolePermissionMatrix,
   SubscriptionPlan,
@@ -74,6 +75,12 @@ export class OrganizationsService {
 
   inviteUser(organizationId: string, request: InviteUserRequest): Observable<InviteUserResponse> {
     return this.http.post<InviteUserResponse>(`${this.baseUrl}/${organizationId}/invitations`, request, {
+      withCredentials: true,
+    });
+  }
+
+  listPendingInvitations(organizationId: string): Observable<PendingSentInvitation[]> {
+    return this.http.get<PendingSentInvitation[]>(`${this.baseUrl}/${organizationId}/invitations`, {
       withCredentials: true,
     });
   }

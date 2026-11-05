@@ -479,6 +479,30 @@
                     }
                   </button>
                 </form>
+
+                <!-- Pending invitations: sent, not yet accepted (the sender's side) -->
+                <h6 class="fw-bold text-dark mt-4 mb-2" id="pending-invitations-heading">
+                  Pending invitations ({{ pendingInvitations().length }})
+                </h6>
+                @if (pendingInvitations().length === 0) {
+                  <p class="text-muted small mb-0">No invitations waiting to be accepted.</p>
+                } @else {
+                  <ul class="list-group list-group-flush" aria-labelledby="pending-invitations-heading">
+                    @for (inv of pendingInvitations(); track inv.membershipId) {
+                      <li class="list-group-item px-0 d-flex justify-content-between align-items-start gap-2">
+                        <div>
+                          <span class="d-block fw-semibold text-dark small">{{ inv.email }}</span>
+                          <span class="text-muted small">{{ inv.roleName }} · sent {{ inv.sentAt | nepaliDate }}</span>
+                        </div>
+                        @if (inv.registered) {
+                          <span class="badge text-bg-light border text-nowrap">Waiting to accept</span>
+                        } @else {
+                          <span class="badge text-bg-light border text-nowrap">Not signed up yet</span>
+                        }
+                      </li>
+                    }
+                  </ul>
+                }
               </div>
             </div>
           } @else {

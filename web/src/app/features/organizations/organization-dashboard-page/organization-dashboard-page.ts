@@ -6,6 +6,7 @@ import { extractErrorMessage } from '../../../core/auth/api-error';
 import { AuthService } from '../../../core/auth/auth.service';
 import {
   MyOrganizations,
+  PendingSentInvitation,
   Role,
   TenantFeatureKey,
   TenantSubscription,
@@ -15,6 +16,7 @@ import { DealList } from '../../crm/deal-list/deal-list';
 import { TaskList } from '../../workflow/task-list/task-list';
 import { CalendarToggle } from '../../../shared/formatting/calendar-toggle';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
+import { NepaliDatePipe } from '../../../shared/formatting/nepali-date-pipe';
 
 /**
  * The Organization dashboard shell (roadmap Phase 1b task 11) -- replaces Phase 1a's generic
@@ -30,7 +32,7 @@ import { StatusBanner } from '../../../shared/a11y/status-banner';
  */
 @Component({
   selector: 'app-organization-dashboard-page',
-  imports: [ReactiveFormsModule, FormsModule, RouterLink, TaskList, DealList, CalendarToggle, StatusBanner],
+  imports: [ReactiveFormsModule, FormsModule, RouterLink, TaskList, DealList, CalendarToggle, StatusBanner, NepaliDatePipe],
   templateUrl: './organization-dashboard-page.html',
 })
 export class OrganizationDashboardPage {
@@ -70,11 +72,20 @@ export class OrganizationDashboardPage {
   protected readonly inviteMessage = signal<string | null>(null);
   protected readonly inviteError = signal<string | null>(null);
 
+  /**
+   * Invitations sent and not yet accepted. Without this the sender saw "Invitation sent" once and
+   * then nothing anywhere: the members list holds accepted people only. Loaded for everyone and
+   * left empty on a 403, since the panel showing it is already Admin-only.
+   */
+  protected readonly pendingInvitations = signal<PendingSentInvitation[]>([]);
+
   constructor() {
     this.route.paramMap.subscribe((params) => {
       this.organizationId.set(params.get('id')!);
       this.inviteMessage.set(null);
       this.inviteError.set(null);
+      this.pendingInvitations.set([]);
+      this.loadPendingInvitations();
       this.loadRoles();
       this.loadSubscription();
     });
@@ -102,6 +113,7 @@ export class OrganizationDashboardPage {
         this.inviting.set(false);
         this.inviteMessage.set(`Invitation sent to ${result.email}.`);
         this.inviteForm.reset({ email: '', roleId: this.defaultInviteRoleId() });
+        this.loadPendingInvitations();
       },
       error: (err: unknown) => {
         this.inviting.set(false);
@@ -140,6 +152,14 @@ export class OrganizationDashboardPage {
         // already hidden from non-Admins by org.role === 'Admin' in the template.
         this.roles.set([]);
       },
+    });
+  }
+
+  private loadPendingInvitations(): void {
+    this.organizationsService.listPendingInvitations(this.organizationId()).subscribe({
+      next: (rows) => this.pendingInvitations.set(rows),
+      // Non-fatal: someone without the invite key simply has no list to see.
+      error: () => this.pendingInvitations.set([]),
     });
   }
 

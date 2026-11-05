@@ -95,6 +95,17 @@ export interface InviteUserResponse {
   roleName: string;
 }
 
+/** An invitation this Organization sent that nobody has accepted yet (the sender's side). */
+export interface PendingSentInvitation {
+  membershipId: string;
+  email: string;
+  roleId: string;
+  roleName: string;
+  sentAt: string;
+  /** Whether an account exists for this email yet; it can only see the invitation once it does. */
+  registered: boolean;
+}
+
 export interface Warehouse {
   id: string;
   organizationId: string;
