@@ -4,6 +4,7 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { extractErrorMessage } from '../../../core/auth/api-error';
 import { LocationGrantsInput, RolePermissionMatrix } from '../../../core/organizations/organizations.models';
 import { OrganizationsService } from '../../../core/organizations/organizations.service';
+import { MyPermissionsStore } from '../../../core/platform/my-permissions.store';
 import { StatusBanner } from '../../../shared/a11y/status-banner';
 
 /**
@@ -29,6 +30,7 @@ import { StatusBanner } from '../../../shared/a11y/status-banner';
 export class RolePermissionMatrixPage {
   private readonly route = inject(ActivatedRoute);
   private readonly organizationsService = inject(OrganizationsService);
+  private readonly myPermissions = inject(MyPermissionsStore);
 
   protected readonly organizationId = this.route.snapshot.paramMap.get('id')!;
   protected readonly roleId = this.route.snapshot.paramMap.get('roleId')!;
@@ -153,6 +155,8 @@ export class RolePermissionMatrixPage {
         next: () => {
           this.saving.set(false);
           this.saved.set(true);
+          // The editor may have just changed their own role; re-read so the nav follows.
+          this.myPermissions.refresh();
         },
         error: (err: unknown) => {
           this.saving.set(false);

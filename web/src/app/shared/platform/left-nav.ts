@@ -44,7 +44,13 @@ export class LeftNav {
   private readonly organizations = inject(OrganizationsService);
   private readonly router = inject(Router);
 
-  protected readonly tree = computed<NavGroup[]>(() => buildNavTree(this.catalog.entries()));
+  /**
+   * Only the screens this tenant's entitlements and this user's grants open (`offeredEntries`), so
+   * the nav agrees with the route guards that would otherwise bounce the click.
+   */
+  protected readonly tree = computed<NavGroup[]>(() =>
+    buildNavTree(this.catalog.offeredEntries(this.organizationId())),
+  );
   protected readonly home = HOME_ITEM;
 
   /** The url of the screen currently shown, kept in a signal so the marking is reactive. */

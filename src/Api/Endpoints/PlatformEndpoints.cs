@@ -1,4 +1,5 @@
 using ErpApp.Application.Platform.Commands.SetUserPreference;
+using ErpApp.Application.Platform.Queries.GetMyPermissions;
 using ErpApp.Application.Platform.Queries.GetUserPreferences;
 using ErpApp.Application.Platform.Queries.GlobalSearch;
 using MediatR;
@@ -33,6 +34,15 @@ public static class PlatformEndpoints
             Guid organizationId, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(new GetUserPreferencesQuery(organizationId), ct);
+            return Results.Ok(result);
+        });
+
+        // The caller's own grants, for the shell to hide screens the server would refuse. See
+        // GetMyPermissionsQuery's remarks: a usability read, never an authorization one.
+        group.MapGet("/my-permissions", async (
+            Guid organizationId, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new GetMyPermissionsQuery(organizationId), ct);
             return Results.Ok(result);
         });
 

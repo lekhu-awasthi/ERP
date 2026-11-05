@@ -54,8 +54,8 @@ export const featureGuard = (feature: TenantFeatureKey): FeatureCanActivateFn =>
  * configuration serves a POS Retail tenant and a POS Restaurant tenant alike. The client half of the
  * server's `IRequireAnyFeature`, with the same fail-closed redirect as {@link featureGuard}.
  */
-export const anyFeatureGuard = (...features: TenantFeatureKey[]): CanActivateFn => {
-  return (route: ActivatedRouteSnapshot) => {
+export const anyFeatureGuard = (...features: TenantFeatureKey[]): AnyFeatureCanActivateFn => {
+  const guard: CanActivateFn = (route: ActivatedRouteSnapshot) => {
     const router = inject(Router);
     const organizationId = organizationIdOf(route);
 
@@ -70,15 +70,31 @@ export const anyFeatureGuard = (...features: TenantFeatureKey[]): CanActivateFn 
           : router.createUrlTree(['/organizations', organizationId, 'home'])),
     );
   };
+
+  // Stamped like featureGuard's, so the nav can hide a screen neither entitlement opens.
+  return Object.assign(guard, { featureKeys: features });
 };
 
 /** A `CanActivateFn` that declares which entitlement it gates. */
 export type FeatureCanActivateFn = CanActivateFn & { readonly featureKey: TenantFeatureKey };
 
-/** Reads the entitlement a route's guard gates, if any. Nothing but a test needs this. */
+/** An any-of `CanActivateFn` that declares the entitlements, any one of which opens its route. */
+export type AnyFeatureCanActivateFn = CanActivateFn & { readonly featureKeys: readonly TenantFeatureKey[] };
+
+/**
+ * Reads the entitlement a route's guard gates, if any. `NavigationCatalog` uses it to hide a screen
+ * whose entitlement is off, so the nav and the guard can never disagree.
+ */
 export function featureKeyOf(guard: unknown): TenantFeatureKey | null {
   return typeof guard === 'function' && 'featureKey' in guard
     ? ((guard as FeatureCanActivateFn).featureKey ?? null)
+    : null;
+}
+
+/** Reads an {@link anyFeatureGuard}'s entitlements, any one of which opens the route. */
+export function anyFeatureKeysOf(guard: unknown): readonly TenantFeatureKey[] | null {
+  return typeof guard === 'function' && 'featureKeys' in guard
+    ? ((guard as AnyFeatureCanActivateFn).featureKeys ?? null)
     : null;
 }
 
@@ -87,7 +103,7 @@ export function featureKeyOf(guard: unknown): TenantFeatureKey | null {
  * activated snapshot alone can miss it depending on where the guard is attached. Walking up is the
  * reliable read.
  */
-function organizationIdOf(route: ActivatedRouteSnapshot): string | null {
+export function organizationIdOf(route: ActivatedRouteSnapshot): string | null {
   for (let current: ActivatedRouteSnapshot | null = route; current; current = current.parent) {
     const id = current.paramMap.get('id');
     if (id) {

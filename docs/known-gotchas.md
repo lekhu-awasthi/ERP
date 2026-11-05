@@ -4837,3 +4837,21 @@ must be built from the same figure, or the Inventory account and the stock valua
 views). The consequence shows on a return: a debit note relieves FIFO's oldest layer, which may be another bill's with
 another bill's disallowed VAT in it, and Inventory Adjustment takes the difference. That is FIFO, not a leak; check
 Inventory plus Adjustment against the returned bill's own debit.
+
+## A nav derived from routes must derive their guards too (post-phase 99)
+
+Phase 34b built the left nav from `Router.config` so a new screen could never go missing, and read only each route's
+**path**. The guards on the same routes were ignored, so the nav, the screen half of search, the Quick Links picker,
+Create New and the Reports index offered every screen to every tenant and every role: a tenant that never chose Multiple
+Warehouses saw Warehouse Transfers (the guard bounced the click Home), and a restricted Member saw all ~140 screens
+(the page opened and showed 403s). Phase 20f had hidden those links on the dashboard and written down that the nav must
+agree with the gate; the derived nav dropped that silently, because a derivation keeps exactly what it reads.
+
+The fix reads the guards, not a second list: `featureGuard`, `anyFeatureGuard` and the new `permissionGuard` each stamp
+what they check, `screen-access.ts` is their one reader, and `NavigationCatalog.offeredEntries` filters by it. Each
+route names the key its page's **first read** requires (a detail route also its Create/Manage, for `.../new`), the
+grants come from `GET .../my-permissions` (organization-wide plus keys held at any location), and
+`screen-access.spec.ts` fails a route with no key. The client has no key list, so `RoutePermissionKeysTests` checks the
+strings against `PermissionKeyCatalog`: a misspelt key would hide the screen from everyone, Admin included.
+Entitlements fail closed (as `featureGuard`); grants fail open once the read fails, because hiding is usability and
+the server still refuses. `entries` stays unfiltered for page titles and History.

@@ -1,10 +1,12 @@
-import { provideZonelessChangeDetection } from '@angular/core';
+import { provideZonelessChangeDetection, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
 import { BehaviorSubject, of } from 'rxjs';
 
 import { GlobalSearchCollection, GlobalSearchHitDto } from '../../../core/platform/platform.models';
+import { MyPermissionsStore } from '../../../core/platform/my-permissions.store';
 import { PlatformService } from '../../../core/platform/platform.service';
+import { SubscriptionStore } from '../../../shared/platform/subscription.store';
 import { SearchResultsPage } from './search-results-page';
 
 interface SearchCall {
@@ -69,6 +71,9 @@ describe('SearchResultsPage', () => {
           { path: 'organizations/:id/contacts', children: [] },
         ]),
         { provide: PlatformService, useValue: platform },
+        // These routes declare no guard, so neither read can hide them; both are stubbed as unknown.
+        { provide: SubscriptionStore, useValue: { subscription: () => signal(null) } },
+        { provide: MyPermissionsStore, useValue: { granted: () => signal('unknown') } },
         {
           provide: ActivatedRoute,
           useValue: {

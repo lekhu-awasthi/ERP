@@ -14,7 +14,7 @@
 
     <app-status-banner [message]="errorMessage()" spacing="mb-2" [small]="true" />
 
-    @if (links().length === 0 && !editing()) {
+    @if (shown().length === 0 && !editing()) {
       <p class="text-muted small mb-0">No Quick Links yet. Use <strong>Edit Links</strong> to pin the screens you use most.</p>
     }
 
@@ -25,7 +25,7 @@
     }
 
     <div class="row g-2">
-      @for (link of links(); track link.url) {
+      @for (link of shown(); track link.url) {
         <div class="col-12 col-sm-6 col-lg-4">
           <!-- Phase 39 -- drag to reorder, the gesture phase 33 recorded as its carried item #2
                ("the reference product's tray is a sortable-container; ordering is fully persisted,

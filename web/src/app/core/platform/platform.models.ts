@@ -72,3 +72,14 @@ export const UserPreferenceKeys = {
   /** Phase 34b -- the top bar's global date range. See `shared/platform/date-range.service.ts`. */
   dateRange: 'date-range',
 } as const;
+
+/**
+ * The permission keys the signed-in user holds in one organization (`GET .../my-permissions`), so
+ * the shell can hide screens the server would refuse. A usability read only: the server still
+ * refuses anything not granted. `atSomeLocation` is keys held only at some billing locations
+ * (phase 32b), never repeated from `organizationWide`.
+ */
+export interface MyPermissionsDto {
+  organizationWide: string[];
+  atSomeLocation: string[];
+}

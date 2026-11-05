@@ -3,6 +3,7 @@ import { Routes } from '@angular/router';
 import { authGuard } from './core/auth/auth.guard';
 import { guestGuard } from './core/auth/guest.guard';
 import { anyFeatureGuard, featureGuard } from './core/organizations/feature.guard';
+import { permissionGuard } from './core/organizations/permission.guard';
 
 export const routes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'login' },
@@ -83,7 +84,7 @@ export const routes: Routes = [
       import('./features/configuration/general-settings-page/general-settings-page').then(
         (m) => m.GeneralSettingsPage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Configuration.GeneralSettings.Manage')],
   },
   {
     path: 'organizations/:id/configuration/credit-terms',
@@ -91,7 +92,7 @@ export const routes: Routes = [
       import('./features/configuration/credit-term-list-page/credit-term-list-page').then(
         (m) => m.CreditTermListPage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Configuration.CreditTerm.View')],
   },
   {
     path: 'organizations/:id/configuration/custom-statuses',
@@ -99,13 +100,13 @@ export const routes: Routes = [
       import('./features/configuration/custom-status-list-page/custom-status-list-page').then(
         (m) => m.CustomStatusListPage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Configuration.CustomStatus.View')],
   },
   {
     path: 'organizations/:id/configuration/cost-terms',
     loadComponent: () =>
       import('./features/configuration/cost-term-list-page/cost-term-list-page').then((m) => m.CostTermListPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Configuration.CostTerm.View')],
   },
   {
     // Phase 97 -- dated discounts a sale picks up by itself.
@@ -114,7 +115,7 @@ export const routes: Routes = [
       import('./features/configuration/discount-scheme-list-page/discount-scheme-list-page').then(
         (m) => m.DiscountSchemeListPage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Sales.DiscountScheme.View')],
   },
   {
     path: 'organizations/:id/configuration/payment-modes',
@@ -122,28 +123,28 @@ export const routes: Routes = [
       import('./features/configuration/payment-mode-list-page/payment-mode-list-page').then(
         (m) => m.PaymentModeListPage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Configuration.PaymentMode.View')],
   },
   {
     // Phase 60 -- POS configuration. Either POS entitlement opens it, as either opens the server side.
     path: 'organizations/:id/configuration/pos',
     loadComponent: () =>
       import('./features/configuration/pos-settings-page/pos-settings-page').then((m) => m.PosSettingsPage),
-    canActivate: [authGuard, anyFeatureGuard('PosRetail', 'PosRestaurant')],
+    canActivate: [authGuard, anyFeatureGuard('PosRetail', 'PosRestaurant'), permissionGuard('Pos.Settings.Manage')],
   },
   {
     // Phase 64 -- a Restaurant location's floor plan (areas and tables), reached from Point of Sale.
     path: 'organizations/:id/configuration/pos-floor-plan/:locationId',
     loadComponent: () =>
       import('./features/configuration/pos-floor-plan-page/pos-floor-plan-page').then((m) => m.PosFloorPlanPage),
-    canActivate: [authGuard, featureGuard('PosRestaurant')],
+    canActivate: [authGuard, featureGuard('PosRestaurant'), permissionGuard('Pos.FloorPlan.Manage')],
   },
   {
     // Phase 64 -- the kitchen stations (the vendor's Print Profiles) and the products each one cooks.
     path: 'organizations/:id/configuration/kitchen-stations',
     loadComponent: () =>
       import('./features/configuration/kitchen-stations-page/kitchen-stations-page').then((m) => m.KitchenStationsPage),
-    canActivate: [authGuard, featureGuard('PosRestaurant')],
+    canActivate: [authGuard, featureGuard('PosRestaurant'), permissionGuard('Pos.Settings.Manage')],
   },
   {
     // Phase 62 -- the till, a lazy full-screen route tree of its own (phase 59 Decision A). The shell
@@ -151,56 +152,56 @@ export const routes: Routes = [
     // chunk, so none of it reaches the initial bundle (build-budget.spec.ts).
     path: 'organizations/:id/pos',
     loadComponent: () => import('./features/pos/pos-launcher-page/pos-launcher-page').then((m) => m.PosLauncherPage),
-    canActivate: [authGuard, anyFeatureGuard('PosRetail', 'PosRestaurant')],
+    canActivate: [authGuard, anyFeatureGuard('PosRetail', 'PosRestaurant'), permissionGuard('Pos.Session.Operate', 'Pos.Session.ViewAll')],
   },
   {
     path: 'organizations/:id/pos/till/:locationId',
     loadComponent: () => import('./features/pos/pos-till-page/pos-till-page').then((m) => m.PosTillPage),
-    canActivate: [authGuard, anyFeatureGuard('PosRetail', 'PosRestaurant')],
+    canActivate: [authGuard, anyFeatureGuard('PosRetail', 'PosRestaurant'), permissionGuard('Pos.Session.Operate')],
   },
   {
     // Phase 63 -- refunds at the till: find a sale, choose what came back, pay it out of the drawer.
     // Its own lazy chunk, like the other till screens.
     path: 'organizations/:id/pos/refund/:locationId',
     loadComponent: () => import('./features/pos/pos-refund-page/pos-refund-page').then((m) => m.PosRefundPage),
-    canActivate: [authGuard, anyFeatureGuard('PosRetail', 'PosRestaurant')],
+    canActivate: [authGuard, anyFeatureGuard('PosRetail', 'PosRestaurant'), permissionGuard('Sales.CreditNote.Create')],
   },
   {
     // Also where a PosSession's GL rows drill down to (phase 61 section 5).
     path: 'organizations/:id/pos/sessions/:sessionId',
     loadComponent: () => import('./features/pos/pos-session-page/pos-session-page').then((m) => m.PosSessionPage),
-    canActivate: [authGuard, anyFeatureGuard('PosRetail', 'PosRestaurant')],
+    canActivate: [authGuard, anyFeatureGuard('PosRetail', 'PosRestaurant'), permissionGuard('Pos.Session.Operate')],
   },
   {
     // Phase 64 -- the restaurant till: its floor (Dine In tables, Take Away and Delivery lists) and one
     // order. Lazy like every till screen, and gated on the Restaurant entitlement alone.
     path: 'organizations/:id/pos/restaurant/:locationId',
     loadComponent: () => import('./features/pos/pos-floor-page/pos-floor-page').then((m) => m.PosFloorPage),
-    canActivate: [authGuard, featureGuard('PosRestaurant')],
+    canActivate: [authGuard, featureGuard('PosRestaurant'), permissionGuard('Pos.Order.Operate')],
   },
   {
     // Serves `new` (with ?locationId=&type=&tableId=) and an order's id from one component (phase 3).
     path: 'organizations/:id/pos/orders/:orderId',
     loadComponent: () => import('./features/pos/pos-order-page/pos-order-page').then((m) => m.PosOrderPage),
-    canActivate: [authGuard, featureGuard('PosRestaurant')],
+    canActivate: [authGuard, featureGuard('PosRestaurant'), permissionGuard('Pos.Order.Operate')],
   },
   {
     // Phase 65 -- billing an order: the split, the server's price for it, payment and the tax invoice.
     path: 'organizations/:id/pos/orders/:orderId/bill',
     loadComponent: () => import('./features/pos/pos-bill-page/pos-bill-page').then((m) => m.PosBillPage),
-    canActivate: [authGuard, featureGuard('PosRestaurant')],
+    canActivate: [authGuard, featureGuard('PosRestaurant'), permissionGuard('Pos.Order.Operate')],
   },
   {
     // Phase 65 -- the kitchen board (Pos.Kitchen.Operate): a location's tickets, polled while on screen.
     path: 'organizations/:id/pos/kitchen/:locationId',
     loadComponent: () => import('./features/pos/pos-kitchen-page/pos-kitchen-page').then((m) => m.PosKitchenPage),
-    canActivate: [authGuard, featureGuard('PosRestaurant')],
+    canActivate: [authGuard, featureGuard('PosRestaurant'), permissionGuard('Pos.Kitchen.Operate')],
   },
   {
     path: 'organizations/:id/configuration/banks',
     loadComponent: () =>
       import('./features/configuration/bank-list-page/bank-list-page').then((m) => m.BankListPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Configuration.Bank.View')],
   },
   {
     path: 'organizations/:id/configuration/opening-balances',
@@ -208,13 +209,13 @@ export const routes: Routes = [
       import('./features/configuration/opening-balances-page/opening-balances-page').then(
         (m) => m.OpeningBalancesPage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Accounting.OpeningBalance.View')],
   },
   {
     path: 'organizations/:id/configuration/tds-types',
     loadComponent: () =>
       import('./features/configuration/tds-type-list-page/tds-type-list-page').then((m) => m.TdsTypeListPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Configuration.TdsType.View')],
   },
   {
     path: 'organizations/:id/configuration/reporting-tags',
@@ -222,7 +223,7 @@ export const routes: Routes = [
       import('./features/configuration/reporting-tag-list-page/reporting-tag-list-page').then(
         (m) => m.ReportingTagListPage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Configuration.ReportingTagCategory.View')],
   },
   {
     path: 'organizations/:id/configuration/printing-templates',
@@ -230,7 +231,7 @@ export const routes: Routes = [
       import('./features/configuration/printing-template-list-page/printing-template-list-page').then(
         (m) => m.PrintingTemplateListPage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Configuration.PrintingTemplate.View')],
   },
   {
     path: 'organizations/:id/configuration/custom-templates',
@@ -238,7 +239,7 @@ export const routes: Routes = [
       import('./features/configuration/custom-template-list-page/custom-template-list-page').then(
         (m) => m.CustomTemplateListPage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Configuration.CustomTemplate.View')],
   },
   {
     path: 'organizations/:id/configuration/email-templates',
@@ -246,19 +247,19 @@ export const routes: Routes = [
       import('./features/configuration/email-template-list-page/email-template-list-page').then(
         (m) => m.EmailTemplateListPage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Configuration.EmailTemplate.View')],
   },
   {
     path: 'organizations/:id/configuration/alerts',
     loadComponent: () =>
       import('./features/configuration/alert-list-page/alert-list-page').then((m) => m.AlertListPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Configuration.AlertDefinition.View')],
   },
   {
     path: 'organizations/:id/configuration/import',
     loadComponent: () =>
       import('./features/configuration/import-page/import-page').then((m) => m.ImportPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Configuration.ImportJob.View', 'Configuration.ExportJob.View')],
   },
   {
     // Phase 21c -- a separate screen from Import / Export, matching the reference product's own
@@ -266,13 +267,13 @@ export const routes: Routes = [
     path: 'organizations/:id/configuration/migration',
     loadComponent: () =>
       import('./features/configuration/migration-page/migration-page').then((m) => m.MigrationPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Configuration.ImportJob.View')],
   },
   {
     path: 'organizations/:id/contacts',
     loadComponent: () =>
       import('./features/contacts/contact-list-page/contact-list-page').then((m) => m.ContactListPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Contacts.Contact.View')],
   },
   {
     path: 'organizations/:id/contacts/groups',
@@ -280,24 +281,24 @@ export const routes: Routes = [
       import('./features/contacts/contact-group-list-page/contact-group-list-page').then(
         (m) => m.ContactGroupListPage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Contacts.ContactGroup.View')],
   },
   {
     path: 'organizations/:id/contacts/:contactId',
     loadComponent: () =>
       import('./features/contacts/contact-detail-page/contact-detail-page').then((m) => m.ContactDetailPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Contacts.Contact.View', 'Contacts.Contact.Manage')],
   },
   {
     path: 'organizations/:id/sms',
     loadComponent: () => import('./features/crm/sms-shell-page/sms-shell-page').then((m) => m.SmsShellPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Crm.SmsTemplate.View', 'Crm.SmsCreditLedger.View', 'Crm.SmsLog.View')],
   },
   {
     path: 'organizations/:id/products',
     loadComponent: () =>
       import('./features/catalog/product-list-page/product-list-page').then((m) => m.ProductListPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Catalog.Product.View')],
   },
   {
     path: 'organizations/:id/products/categories',
@@ -305,7 +306,7 @@ export const routes: Routes = [
       import('./features/catalog/product-category-list-page/product-category-list-page').then(
         (m) => m.ProductCategoryListPage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Catalog.ProductCategory.View')],
   },
   {
     path: 'organizations/:id/products/units',
@@ -313,7 +314,7 @@ export const routes: Routes = [
       import('./features/catalog/unit-of-measurement-list-page/unit-of-measurement-list-page').then(
         (m) => m.UnitOfMeasurementListPage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Catalog.UnitOfMeasurement.View')],
   },
   {
     path: 'organizations/:id/products/variant-attributes',
@@ -321,13 +322,13 @@ export const routes: Routes = [
       import('./features/catalog/variant-attribute-list-page/variant-attribute-list-page').then(
         (m) => m.VariantAttributeListPage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Catalog.VariantAttribute.View')],
   },
   {
     path: 'organizations/:id/products/:productId',
     loadComponent: () =>
       import('./features/catalog/product-detail-page/product-detail-page').then((m) => m.ProductDetailPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Catalog.Product.View', 'Catalog.Product.Manage')],
   },
   {
     path: 'organizations/:id/accounting/account-groups',
@@ -335,13 +336,13 @@ export const routes: Routes = [
       import('./features/accounting/account-group-list-page/account-group-list-page').then(
         (m) => m.AccountGroupListPage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Accounting.AccountGroup.View')],
   },
   {
     path: 'organizations/:id/accounting/accounts',
     loadComponent: () =>
       import('./features/accounting/account-list-page/account-list-page').then((m) => m.AccountListPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Accounting.Account.View')],
   },
   {
     path: 'organizations/:id/accounting/journal-vouchers',
@@ -349,7 +350,7 @@ export const routes: Routes = [
       import('./features/accounting/journal-voucher-list-page/journal-voucher-list-page').then(
         (m) => m.JournalVoucherListPage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Accounting.JournalVoucher.View')],
   },
   {
     path: 'organizations/:id/accounting/journal-vouchers/:journalVoucherId',
@@ -357,7 +358,7 @@ export const routes: Routes = [
       import('./features/accounting/journal-voucher-detail-page/journal-voucher-detail-page').then(
         (m) => m.JournalVoucherDetailPage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Accounting.JournalVoucher.View', 'Accounting.JournalVoucher.Create')],
   },
   {
     path: 'organizations/:id/accounting/cash-transfers',
@@ -365,7 +366,7 @@ export const routes: Routes = [
       import('./features/accounting/cash-transfer-list-page/cash-transfer-list-page').then(
         (m) => m.CashTransferListPage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Accounting.CashTransfer.View')],
   },
   {
     path: 'organizations/:id/accounting/cash-transfers/:cashTransferId',
@@ -373,7 +374,7 @@ export const routes: Routes = [
       import('./features/accounting/cash-transfer-detail-page/cash-transfer-detail-page').then(
         (m) => m.CashTransferDetailPage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Accounting.CashTransfer.View', 'Accounting.CashTransfer.Create')],
   },
   {
     path: 'organizations/:id/accounting/bank-accounts',
@@ -381,7 +382,7 @@ export const routes: Routes = [
       import('./features/accounting/bank-account-list-page/bank-account-list-page').then(
         (m) => m.BankAccountListPage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Accounting.BankAccount.View')],
   },
   {
     // Phase 55 -- one account's imported bank statement. The account is in the path, exactly as
@@ -393,7 +394,7 @@ export const routes: Routes = [
       import('./features/accounting/bank-statement-page/bank-statement-page').then(
         (m) => m.BankStatementPage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Accounting.BankStatement.View')],
   },
   {
     // Phase 56 -- this tenant's own side of the same account. The reference product calls it
@@ -403,7 +404,7 @@ export const routes: Routes = [
       import('./features/accounting/book-statement-page/book-statement-page').then(
         (m) => m.BookStatementPage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Accounting.BankStatement.View')],
   },
   {
     // The two-pane matcher (.../manual-reconcile in the reference product). The account is in the
@@ -414,7 +415,7 @@ export const routes: Routes = [
       import('./features/accounting/bank-reconcile-page/bank-reconcile-page').then(
         (m) => m.BankReconcilePage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Accounting.BankStatement.View')],
   },
   {
     path: 'organizations/:id/accounting/bank-accounts/:accountId/reconciliation-report',
@@ -422,7 +423,7 @@ export const routes: Routes = [
       import(
         './features/accounting/bank-reconciliation-report-page/bank-reconciliation-report-page'
       ).then((m) => m.BankReconciliationReportPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Accounting.BankStatement.View')],
   },
   {
     // One reconciliation, reached from a Status badge on either list. A page rather than the
@@ -432,13 +433,13 @@ export const routes: Routes = [
       import(
         './features/accounting/bank-reconciliation-detail-page/bank-reconciliation-detail-page'
       ).then((m) => m.BankReconciliationDetailPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Accounting.BankStatement.View')],
   },
   {
     path: 'organizations/:id/accounting/cheque-register',
     loadComponent: () =>
       import('./features/accounting/cheque-register-page/cheque-register-page').then((m) => m.ChequeRegisterPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Accounting.Cheque.View')],
   },
   {
     path: 'organizations/:id/accounting/defaults',
@@ -446,7 +447,7 @@ export const routes: Routes = [
       import('./features/accounting/accounting-defaults-page/accounting-defaults-page').then(
         (m) => m.AccountingDefaultsPage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Configuration.AccountingDefaults.Manage')],
   },
   {
     // Phase 39 -- Organization Profile: the details the printed header prints, and the logo it
@@ -458,7 +459,7 @@ export const routes: Routes = [
       import('./features/organizations/search-results-page/search-results-page').then(
         (m) => m.SearchResultsPage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Platform.GlobalSearch.View')],
   },
   {
     // Phase 39 -- the search results page above closes phase 33's carried item #4, now that 34c has
@@ -469,13 +470,13 @@ export const routes: Routes = [
       import('./features/organizations/organization-profile-page/organization-profile-page').then(
         (m) => m.OrganizationProfilePage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Tenancy.Organization.ProfileView')],
   },
   {
     path: 'organizations/:id/lock-date',
     loadComponent: () =>
       import('./features/organizations/lock-date-page/lock-date-page').then((m) => m.LockDatePage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Tenancy.Organization.LockDateManage')],
   },
   {
     // Phase 20f (FR-2.6) -- read-only plan + Accounting Features state.
@@ -484,7 +485,7 @@ export const routes: Routes = [
       import('./features/organizations/subscription-features-page/subscription-features-page').then(
         (m) => m.SubscriptionFeaturesPage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Tenancy.Subscription.View')],
   },
   {
     // Phase 36 -- deliberately NOT featureGuard('MultipleWarehouses'), unlike the currencies and
@@ -498,7 +499,7 @@ export const routes: Routes = [
     path: 'organizations/:id/warehouses',
     loadComponent: () =>
       import('./features/organizations/warehouse-list-page/warehouse-list-page').then((m) => m.WarehouseListPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Tenancy.Warehouse.View')],
   },
   {
     // Phase 28 -- the client half of the MultiCurrency cap. The server's real enforcement is a cap
@@ -508,7 +509,7 @@ export const routes: Routes = [
     path: 'organizations/:id/currencies',
     loadComponent: () =>
       import('./features/organizations/currency-list-page/currency-list-page').then((m) => m.CurrencyListPage),
-    canActivate: [authGuard, featureGuard('MultiCurrency')],
+    canActivate: [authGuard, featureGuard('MultiCurrency'), permissionGuard('Tenancy.Currency.View')],
   },
   {
     // Phase 32 -- the client half of the MultipleLocations cap, the same call the two routes above
@@ -520,31 +521,31 @@ export const routes: Routes = [
       import('./features/organizations/billing-location-list-page/billing-location-list-page').then(
         (m) => m.BillingLocationListPage,
       ),
-    canActivate: [authGuard, featureGuard('MultipleLocations')],
+    canActivate: [authGuard, featureGuard('MultipleLocations'), permissionGuard('Tenancy.BillingLocation.View')],
   },
   {
     path: 'organizations/:id/sales/quotations',
     loadComponent: () =>
       import('./features/sales/quotation-list-page/quotation-list-page').then((m) => m.QuotationListPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Sales.Quotation.View')],
   },
   {
     path: 'organizations/:id/sales/quotations/:quotationId',
     loadComponent: () =>
       import('./features/sales/quotation-detail-page/quotation-detail-page').then((m) => m.QuotationDetailPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Sales.Quotation.View', 'Sales.Quotation.Create')],
   },
   {
     path: 'organizations/:id/sales/sales-orders',
     loadComponent: () =>
       import('./features/sales/sales-order-list-page/sales-order-list-page').then((m) => m.SalesOrderListPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Sales.SalesOrder.View')],
   },
   {
     path: 'organizations/:id/sales/sales-orders/:salesOrderId',
     loadComponent: () =>
       import('./features/sales/sales-order-detail-page/sales-order-detail-page').then((m) => m.SalesOrderDetailPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Sales.SalesOrder.View', 'Sales.SalesOrder.Create')],
   },
   // Phase 58 -- the Delivery Note, between Sales Orders and Invoice exactly where the live nav puts
   // it. Always routed and always in the nav, whatever the tenant's Mode of Inventory Tracking: the
@@ -555,37 +556,37 @@ export const routes: Routes = [
     path: 'organizations/:id/sales/delivery-notes',
     loadComponent: () =>
       import('./features/sales/delivery-note-list-page/delivery-note-list-page').then((m) => m.DeliveryNoteListPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Sales.DeliveryNote.View')],
   },
   {
     path: 'organizations/:id/sales/delivery-notes/:deliveryNoteId',
     loadComponent: () =>
       import('./features/sales/delivery-note-detail-page/delivery-note-detail-page').then((m) => m.DeliveryNoteDetailPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Sales.DeliveryNote.View', 'Sales.DeliveryNote.Create')],
   },
   {
     path: 'organizations/:id/sales/invoices',
     loadComponent: () =>
       import('./features/sales/invoice-list-page/invoice-list-page').then((m) => m.InvoiceListPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Sales.Invoice.View')],
   },
   {
     path: 'organizations/:id/sales/invoices/:invoiceId',
     loadComponent: () =>
       import('./features/sales/invoice-detail-page/invoice-detail-page').then((m) => m.InvoiceDetailPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Sales.Invoice.View', 'Sales.Invoice.Create')],
   },
   {
     path: 'organizations/:id/sales/credit-notes',
     loadComponent: () =>
       import('./features/sales/credit-note-list-page/credit-note-list-page').then((m) => m.CreditNoteListPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Sales.CreditNote.View')],
   },
   {
     path: 'organizations/:id/sales/credit-notes/:creditNoteId',
     loadComponent: () =>
       import('./features/sales/credit-note-detail-page/credit-note-detail-page').then((m) => m.CreditNoteDetailPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Sales.CreditNote.View', 'Sales.CreditNote.Create')],
   },
   {
     // Phase 64 -- the back office's view of every restaurant order (phase 49: a divergence owes a
@@ -593,54 +594,54 @@ export const routes: Routes = [
     path: 'organizations/:id/sales/pos-orders',
     loadComponent: () =>
       import('./features/sales/pos-order-list-page/pos-order-list-page').then((m) => m.PosOrderListPage),
-    canActivate: [authGuard, featureGuard('PosRestaurant')],
+    canActivate: [authGuard, featureGuard('PosRestaurant'), permissionGuard('Pos.Order.View')],
   },
   {
     // Phase 66 -- every drawer opened in a period (Pos.Session.ViewAll), beside POS Orders.
     path: 'organizations/:id/sales/pos-sessions',
     loadComponent: () =>
       import('./features/sales/pos-session-list-page/pos-session-list-page').then((m) => m.PosSessionListPage),
-    canActivate: [authGuard, anyFeatureGuard('PosRetail', 'PosRestaurant')],
+    canActivate: [authGuard, anyFeatureGuard('PosRetail', 'PosRestaurant'), permissionGuard('Pos.Session.ViewAll')],
   },
   {
     path: 'organizations/:id/payments',
     loadComponent: () =>
       import('./features/sales/payment-list-page/payment-list-page').then((m) => m.PaymentListPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Payments.Payment.View')],
   },
   {
     path: 'organizations/:id/payments/:paymentId',
     loadComponent: () =>
       import('./features/sales/payment-detail-page/payment-detail-page').then((m) => m.PaymentDetailPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Payments.Payment.View', 'Payments.Payment.Create')],
   },
   {
     path: 'organizations/:id/quick-payment',
     loadComponent: () =>
       import('./features/payments/quick-payment-page/quick-payment-page').then((m) => m.QuickPaymentPage),
     data: { direction: 'Paid' },
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Payments.Payment.Create')],
   },
   {
     path: 'organizations/:id/quick-receipt',
     loadComponent: () =>
       import('./features/payments/quick-payment-page/quick-payment-page').then((m) => m.QuickPaymentPage),
     data: { direction: 'Received' },
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Payments.Payment.Create')],
   },
   {
     path: 'organizations/:id/allocate-customer-payment',
     loadComponent: () =>
       import('./features/payments/allocate-payment-page/allocate-payment-page').then((m) => m.AllocatePaymentPage),
     data: { direction: 'Received' },
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Payments.Payment.Edit')],
   },
   {
     path: 'organizations/:id/allocate-supplier-payment',
     loadComponent: () =>
       import('./features/payments/allocate-payment-page/allocate-payment-page').then((m) => m.AllocatePaymentPage),
     data: { direction: 'Paid' },
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Payments.Payment.Edit')],
   },
   {
     path: 'organizations/:id/purchasing/purchase-orders',
@@ -648,7 +649,7 @@ export const routes: Routes = [
       import('./features/purchasing/purchase-order-list-page/purchase-order-list-page').then(
         (m) => m.PurchaseOrderListPage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Purchasing.PurchaseOrder.View')],
   },
   {
     path: 'organizations/:id/purchasing/purchase-orders/:purchaseOrderId',
@@ -656,7 +657,7 @@ export const routes: Routes = [
       import('./features/purchasing/purchase-order-detail-page/purchase-order-detail-page').then(
         (m) => m.PurchaseOrderDetailPage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Purchasing.PurchaseOrder.View', 'Purchasing.PurchaseOrder.Create')],
   },
   // Phase 58 -- the Goods Received Note, between Purchase Order and Purchase Bills as the live nav
   // orders it. Same always-routed decision as the Delivery Note above.
@@ -666,7 +667,7 @@ export const routes: Routes = [
       import('./features/purchasing/goods-received-note-list-page/goods-received-note-list-page').then(
         (m) => m.GoodsReceivedNoteListPage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Purchasing.GoodsReceivedNote.View')],
   },
   {
     path: 'organizations/:id/purchasing/goods-received-notes/:goodsReceivedNoteId',
@@ -674,7 +675,7 @@ export const routes: Routes = [
       import('./features/purchasing/goods-received-note-detail-page/goods-received-note-detail-page').then(
         (m) => m.GoodsReceivedNoteDetailPage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Purchasing.GoodsReceivedNote.View', 'Purchasing.GoodsReceivedNote.Create')],
   },
   {
     path: 'organizations/:id/purchasing/purchase-bills',
@@ -682,7 +683,7 @@ export const routes: Routes = [
       import('./features/purchasing/purchase-bill-list-page/purchase-bill-list-page').then(
         (m) => m.PurchaseBillListPage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Purchasing.PurchaseBill.View')],
   },
   {
     path: 'organizations/:id/purchasing/purchase-bills/:purchaseBillId',
@@ -690,25 +691,25 @@ export const routes: Routes = [
       import('./features/purchasing/purchase-bill-detail-page/purchase-bill-detail-page').then(
         (m) => m.PurchaseBillDetailPage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Purchasing.PurchaseBill.View', 'Purchasing.PurchaseBill.Create')],
   },
   {
     path: 'organizations/:id/purchasing/expenses',
     loadComponent: () =>
       import('./features/purchasing/expense-list-page/expense-list-page').then((m) => m.ExpenseListPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Purchasing.Expense.View')],
   },
   {
     path: 'organizations/:id/purchasing/expenses/:expenseId',
     loadComponent: () =>
       import('./features/purchasing/expense-detail-page/expense-detail-page').then((m) => m.ExpenseDetailPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Purchasing.Expense.View', 'Purchasing.Expense.Create')],
   },
   {
     path: 'organizations/:id/purchasing/debit-notes',
     loadComponent: () =>
       import('./features/purchasing/debit-note-list-page/debit-note-list-page').then((m) => m.DebitNoteListPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Purchasing.DebitNote.View')],
   },
   {
     path: 'organizations/:id/purchasing/debit-notes/:debitNoteId',
@@ -716,7 +717,7 @@ export const routes: Routes = [
       import('./features/purchasing/debit-note-detail-page/debit-note-detail-page').then(
         (m) => m.DebitNoteDetailPage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Purchasing.DebitNote.View', 'Purchasing.DebitNote.Create')],
   },
   {
     path: 'organizations/:id/purchasing/supplier-payments',
@@ -724,7 +725,7 @@ export const routes: Routes = [
       import('./features/purchasing/supplier-payment-list-page/supplier-payment-list-page').then(
         (m) => m.SupplierPaymentListPage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Payments.Payment.View')],
   },
   {
     path: 'organizations/:id/purchasing/supplier-payments/:supplierPaymentId',
@@ -732,7 +733,7 @@ export const routes: Routes = [
       import('./features/purchasing/supplier-payment-detail-page/supplier-payment-detail-page').then(
         (m) => m.SupplierPaymentDetailPage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Payments.Payment.View', 'Payments.Payment.Create')],
   },
   {
     path: 'organizations/:id/inventory/warehouse-transfers',
@@ -740,7 +741,7 @@ export const routes: Routes = [
       import('./features/inventory/warehouse-transfer-list-page/warehouse-transfer-list-page').then(
         (m) => m.WarehouseTransferListPage,
       ),
-    canActivate: [authGuard, featureGuard('TrackInventory'), featureGuard('MultipleWarehouses')],
+    canActivate: [authGuard, featureGuard('TrackInventory'), featureGuard('MultipleWarehouses'), permissionGuard('Inventory.WarehouseTransfer.View')],
   },
   {
     path: 'organizations/:id/inventory/warehouse-transfers/:warehouseTransferId',
@@ -748,7 +749,7 @@ export const routes: Routes = [
       import('./features/inventory/warehouse-transfer-detail-page/warehouse-transfer-detail-page').then(
         (m) => m.WarehouseTransferDetailPage,
       ),
-    canActivate: [authGuard, featureGuard('TrackInventory'), featureGuard('MultipleWarehouses')],
+    canActivate: [authGuard, featureGuard('TrackInventory'), featureGuard('MultipleWarehouses'), permissionGuard('Inventory.WarehouseTransfer.View', 'Inventory.WarehouseTransfer.Create')],
   },
   {
     path: 'organizations/:id/inventory/inventory-adjustments',
@@ -756,7 +757,7 @@ export const routes: Routes = [
       import('./features/inventory/inventory-adjustment-list-page/inventory-adjustment-list-page').then(
         (m) => m.InventoryAdjustmentListPage,
       ),
-    canActivate: [authGuard, featureGuard('TrackInventory')],
+    canActivate: [authGuard, featureGuard('TrackInventory'), permissionGuard('Inventory.InventoryAdjustment.View')],
   },
   {
     path: 'organizations/:id/inventory/inventory-adjustments/:inventoryAdjustmentId',
@@ -764,31 +765,31 @@ export const routes: Routes = [
       import('./features/inventory/inventory-adjustment-detail-page/inventory-adjustment-detail-page').then(
         (m) => m.InventoryAdjustmentDetailPage,
       ),
-    canActivate: [authGuard, featureGuard('TrackInventory')],
+    canActivate: [authGuard, featureGuard('TrackInventory'), permissionGuard('Inventory.InventoryAdjustment.View', 'Inventory.InventoryAdjustment.Create')],
   },
   {
     path: 'organizations/:id/inventory/stock-position',
     loadComponent: () =>
       import('./features/inventory/stock-position-page/stock-position-page').then((m) => m.StockPositionPage),
-    canActivate: [authGuard, featureGuard('TrackInventory')],
+    canActivate: [authGuard, featureGuard('TrackInventory'), permissionGuard('Inventory.InventoryLedger.View')],
   },
   {
     path: 'organizations/:id/inventory/ledger',
     loadComponent: () =>
       import('./features/inventory/inventory-ledger-page/inventory-ledger-page').then((m) => m.InventoryLedgerPage),
-    canActivate: [authGuard, featureGuard('TrackInventory')],
+    canActivate: [authGuard, featureGuard('TrackInventory'), permissionGuard('Inventory.InventoryLedger.View')],
   },
   {
     path: 'organizations/:id/manufacturing/bills-of-materials',
     loadComponent: () =>
       import('./features/manufacturing/bom-list-page/bom-list-page').then((m) => m.BomListPage),
-    canActivate: [authGuard, featureGuard('Manufacturing')],
+    canActivate: [authGuard, featureGuard('Manufacturing'), permissionGuard('Manufacturing.BillOfMaterials.View')],
   },
   {
     path: 'organizations/:id/manufacturing/bills-of-materials/:bomId',
     loadComponent: () =>
       import('./features/manufacturing/bom-detail-page/bom-detail-page').then((m) => m.BomDetailPage),
-    canActivate: [authGuard, featureGuard('Manufacturing')],
+    canActivate: [authGuard, featureGuard('Manufacturing'), permissionGuard('Manufacturing.BillOfMaterials.View', 'Manufacturing.BillOfMaterials.Manage')],
   },
   {
     path: 'organizations/:id/manufacturing/production-orders',
@@ -796,7 +797,7 @@ export const routes: Routes = [
       import('./features/manufacturing/production-order-list-page/production-order-list-page').then(
         (m) => m.ProductionOrderListPage,
       ),
-    canActivate: [authGuard, featureGuard('Manufacturing')],
+    canActivate: [authGuard, featureGuard('Manufacturing'), permissionGuard('Manufacturing.ProductionOrder.View')],
   },
   {
     path: 'organizations/:id/manufacturing/production-orders/:productionOrderId',
@@ -804,7 +805,7 @@ export const routes: Routes = [
       import('./features/manufacturing/production-order-detail-page/production-order-detail-page').then(
         (m) => m.ProductionOrderDetailPage,
       ),
-    canActivate: [authGuard, featureGuard('Manufacturing')],
+    canActivate: [authGuard, featureGuard('Manufacturing'), permissionGuard('Manufacturing.ProductionOrder.View', 'Manufacturing.ProductionOrder.Create')],
   },
   {
     path: 'organizations/:id/manufacturing/production-journals',
@@ -812,7 +813,7 @@ export const routes: Routes = [
       import('./features/manufacturing/production-journal-list-page/production-journal-list-page').then(
         (m) => m.ProductionJournalListPage,
       ),
-    canActivate: [authGuard, featureGuard('Manufacturing')],
+    canActivate: [authGuard, featureGuard('Manufacturing'), permissionGuard('Manufacturing.ProductionJournal.View')],
   },
   {
     path: 'organizations/:id/manufacturing/production-journals/:productionJournalId',
@@ -820,13 +821,13 @@ export const routes: Routes = [
       import('./features/manufacturing/production-journal-detail-page/production-journal-detail-page').then(
         (m) => m.ProductionJournalDetailPage,
       ),
-    canActivate: [authGuard, featureGuard('Manufacturing')],
+    canActivate: [authGuard, featureGuard('Manufacturing'), permissionGuard('Manufacturing.ProductionJournal.View', 'Manufacturing.ProductionJournal.Create')],
   },
   {
     path: 'organizations/:id/reports/production-summary',
     loadComponent: () =>
       import('./features/reports/production-summary-page/production-summary-page').then((m) => m.ProductionSummaryPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Manufacturing.ProductionReport.View')],
   },
   {
     path: 'organizations/:id/reports/production-variance',
@@ -834,7 +835,7 @@ export const routes: Routes = [
       import('./features/reports/production-variance-page/production-variance-page').then(
         (m) => m.ProductionVariancePage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Manufacturing.ProductionReport.View')],
   },
   {
     path: 'organizations/:id/reports/production-planning',
@@ -842,7 +843,7 @@ export const routes: Routes = [
       import('./features/reports/production-planning-page/production-planning-page').then(
         (m) => m.ProductionPlanningPage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Manufacturing.ProductionReport.View')],
   },
   {
     // Phase 34b -- the Reports catalogue. The left nav renders Reports as a single leaf (52 routes
@@ -856,19 +857,19 @@ export const routes: Routes = [
     path: 'organizations/:id/reports/trial-balance',
     loadComponent: () =>
       import('./features/reports/trial-balance-page/trial-balance-page').then((m) => m.TrialBalancePage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Reports.TrialBalance.View')],
   },
   {
     path: 'organizations/:id/reports/balance-sheet',
     loadComponent: () =>
       import('./features/reports/balance-sheet-page/balance-sheet-page').then((m) => m.BalanceSheetPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Reports.BalanceSheet.View')],
   },
   {
     path: 'organizations/:id/reports/income-statement',
     loadComponent: () =>
       import('./features/reports/income-statement-page/income-statement-page').then((m) => m.IncomeStatementPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Reports.IncomeStatement.View')],
   },
   {
     path: 'organizations/:id/reports/sales-master-report',
@@ -876,7 +877,7 @@ export const routes: Routes = [
       import('./features/reports/sales-master-report-page/sales-master-report-page').then(
         (m) => m.SalesMasterReportPage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Reports.SalesMasterReport.View')],
   },
   {
     path: 'organizations/:id/reports/purchase-master-report',
@@ -884,7 +885,7 @@ export const routes: Routes = [
       import('./features/reports/purchase-master-report-page/purchase-master-report-page').then(
         (m) => m.PurchaseMasterReportPage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Reports.PurchaseMasterReport.View')],
   },
   {
     path: 'organizations/:id/reports/vat-summary',
@@ -892,13 +893,13 @@ export const routes: Routes = [
       import('./features/reports/vat-summary-report-page/vat-summary-report-page').then(
         (m) => m.VatSummaryReportPage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Reports.VatSummary.View')],
   },
   {
     path: 'organizations/:id/reports/tds-report',
     loadComponent: () =>
       import('./features/reports/tds-report-page/tds-report-page').then((m) => m.TdsReportPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Reports.TdsReport.View')],
   },
   {
     path: 'organizations/:id/reports/annex-thirteen',
@@ -906,7 +907,7 @@ export const routes: Routes = [
       import('./features/reports/annex-thirteen-report-page/annex-thirteen-report-page').then(
         (m) => m.AnnexThirteenReportPage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Reports.AnnexThirteen.View')],
   },
   {
     path: 'organizations/:id/reports/annex-five',
@@ -914,7 +915,7 @@ export const routes: Routes = [
       import('./features/reports/annex-five-report-page/annex-five-report-page').then(
         (m) => m.AnnexFiveReportPage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Reports.AnnexFive.View')],
   },
   {
     path: 'organizations/:id/reports/customer-ageing-summary',
@@ -922,7 +923,7 @@ export const routes: Routes = [
       import('./features/reports/customer-ageing-summary-page/customer-ageing-summary-page').then(
         (m) => m.CustomerAgeingSummaryPage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Reports.CustomerAgeingSummary.View')],
   },
   {
     path: 'organizations/:id/reports/supplier-ageing-summary',
@@ -930,7 +931,7 @@ export const routes: Routes = [
       import('./features/reports/supplier-ageing-summary-page/supplier-ageing-summary-page').then(
         (m) => m.SupplierAgeingSummaryPage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Reports.SupplierAgeingSummary.View')],
   },
   {
     path: 'organizations/:id/reports/customer-statement',
@@ -938,7 +939,7 @@ export const routes: Routes = [
       import('./features/reports/customer-statement-page/customer-statement-page').then(
         (m) => m.CustomerStatementPage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Reports.CustomerStatement.View')],
   },
   {
     path: 'organizations/:id/reports/supplier-statement',
@@ -946,7 +947,7 @@ export const routes: Routes = [
       import('./features/reports/supplier-statement-page/supplier-statement-page').then(
         (m) => m.SupplierStatementPage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Reports.SupplierStatement.View')],
   },
   {
     // Phase 26b -- Reports > Receivable / Payable / Sales Report / Purchase Report. The five
@@ -955,79 +956,79 @@ export const routes: Routes = [
     path: 'organizations/:id/reports/customer-receivable-summary',
     loadComponent: () =>
       import('./features/reports/customer-receivable-summary-page/customer-receivable-summary-page').then((m) => m.CustomerReceivableSummaryPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Reports.CustomerReceivableSummary.View')],
   },
   {
     path: 'organizations/:id/reports/supplier-payable-summary',
     loadComponent: () =>
       import('./features/reports/supplier-payable-summary-page/supplier-payable-summary-page').then((m) => m.SupplierPayableSummaryPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Reports.SupplierPayableSummary.View')],
   },
   {
     path: 'organizations/:id/reports/invoice-age',
     loadComponent: () =>
       import('./features/reports/invoice-age-page/invoice-age-page').then((m) => m.InvoiceAgePage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Reports.InvoiceAge.View')],
   },
   {
     path: 'organizations/:id/reports/purchase-bill-age',
     loadComponent: () =>
       import('./features/reports/purchase-bill-age-page/purchase-bill-age-page').then((m) => m.PurchaseBillAgePage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Reports.PurchaseBillAge.View')],
   },
   {
     path: 'organizations/:id/reports/sales-by-customer',
     loadComponent: () =>
       import('./features/reports/sales-by-customer-page/sales-by-customer-page').then((m) => m.SalesByCustomerPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Reports.SalesByCustomer.View')],
   },
   {
     path: 'organizations/:id/reports/purchase-by-supplier',
     loadComponent: () =>
       import('./features/reports/purchase-by-supplier-page/purchase-by-supplier-page').then((m) => m.PurchaseBySupplierPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Reports.PurchaseBySupplier.View')],
   },
   {
     path: 'organizations/:id/reports/sales-by-item',
     loadComponent: () =>
       import('./features/reports/sales-by-item-page/sales-by-item-page').then((m) => m.SalesByItemPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Reports.SalesByItem.View')],
   },
   {
     path: 'organizations/:id/reports/purchase-by-item',
     loadComponent: () =>
       import('./features/reports/purchase-by-item-page/purchase-by-item-page').then((m) => m.PurchaseByItemPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Reports.PurchaseByItem.View')],
   },
   {
     path: 'organizations/:id/reports/sales-by-customer-monthly',
     loadComponent: () =>
       import('./features/reports/sales-by-customer-monthly-page/sales-by-customer-monthly-page').then((m) => m.SalesByCustomerMonthlyPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Reports.SalesByCustomerMonthly.View')],
   },
   {
     path: 'organizations/:id/reports/purchase-by-supplier-monthly',
     loadComponent: () =>
       import('./features/reports/purchase-by-supplier-monthly-page/purchase-by-supplier-monthly-page').then((m) => m.PurchaseBySupplierMonthlyPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Reports.PurchaseBySupplierMonthly.View')],
   },
   {
     path: 'organizations/:id/reports/sales-by-item-monthly',
     loadComponent: () =>
       import('./features/reports/sales-by-item-monthly-page/sales-by-item-monthly-page').then((m) => m.SalesByItemMonthlyPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Reports.SalesByItemMonthly.View')],
   },
   {
     path: 'organizations/:id/reports/purchase-by-item-monthly',
     loadComponent: () =>
       import('./features/reports/purchase-by-item-monthly-page/purchase-by-item-monthly-page').then((m) => m.PurchaseByItemMonthlyPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Reports.PurchaseByItemMonthly.View')],
   },
   {
     path: 'organizations/:id/reports/sales-summary',
     loadComponent: () =>
       import('./features/reports/sales-summary-report-page/sales-summary-report-page').then((m) => m.SalesSummaryReportPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Reports.SalesSummaryReport.View')],
   },
   {
     // Phase 66 -- the POS reports. Product/Customer Sales, Sales Master, Sales Summary and POS activity
@@ -1035,19 +1036,19 @@ export const routes: Routes = [
     path: 'organizations/:id/reports/pos-day-report',
     loadComponent: () =>
       import('./features/reports/pos-day-report-page/pos-day-report-page').then((m) => m.PosDayReportPage),
-    canActivate: [authGuard, anyFeatureGuard('PosRetail', 'PosRestaurant')],
+    canActivate: [authGuard, anyFeatureGuard('PosRetail', 'PosRestaurant'), permissionGuard('Pos.Session.ViewAll')],
   },
   {
     path: 'organizations/:id/reports/pos-payment-summary',
     loadComponent: () =>
       import('./features/reports/pos-payment-summary-page/pos-payment-summary-page').then((m) => m.PosPaymentSummaryPage),
-    canActivate: [authGuard, anyFeatureGuard('PosRetail', 'PosRestaurant')],
+    canActivate: [authGuard, anyFeatureGuard('PosRetail', 'PosRestaurant'), permissionGuard('Reports.PosPaymentSummary.View')],
   },
   {
     path: 'organizations/:id/reports/pos-order-report',
     loadComponent: () =>
       import('./features/reports/pos-order-report-page/pos-order-report-page').then((m) => m.PosOrderReportPage),
-    canActivate: [authGuard, featureGuard('PosRestaurant')],
+    canActivate: [authGuard, featureGuard('PosRestaurant'), permissionGuard('Pos.Order.View')],
   },
   {
     // Phase 26a -- Reports > Accounting. Journal report / Detail GL / GL Master are Admin-only;
@@ -1055,7 +1056,7 @@ export const routes: Routes = [
     path: 'organizations/:id/reports/journal-report',
     loadComponent: () =>
       import('./features/reports/journal-report-page/journal-report-page').then((m) => m.JournalReportPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Reports.JournalReport.View')],
   },
   {
     path: 'organizations/:id/reports/general-ledger-summary',
@@ -1063,7 +1064,7 @@ export const routes: Routes = [
       import('./features/reports/general-ledger-summary-page/general-ledger-summary-page').then(
         (m) => m.GeneralLedgerSummaryPage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Reports.GeneralLedgerSummary.View')],
   },
   {
     path: 'organizations/:id/reports/detail-general-ledger',
@@ -1071,7 +1072,7 @@ export const routes: Routes = [
       import('./features/reports/detail-general-ledger-page/detail-general-ledger-page').then(
         (m) => m.DetailGeneralLedgerPage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Reports.DetailGeneralLedger.View')],
   },
   {
     path: 'organizations/:id/reports/general-ledger-master',
@@ -1079,7 +1080,7 @@ export const routes: Routes = [
       import('./features/reports/general-ledger-master-page/general-ledger-master-page').then(
         (m) => m.GeneralLedgerMasterPage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Reports.GeneralLedgerMaster.View')],
   },
   {
     // Phase 26a -- Reports > Accounting > Transaction list, Admin-only.
@@ -1088,7 +1089,7 @@ export const routes: Routes = [
       import('./features/reports/transaction-list-page/transaction-list-page').then(
         (m) => m.TransactionListPage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Reports.TransactionList.View')],
   },
   {
     path: 'organizations/:id/reports/system-audit',
@@ -1096,7 +1097,7 @@ export const routes: Routes = [
       import('./features/reports/system-audit-report-page/system-audit-report-page').then(
         (m) => m.SystemAuditReportPage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Reports.SystemAudit.View')],
   },
   {
     path: 'organizations/:id/reports/cash-flow-summary',
@@ -1104,13 +1105,13 @@ export const routes: Routes = [
       import('./features/reports/cash-flow-summary-page/cash-flow-summary-page').then(
         (m) => m.CashFlowSummaryPage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Reports.CashFlowSummary.View')],
   },
   {
     path: 'organizations/:id/reports/sales-register',
     loadComponent: () =>
       import('./features/reports/sales-register-page/sales-register-page').then((m) => m.SalesRegisterPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Reports.SalesRegister.View')],
   },
   {
     // Phase 21c -- FR-9.4's migrated variants. Separate routes and separate components from the
@@ -1120,7 +1121,7 @@ export const routes: Routes = [
       import('./features/reports/migrated-sales-register-page/migrated-sales-register-page').then(
         (m) => m.MigratedSalesRegisterPage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Reports.MigratedSalesRegister.View')],
   },
   {
     path: 'organizations/:id/reports/migrated-purchase-register',
@@ -1128,7 +1129,7 @@ export const routes: Routes = [
       import('./features/reports/migrated-purchase-register-page/migrated-purchase-register-page').then(
         (m) => m.MigratedPurchaseRegisterPage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Reports.MigratedPurchaseRegister.View')],
   },
   {
     path: 'organizations/:id/reports/purchase-register',
@@ -1136,13 +1137,13 @@ export const routes: Routes = [
       import('./features/reports/purchase-register-page/purchase-register-page').then(
         (m) => m.PurchaseRegisterPage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Reports.PurchaseRegister.View')],
   },
   {
     path: 'organizations/:id/reports/stock-ageing',
     loadComponent: () =>
       import('./features/reports/stock-ageing-page/stock-ageing-page').then((m) => m.StockAgeingPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Reports.StockAgeing.View')],
   },
   {
     path: 'organizations/:id/reports/product-profitability',
@@ -1150,13 +1151,13 @@ export const routes: Routes = [
       import('./features/reports/product-profitability-page/product-profitability-page').then(
         (m) => m.ProductProfitabilityPage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Reports.ProductProfitability.View')],
   },
   {
     path: 'organizations/:id/reports/ratio-analysis',
     loadComponent: () =>
       import('./features/reports/ratio-analysis-page/ratio-analysis-page').then((m) => m.RatioAnalysisPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Reports.RatioAnalysis.View')],
   },
 
   // ---- Phase 26c: Inventory, Tax, System and Analytics report catalogue ----
@@ -1164,31 +1165,31 @@ export const routes: Routes = [
     path: 'organizations/:id/reports/sales-return-register',
     loadComponent: () =>
       import('./features/reports/sales-return-register-page/sales-return-register-page').then((m) => m.SalesReturnRegisterPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Reports.SalesReturnRegister.View')],
   },
   {
     path: 'organizations/:id/reports/purchase-return-register',
     loadComponent: () =>
       import('./features/reports/purchase-return-register-page/purchase-return-register-page').then((m) => m.PurchaseReturnRegisterPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Reports.PurchaseReturnRegister.View')],
   },
   {
     path: 'organizations/:id/reports/product-batch',
     loadComponent: () =>
       import('./features/reports/product-batch-report-page/product-batch-report-page').then((m) => m.ProductBatchReportPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Reports.ProductBatch.View')],
   },
   {
     path: 'organizations/:id/reports/product-serial',
     loadComponent: () =>
       import('./features/reports/product-serial-report-page/product-serial-report-page').then((m) => m.ProductSerialReportPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Reports.ProductSerial.View')],
   },
   {
     path: 'organizations/:id/reports/inventory-position',
     loadComponent: () =>
       import('./features/reports/inventory-position-page/inventory-position-page').then((m) => m.InventoryPositionPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Reports.InventoryPosition.View')],
   },
   {
     // Phase 58 -- Book (accounting ledger) against Actual (physical ledger). Opens in both modes;
@@ -1196,43 +1197,43 @@ export const routes: Routes = [
     path: 'organizations/:id/reports/inventory-variance',
     loadComponent: () =>
       import('./features/reports/inventory-variance-page/inventory-variance-page').then((m) => m.InventoryVariancePage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Reports.InventoryVariance.View')],
   },
   {
     path: 'organizations/:id/reports/inventory-movement',
     loadComponent: () =>
       import('./features/reports/inventory-movement-page/inventory-movement-page').then((m) => m.InventoryMovementPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Reports.InventoryMovement.View')],
   },
   {
     path: 'organizations/:id/reports/inventory-ledger',
     loadComponent: () =>
       import('./features/reports/inventory-ledger-report-page/inventory-ledger-report-page').then((m) => m.InventoryLedgerReportPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Reports.InventoryLedgerReport.View')],
   },
   {
     path: 'organizations/:id/reports/inventory-master',
     loadComponent: () =>
       import('./features/reports/inventory-master-report-page/inventory-master-report-page').then((m) => m.InventoryMasterReportPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Reports.InventoryMaster.View')],
   },
   {
     path: 'organizations/:id/reports/net-trading-assets',
     loadComponent: () =>
       import('./features/reports/net-trading-assets-page/net-trading-assets-page').then((m) => m.NetTradingAssetsPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Reports.NetTradingAssets.View')],
   },
   {
     path: 'organizations/:id/reports/exceptional-report',
     loadComponent: () =>
       import('./features/reports/exceptional-report-page/exceptional-report-page').then((m) => m.ExceptionalReportPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Reports.ExceptionalReport.View')],
   },
   {
     path: 'organizations/:id/reports/user-log',
     loadComponent: () =>
       import('./features/reports/user-log-page/user-log-page').then((m) => m.UserLogPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Reports.UserLog.View')],
   },
   {
     // Phase 39 -- CRM > Deals and Workflow > Tasks as routes of their own, closing phase 34b's
@@ -1241,7 +1242,7 @@ export const routes: Routes = [
     path: 'organizations/:id/crm/deals',
     loadComponent: () =>
       import('./features/crm/deal-list-page/deal-list-page').then((m) => m.DealListPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Crm.Deal.View')],
   },
   {
     // Phase 43 (39 carried item #1) -- the Deal detail page. Declared before the Tasks list so
@@ -1249,7 +1250,7 @@ export const routes: Routes = [
     path: 'organizations/:id/crm/deals/:dealId',
     loadComponent: () =>
       import('./features/crm/deal-detail-page/deal-detail-page').then((m) => m.DealDetailPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Crm.Deal.View', 'Crm.Deal.Manage')],
   },
   {
     // Phase 48 (43 carried item #4) -- editing a Deal. Both update commands have existed since
@@ -1259,32 +1260,32 @@ export const routes: Routes = [
     path: 'organizations/:id/crm/deals/:dealId/edit',
     loadComponent: () =>
       import('./features/crm/deal-edit-page/deal-edit-page').then((m) => m.DealEditPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Crm.Deal.Manage')],
   },
   {
     path: 'organizations/:id/workflow/tasks',
     loadComponent: () =>
       import('./features/workflow/task-list-page/task-list-page').then((m) => m.TaskListPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Workflow.Task.View')],
   },
   {
     path: 'organizations/:id/workflow/tasks/:taskId',
     loadComponent: () =>
       import('./features/workflow/task-detail-page/task-detail-page').then((m) => m.TaskDetailPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Workflow.Task.View', 'Workflow.Task.Manage')],
   },
   {
     // Phase 48 -- editing a Task. See the Deal edit route above.
     path: 'organizations/:id/workflow/tasks/:taskId/edit',
     loadComponent: () =>
       import('./features/workflow/task-edit-page/task-edit-page').then((m) => m.TaskEditPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Workflow.Task.Manage')],
   },
   {
     path: 'organizations/:id/workflow/document-inbox',
     loadComponent: () =>
       import('./features/workflow/document-inbox-page/document-inbox-page').then((m) => m.DocumentInboxPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Workflow.InboxDocument.View')],
   },
   {
     path: 'organizations/:id/workflow/transaction-approval-queue',
@@ -1292,12 +1293,12 @@ export const routes: Routes = [
       import('./features/workflow/transaction-approval-queue-page/transaction-approval-queue-page').then(
         (m) => m.TransactionApprovalQueuePage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Workflow.TransactionApproval.View')],
   },
   {
     path: 'organizations/:id/roles',
     loadComponent: () => import('./features/tenancy/role-list-page/role-list-page').then((m) => m.RoleListPage),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Tenancy.Role.View')],
   },
   {
     path: 'organizations/:id/roles/:roleId/permissions',
@@ -1305,6 +1306,6 @@ export const routes: Routes = [
       import('./features/tenancy/role-permission-matrix-page/role-permission-matrix-page').then(
         (m) => m.RolePermissionMatrixPage,
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard('Tenancy.Role.View')],
   },
 ];

@@ -1,11 +1,13 @@
-import { provideZonelessChangeDetection } from '@angular/core';
+import { provideZonelessChangeDetection, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 
+import { MyPermissionsStore } from '../../core/platform/my-permissions.store';
 import { PlatformService } from '../../core/platform/platform.service';
 import { QuickLinkDto } from '../../core/platform/platform.models';
 import { QuickLinks } from './quick-links';
+import { SubscriptionStore } from './subscription.store';
 
 /**
  * Phase 39 — drag to reorder, closing phase 33's carried item #2.
@@ -47,6 +49,10 @@ describe('QuickLinks reorder', () => {
         provideZonelessChangeDetection(),
         provideRouter([]),
         { provide: PlatformService, useValue: platform },
+        // The tray's reorder is not about which screens are offered; the shell's two reads are
+        // stubbed as "not known", which hides nothing that declares no requirement.
+        { provide: SubscriptionStore, useValue: { subscription: () => signal(null) } },
+        { provide: MyPermissionsStore, useValue: { granted: () => signal('unknown') } },
       ],
     }).compileComponents();
 

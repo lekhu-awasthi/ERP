@@ -89,7 +89,7 @@ export class SearchResultsPage {
    * narrowed to Contacts is not asking about screens.
    */
   protected readonly screens = computed(() =>
-    this.kind() === null ? this.catalog.search(this.term(), 12) : [],
+    this.kind() === null ? this.catalog.search(this.organizationId, this.term(), 12) : [],
   );
 
   protected readonly isEmpty = computed(

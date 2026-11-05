@@ -1,7 +1,10 @@
 import { Injectable, computed, inject } from '@angular/core';
 import { Route, Router } from '@angular/router';
 
+import { MyPermissionsStore } from '../../core/platform/my-permissions.store';
 import { QuickLinkDto, QuickLinkKind } from '../../core/platform/platform.models';
+import { SubscriptionStore } from '../platform/subscription.store';
+import { NO_REQUIREMENT, ScreenRequirement, isOffered, requirementOf } from './screen-access';
 
 /**
  * Phase 33 — every screen in the app, as a navigable target.
@@ -28,22 +31,67 @@ import { QuickLinkDto, QuickLinkKind } from '../../core/platform/platform.models
 @Injectable({ providedIn: 'root' })
 export class NavigationCatalog {
   private readonly router = inject(Router);
+  private readonly subscriptions = inject(SubscriptionStore);
+  private readonly permissions = inject(MyPermissionsStore);
 
   /**
-   * Every navigable screen, ordered by area then name. Computed once — the route config does not
-   * change at runtime.
+   * Every screen in the app, ordered by area then name, whoever is asking. Computed once — the route
+   * config does not change at runtime. The page-title strategy and History read this; anything that
+   * *offers* a screen to the user reads {@link offeredEntries} instead.
    */
   readonly entries = computed<QuickLinkDto[]>(() => buildCatalog(this.router.config));
 
-  /** The catalogue filtered to a search term, matched on the screen name and its area. */
-  search(term: string, limit: number): QuickLinkDto[] {
+  /** What each entry's route guards check, by catalogue url. */
+  private readonly requirements = computed(() => buildRequirements(this.router.config));
+
+  /**
+   * Entries that declare nothing of their own but have screens beneath them — the Reports index and
+   * the Configuration shell. A hub is offered only while something under it is: a user granted no
+   * report is not shown an empty Reports page.
+   */
+  private readonly hubs = computed(() => {
+    const entries = this.entries();
+    const requirements = this.requirements();
+
+    return new Set(
+      entries
+        .filter((e) => isUnrequired(requirements.get(e.url)))
+        .filter((e) => entries.some((other) => other.url.startsWith(`${e.url}/`)))
+        .map((e) => e.url),
+    );
+  });
+
+  /**
+   * The screens this organization's entitlements and this user's grants open — what the left nav,
+   * global search, Quick Links, Create New and the Reports index offer. Reactive: read it inside a
+   * `computed()` and the caller follows the subscription and the grants as they load or change.
+   */
+  offeredEntries(organizationId: string): QuickLinkDto[] {
+    const subscription = this.subscriptions.subscription(organizationId)();
+    const granted = this.permissions.granted(organizationId)();
+    const requirements = this.requirements();
+    const hubs = this.hubs();
+
+    const offered = this.entries().filter((e) =>
+      isOffered(requirements.get(e.url) ?? NO_REQUIREMENT, subscription, granted));
+
+    return offered.filter((e) => !hubs.has(e.url) || offered.some((o) => o.url.startsWith(`${e.url}/`)));
+  }
+
+  /** Whether {@link offeredEntries} includes `url`. A url naming no screen is not offered. */
+  isOffered(organizationId: string, url: string): boolean {
+    return this.offeredEntries(organizationId).some((x) => x.url === url);
+  }
+
+  /** The offered screens filtered to a search term, matched on the screen name and its area. */
+  search(organizationId: string, term: string, limit: number): QuickLinkDto[] {
     const needle = term.trim().toLowerCase();
 
     if (needle.length === 0) {
       return [];
     }
 
-    return this.entries()
+    return this.offeredEntries(organizationId)
       .filter((x) => x.name.toLowerCase().includes(needle) || x.area.toLowerCase().includes(needle))
       .slice(0, limit);
   }
@@ -170,6 +218,61 @@ export function buildCatalog(routes: readonly Route[]): QuickLinkDto[] {
   }
 
   return entries.sort((a, b) => a.area.localeCompare(b.area) || a.name.localeCompare(b.name));
+}
+
+/**
+ * What each catalogue entry's route guards check, keyed by the entry's url — the second half of
+ * {@link buildCatalog}, walking the same routes.
+ *
+ * An Add entry (`<list>/new`) is served by the list's detail route, so it needs that route's
+ * entitlements and the key that *creates*: the detail route's keys other than the list's own View
+ * key (its Create or Manage). A user who may read invoices but not raise one is not offered
+ * "Add Invoice".
+ */
+export function buildRequirements(routes: readonly Route[]): Map<string, ScreenRequirement> {
+  const byPath = new Map<string, ScreenRequirement>();
+
+  for (const route of routes) {
+    const path = route.path ?? '';
+
+    if (path.startsWith(ORG_PREFIX)) {
+      byPath.set(path.slice(ORG_PREFIX.length), requirementOf(route));
+    }
+  }
+
+  const requirements = new Map<string, ScreenRequirement>();
+
+  for (const [path, list] of byPath) {
+    if (path.includes(':') || path in EXCLUDED_PATHS) {
+      continue;
+    }
+
+    requirements.set(`/${path}`, list);
+
+    // The detail route is `<path>/:someId` with nothing after it (phase-3's `new` is that id).
+    const detail = [...byPath].find(
+      ([candidate]) => candidate.startsWith(`${path}/:`) && !candidate.slice(path.length + 2).includes('/'),
+    )?.[1];
+
+    if (detail) {
+      const creating = detail.permissions.filter((key) => !list.permissions.includes(key));
+
+      requirements.set(`/${path}/new`, {
+        features: [...list.features, ...detail.features],
+        permissions: creating.length > 0 ? creating : list.permissions,
+      });
+    } else if ([...byPath.keys()].some((d) => d.includes(':') && d.startsWith(`${path}/:`))) {
+      // A sibling route under `:id` that is not a plain detail (a bank account's statement): the
+      // catalogue still emits an Add row for it, which is the list's own screen to judge.
+      requirements.set(`/${path}/new`, list);
+    }
+  }
+
+  return requirements;
+}
+
+function isUnrequired(requirement: ScreenRequirement | undefined): boolean {
+  return !requirement || (requirement.features.length === 0 && requirement.permissions.length === 0);
 }
 
 function entry(path: string, kind: QuickLinkKind, url: string, name?: string): QuickLinkDto {

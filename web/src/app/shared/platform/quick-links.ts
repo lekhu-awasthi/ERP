@@ -49,12 +49,23 @@ export class QuickLinks implements OnInit {
    */
   protected readonly pickerTerm = signal('');
 
+  /**
+   * The tray as rendered. Outside editing, a pinned screen this user can no longer open (a role or
+   * plan changed since it was pinned) is left out rather than offered and refused. While editing it
+   * stays, so it can still be removed, and it is never dropped from the saved list by being hidden.
+   */
+  protected readonly shown = computed(() =>
+    this.editing()
+      ? this.links()
+      : this.links().filter((x) => this.catalog.isOffered(this.organizationId(), x.url)),
+  );
+
   protected readonly available = computed(() => {
     const taken = new Set(this.links().map((x) => x.url));
     const term = this.pickerTerm().trim().toLowerCase();
 
     return this.catalog
-      .entries()
+      .offeredEntries(this.organizationId())
       .filter((x) => !taken.has(x.url))
       .filter(
         (x) =>

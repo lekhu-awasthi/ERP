@@ -1,5 +1,7 @@
-import { Component, ElementRef, HostListener, inject, input, signal } from '@angular/core';
+import { Component, ElementRef, HostListener, computed, inject, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+
+import { NavigationCatalog } from '../navigation/navigation-catalog';
 
 /**
  * Phase 34b — the global quick-create flyout, pinned above the left nav exactly as the reference
@@ -33,9 +35,20 @@ export class CreateNewFlyout {
   readonly organizationId = input.required<string>();
 
   private readonly host = inject(ElementRef<HTMLElement>);
+  private readonly catalog = inject(NavigationCatalog);
 
   protected readonly open = signal(false);
-  protected readonly columns = CREATE_NEW_COLUMNS;
+
+  /**
+   * Only the forms this tenant and user can open: a link is kept when the catalogue offers its url
+   * (an Add entry needs the type's Create or Manage key), and a column left empty is dropped.
+   */
+  protected readonly columns = computed(() =>
+    CREATE_NEW_COLUMNS.map((column) => ({
+      heading: column.heading,
+      links: column.links.filter((link) => this.catalog.isOffered(this.organizationId(), link.url)),
+    })).filter((column) => column.links.length > 0),
+  );
 
   protected toggle(): void {
     this.open.update((x) => !x);

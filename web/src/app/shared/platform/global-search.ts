@@ -67,7 +67,7 @@ export class GlobalSearch {
       return [];
     }
 
-    const screens: ResultRow[] = this.catalog.search(term, GlobalSearch.NavigationLimit).map((x) => ({
+    const screens: ResultRow[] = this.catalog.search(this.organizationId(), term, GlobalSearch.NavigationLimit).map((x) => ({
       label: x.kind === 'Add' ? x.name : x.name,
       description: x.area,
       kindBadge: x.kind === 'Add' ? 'New' : 'Screen',

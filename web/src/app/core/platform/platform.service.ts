@@ -3,7 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
-import { GlobalSearchCollection, GlobalSearchHitDto, UserPreferenceDto } from './platform.models';
+import { GlobalSearchCollection, GlobalSearchHitDto, MyPermissionsDto, UserPreferenceDto } from './platform.models';
 
 @Injectable({ providedIn: 'root' })
 export class PlatformService {
@@ -43,6 +43,13 @@ export class PlatformService {
 
     return this.http.get<GlobalSearchHitDto[]>(`${this.baseUrl(organizationId)}/search`, {
       params: new HttpParams({ fromObject: params }),
+      withCredentials: true,
+    });
+  }
+
+  /** The keys the signed-in user holds here -- read by `MyPermissionsStore`, nothing else. */
+  getMyPermissions(organizationId: string): Observable<MyPermissionsDto> {
+    return this.http.get<MyPermissionsDto>(`${this.baseUrl(organizationId)}/my-permissions`, {
       withCredentials: true,
     });
   }

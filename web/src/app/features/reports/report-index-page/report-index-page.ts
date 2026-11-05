@@ -37,7 +37,10 @@ export class ReportIndexPage {
    */
   protected readonly filter = signal('');
 
-  private readonly categories = computed(() => buildReportIndex(this.catalog.entries()));
+  // Only the reports this tenant and user can open -- the same filter the left nav applies.
+  private readonly categories = computed(() =>
+    buildReportIndex(this.catalog.offeredEntries(this.organizationId)),
+  );
 
   protected readonly totalCount = computed(() =>
     this.categories().reduce((sum, group) => sum + group.reports.length, 0),

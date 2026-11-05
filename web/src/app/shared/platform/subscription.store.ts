@@ -5,6 +5,7 @@ import {
   SetTenantSubscriptionRequest,
   TenantSubscription,
 } from '../../core/organizations/organizations.models';
+import { clearFeatureGuardCache } from '../../core/organizations/feature.guard';
 import { OrganizationsService } from '../../core/organizations/organizations.service';
 
 /**
@@ -47,7 +48,14 @@ export class SubscriptionStore {
   save(organizationId: string, request: SetTenantSubscriptionRequest): Observable<TenantSubscription> {
     return this.organizationsService
       .setSubscription(organizationId, request)
-      .pipe(tap((result) => untracked(() => this.store(organizationId).set(result))));
+      .pipe(
+        tap((result) => {
+          untracked(() => this.store(organizationId).set(result));
+          // The nav reads this store and the route guards read their own cached copy; drop that copy
+          // so a feature just switched off is refused by its guard as well as hidden from the nav.
+          clearFeatureGuardCache();
+        }),
+      );
   }
 
   /** Re-reads from the server. For a screen that has reason to believe usage has moved. */

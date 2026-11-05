@@ -174,6 +174,31 @@ public static class GrantedPermissionReader
     }
 
     /// <summary>
+    /// Every key this user holds at <b>at least one</b> billing location through a location-scoped
+    /// grant. For the shell's "is this screen worth offering" question only (<c>GetMyPermissionsQuery</c>):
+    /// it says nothing about <i>which</i> location, so it must never answer an authorization question.
+    /// </summary>
+    public static async Task<IReadOnlySet<string>> LocationGrantedKeysAsync(
+        IAppDbContext db,
+        Guid organizationId,
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        var keys = await (
+            from membership in db.OrganizationMemberships
+            where membership.OrganizationId == organizationId
+                  && membership.UserId == userId
+                  && membership.Status == MembershipStatus.Accepted
+            join rolePermission in db.RolePermissions
+                on membership.RoleId equals rolePermission.RoleId
+            where rolePermission.IsGranted && rolePermission.LocationId != null
+            select rolePermission.PermissionKey
+        ).Distinct().ToListAsync(cancellationToken);
+
+        return keys.ToHashSet(StringComparer.Ordinal);
+    }
+
+    /// <summary>
     /// Phase 32b -- every billing location at which this user holds <b>any</b> location-scoped grant.
     /// This is what "the locations they have access to" means for
     /// <c>TenantSettings.LocationWiseReportPermission</c>; see

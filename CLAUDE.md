@@ -474,6 +474,7 @@ Local SQL Server connection string, `Jwt:SigningKey`, and `Email:*` (SMTP) are a
 - An `effect()` cannot tell "the write already being acted on" from "a write needing action" — if the handler that wrote the signal already schedules the response, an effect over it is a race (phase-34b).
 - Never put `overflow` on a layout container without asking what is anchored inside it; the rail's `overflow: hidden` clipped a 46rem flyout to 240px, silently (phase-34b, phase-22's gotcha in a second container).
 - Deriving beats listing for a **catalogue** (a missing nav entry is an unreachable screen); listing beats deriving for a **curated tray** (deriving loses the curation that is the feature). Guard both the same way — every url must resolve to a real route (phase-34b).
+- …and a catalogue derived from routes must read their **guards** too: the nav offered every screen to every role and plan until `permissionGuard` stamped keys `screen-access.ts` reads (post-99).
 - A live region announces on content change, so a region created already holding its text says nothing; render `app-status-banner` unconditionally (phase-40).
 - `role="alert"` on unconditional page furniture is the reverse error: it fires on page load and interrupts whatever is being read (phase-40).
 - Bootstrap's `:focus-visible` ring measures 1.21–2.53:1 against the 3:1 rule; one opaque `#0a58ca` outline at `outline-offset: 2px` is right for every variant (phase-40).
@@ -624,9 +625,10 @@ Rule 41 posted as cost at approval, the shared part worked out on the VAT return
 **Still open:** Rule 40(5)'s officer-directed method and an automatic post of the shared part (both left out by the
 user's choice), free goods in a scheme, and the "Outside this sequence" list in the roadmap.
 
-Tests: Domain **1070**, Application.UnitTests **1925**, Infrastructure.UnitTests 14,
-Api.IntegrationTests 80, Angular **938**. Everything was green at phase 99's close with Docker up.
-The bundle sits at **656.23 kB** against `build-budget.spec.ts`'s 680 kB; every POS screen is lazy.
+Tests: Domain **1070**, Application.UnitTests **1936**, Infrastructure.UnitTests 14,
+Api.IntegrationTests 80, Angular **959**. Everything was green at phase 99's close with Docker up.
+The bundle sits at **667.02 kB** against `build-budget.spec.ts`'s 680 kB (the route table's 167 `permissionGuard`s
+added ~10.5 kB after phase 99); every POS screen is lazy.
 
 - `Api.IntegrationTests` needs Docker Desktop running. Without it the Testcontainers-backed tests
   fail in their constructors with `DockerEndpointAuthConfig` before any assertion, which reads like
